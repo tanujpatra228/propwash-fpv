@@ -77,7 +77,7 @@ Players open one URL (`https://propwash-fpv.<account>.workers.dev`) and the game
 
 ## Out of scope
 
-Worker API routes, D1 and Durable Objects (Phase 3–4). Custom domain.
+Worker API routes, D1 and Durable Objects (Phase 4–5). Custom domain.
 
 ## Changelog
 

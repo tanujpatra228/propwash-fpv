@@ -11,7 +11,7 @@ Fly laps of Valley Sprint against the clock. Your best lap is saved in the brows
 
 ## Player experience
 
-Choose Time trial. The drone hovers behind the start gate. 3, 2, 1, GO. The clock starts when you fly through the start gate. Fly through all 12 gates in order; the next one is always marked. At each gate a split shows whether you are ahead (green) or behind (red) your best. Finish the lap and the time appears; if it's your best, "New best lap" flashes and the ghost updates. The ghost replays your best lap starting at the same moment as your current lap. Keep flying laps as long as you like.
+Choose Time trial. The drone hovers behind the start gate. 3, 2, 1, GO. The clock starts when you fly through the start gate. Fly through all 12 gates in order; the next one is always marked. At each gate a split shows whether you are ahead (green) or behind (red) your best. Finish the lap and the time appears; if it's your best, "New best lap" flashes and the ghost updates. The ghost replays your best lap starting at the same moment as your current lap. You get one battery per run: keep flying laps until it runs out, then the run summary shows your laps and best time.
 
 ## Behavior and rules
 
@@ -19,7 +19,8 @@ Choose Time trial. The drone hovers behind the start gate. 3, 2, 1, GO. The cloc
 - **Lap timing:** the timer for lap 1 starts when the drone crosses gate 0 after GO (flying start). Each later lap starts the moment the previous one ends.
 - **Gates:** must be passed in order (see track-and-gates). Missing a gate means you must go back for it; the lap only ends at gate 0 after gate 11.
 - **Splits:** time at each gate compared to the same gate in the best lap. Shown for 2 s.
-- **Reset (R) or crash:** respawn at the last passed gate; the lap timer keeps running.
+- **Reset (R) or crash:** respawn at the last passed gate; the lap timer keeps running; the battery is not refilled.
+- **Battery:** one full battery per run (see battery-system). Countdown doesn't drain. When the battery empties, the run ends: "Battery empty · n laps · best m:ss.ss". A lap in progress doesn't count. Restart from the summary for a fresh battery.
 - **Best lap:** lowest completed lap time. Saved with its ghost.
 - **Exit:** P or "Exit to menu" ends the session; the best lap stays saved.
 
@@ -42,7 +43,7 @@ Choose Time trial. The drone hovers behind the start gate. 3, 2, 1, GO. The cloc
 - `src/drone/ghost.ts` (pure): `GhostRecorder` (`record(timeS, pos, quat)`, `finish()`), `GhostTrack` (`sample(timeS, outPos, outQuat)`), `encodeGhost`/`decodeGhost`.
 - `src/game/modes/time-trial.ts`: wires countdown, lap tracker, recorder, ghost playback, storage, HUD state.
 - Storage through `core/storage.ts`.
-- This format will be reused unchanged for online ghosts in Phase 3 (Cloudflare D1).
+- This format will be reused unchanged for online ghosts in Phase 4 (Cloudflare D1).
 
 ## Edge cases
 
@@ -73,7 +74,7 @@ Choose Time trial. The drone hovers behind the start gate. 3, 2, 1, GO. The cloc
 
 ## Out of scope
 
-Online leaderboard and friends' ghosts (Phase 3). Multiple tracks (Phase 5).
+Online leaderboard and friends' ghosts (Phase 4). Multiple tracks (Phase 6).
 
 ## Changelog
 

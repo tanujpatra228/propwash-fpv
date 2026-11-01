@@ -18,6 +18,7 @@ Choose Free flight. The drone sits on the landing pad in the pit area. A short h
 - **Start:** on the pad, landed (height 0.0 m), facing along the start straight. No countdown.
 - **Gates:** still glow; passing them in order updates the gate counter and the respawn point, but no timing.
 - **Respawn:** last passed gate, or the pad if none passed yet.
+- **Battery:** drains as normal (see battery-system). Land on the pad and hold still for 2 s to swap in a fresh battery. If it empties, the drone falls and respawns on the pad with a fresh battery. Settings can turn battery drain off for free flight.
 - **Area:** the whole valley. Above 150 m height or beyond 900 m from the centre, static rises to full and a "Signal lost, turn back" warning shows; after 3 s the drone respawns.
 - **Exit:** P or "Exit to menu".
 
@@ -25,7 +26,7 @@ Choose Free flight. The drone sits on the landing pad in the pit area. A short h
 
 - Mode tag (top left): "Free flight", hint "Fly anywhere. Click the view to steer with the mouse."
 - Gate counter shown; race panel hidden.
-- Height gauge, help bar, minimap, flight menu as usual.
+- Height gauge, battery gauge, help bar, minimap, flight menu as usual.
 
 ## Technical design
 
@@ -56,7 +57,7 @@ Choose Free flight. The drone sits on the landing pad in the pit area. A short h
 
 ## Out of scope
 
-Friends flying in the same world (Phase 4). Training lessons (Phase 2).
+Friends flying in the same world (Phase 5). Training lessons (Phase 2).
 
 ## Changelog
 

@@ -36,6 +36,7 @@ A loading screen ("Building the valley…") fades into the menu. Behind the titl
 
   - Live frame-rate readout ("Running at about 58 frames per second on this device").
   - Saved in `localStorage` key `pw.quality.v1`.
+  - **Battery drain in free flight:** On (default) / Off (see battery-system). Saved in `pw.freeBattery.v1`.
 - **Pause / exit:** in flight, P or "Exit to menu" returns here; pointer lock is released.
 - Keyboard: buttons are focusable and work with Enter/Space.
 

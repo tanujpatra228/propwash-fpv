@@ -27,7 +27,8 @@ Values in `config.ts` → `AUDIO`.
 | Smoothing | Parameter changes ramp over 40–100 ms |
 | Default | Off. Browsers only allow audio after a user action, so the first press of M creates the audio |
 
-- Muted outside flight. The on/off choice is saved (`pw.sound.v1`) and re-enabled on the first click in a later session.
+- Muted outside flight, and fades out over 0.3 s when the battery empties and the motors cut (wind noise continues while falling).
+- The on/off choice is saved (`pw.sound.v1`) and re-enabled on the first click in a later session.
 
 ## Technical design
 

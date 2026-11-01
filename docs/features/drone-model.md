@@ -24,7 +24,7 @@ A recognizable FPV racing quad: carbon X-frame, colored canopy, front camera til
 ## Technical design
 
 - `src/drone/drone-model.ts`:
-  - `createDroneModel(options: { color: number; ghost?: boolean }): DroneModel`
+  - `createDroneModel(options: { color: number; ghost?: boolean; propBlades?: 2 | 3 | 4 | 5 }): DroneModel` (Phase 1 always uses 3 blades; the option exists so Phase 3 parts need no rewrite)
   - `DroneModel`: `group: Group`, `setColor(color)`, `spinProps(throttle01, dt)`, `dispose()`.
 - Prop blade, motor and frame geometries are created once at module level and shared by every drone.
 - Colors and scale come from `config.ts` (`DRONE.scale`, `DRONE.colors`).
@@ -51,7 +51,7 @@ A recognizable FPV racing quad: carbon X-frame, colored canopy, front camera til
 
 ## Out of scope
 
-Hangar, multiple drone types, paint selection UI (Phase 5). Blender model (Phase 2).
+Hangar and 2–5 blade prop meshes (drone-parts-and-upgrades, Phase 3). Multiple drone types and paint shop (Phase 6). Blender model (Phase 2).
 
 ## Changelog
 

@@ -1,7 +1,7 @@
 # Feature: <Name>
 
 Status: Planned | In progress | Done
-Phase: <1–5>
+Phase: <1–6>
 Branch: `feat/<name>`
 Last updated: YYYY-MM-DD
 

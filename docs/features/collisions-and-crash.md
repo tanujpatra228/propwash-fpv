@@ -31,6 +31,8 @@ Values in `config.ts` → `COLLISION`.
 
 Crash reasons: "Hit the ground", "Splashed into the lake", "Hit a gate", "Hit the factory", "Hit a container", "Hit a tree".
 
+**Battery empty** is not a crash reason by itself: the motors cut and the drone falls (see battery-system). Touching the ground or water afterwards (or 3 s passing) ends the time-trial run or respawns on the pad in free flight, using the "Battery empty" banner instead of "Crashed".
+
 ## Technical design
 
 - `src/physics/colliders.ts`:

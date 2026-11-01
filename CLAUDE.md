@@ -32,6 +32,9 @@ Each feature gets its own file in `docs/features/`, written from the template be
 | Free flight | [free-flight.md](docs/features/free-flight.md) | 1 | Planned |
 | Main menu and settings | [main-menu-and-settings.md](docs/features/main-menu-and-settings.md) | 1 | Planned |
 | Motor sound | [motor-sound.md](docs/features/motor-sound.md) | 1 | Planned |
+| Battery system | [battery-system.md](docs/features/battery-system.md) | 1 | Planned |
+| Drone parts and upgrades | [drone-parts-and-upgrades.md](docs/features/drone-parts-and-upgrades.md) | 3 | Planned |
+| Battery Challenge | [battery-challenge.md](docs/features/battery-challenge.md) | 3 | Planned |
 
 ## Working rules (summary; details in the standards)
 

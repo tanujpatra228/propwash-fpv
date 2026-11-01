@@ -26,9 +26,9 @@ We only use the **Cloudflare free plan**. No paid plan, no paid add-ons, no feat
 | Product | Use in Propwash | Free limits to respect |
 |---|---|---|
 | Workers static assets | Serve the game (HTML, JS, textures, models) | Asset requests are free and unlimited; max 25 MiB per file; max 20,000 files per deploy |
-| Workers (scripts) | Small JSON API (Phase 3+) | ~100,000 requests/day; ~10 ms CPU per request; ~3 MB compressed bundle |
-| D1 | Leaderboards, best laps, ghosts (Phase 3+) | ~5M rows read/day, ~100k rows written/day, ~5 GB storage |
-| Durable Objects (SQLite-backed only) | One live race room per object (Phase 4) | ~100k requests/day, ~13,000 GB-s duration/day; WebSocket messages billed at ~1/20 of a request |
+| Workers (scripts) | Small JSON API (Phase 4+) | ~100,000 requests/day; ~10 ms CPU per request; ~3 MB compressed bundle |
+| D1 | Leaderboards, best laps, ghosts (Phase 4+) | ~5M rows read/day, ~100k rows written/day, ~5 GB storage |
+| Durable Objects (SQLite-backed only) | One live race room per object (Phase 5) | ~100k requests/day, ~13,000 GB-s duration/day; WebSocket messages billed at ~1/20 of a request |
 | KV | Only if truly needed (read-heavy, rarely written data) | ~100k reads/day, ~1,000 writes/day |
 
 ### 2.2 Not allowed
@@ -192,7 +192,7 @@ Names describe what something is to the player or the game, not how it's built (
 
 - `localStorage` access only through `core/storage.ts`, wrapped in try/catch. The game must work when storage is blocked.
 - Fail soft: a missing sound, blocked pointer lock or failed save never breaks the game. Log once with `console.warn` and continue.
-- Network calls (Phase 3+) have timeouts, handle offline mode, and never block the game loop.
+- Network calls (Phase 4+) have timeouts, handle offline mode, and never block the game loop.
 
 ---
 

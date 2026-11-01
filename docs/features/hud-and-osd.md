@@ -19,13 +19,13 @@ In goggles view, white monospace text in the corners like real FPV goggles: batt
 
 | Corner | Items |
 |---|---|
-| Top left | Battery voltage (e.g. `16.4V`, yellow below 14.4 V), battery used (`312mAh`) |
+| Top left | Battery voltage with sag (e.g. `16.4V`, yellow below 20% charge), battery used (`312mAh`), blinking `LOW BATTERY` below 20% |
 | Top right | `● REC` (red), link quality `LQ 97–99`, flight timer `mm:ss` |
 | Bottom left | Flight mode `ANGLE`, throttle `THR 42%` |
 | Bottom right | Speed `84 km/h` |
 | Centre | Crosshair; horizon line that tilts with roll and moves with pitch (accounting for camera uptilt) |
 
-- Battery model (display only, Phase 1): 4S pack, 16.8 V full, drops with mAh used (1,500 mAh → −2.4 V) and sags with throttle (up to −0.9 V). mAh used = ∫(6 + 75 × throttle) A.
+- Voltage, mAh and the low-battery warning come from the battery model (see battery-system). The HUD only displays them.
 - Flight timer counts only while flying (not during countdown).
 - Font: `--osd` (Share Tech Mono), white with a black outline for readability on any background.
 
@@ -39,10 +39,11 @@ In goggles view, white monospace text in the corners like real FPV goggles: batt
 | Next-gate marker | On screen at the next gate; clamped to the screen edge when off screen or behind | Diamond and distance in metres |
 | Minimap | Bottom right, round | Track line, lake, factory, start gate, drone arrow (heading), ghost dot |
 | Height gauge | Bottom left | See height-indicator |
+| Battery gauge | Bottom left, next to the height gauge | Charge %, bar, time left; pad-swap progress ring. See battery-system |
 | Flight menu | Top right | Camera, Analog static, Motor sound, Reset to last gate, Change controls, Exit to menu; each shows its current key |
 | Help bar | Bottom centre | Current keys for up/down, forward/back, slide, turn; mouse-lock hint |
 | Countdown | Centre | 3, 2, 1, GO |
-| Banners | Centre | "Crashed" with reason; "New best lap" with time |
+| Banners | Centre | "Crashed" with reason; "New best lap" with time; "Low battery", "Battery empty" (with run summary), "Fresh battery" |
 | Ghost tag | Above the ghost | "Best lap" |
 
 - Text updates are throttled (every 3rd frame); the gate marker updates every frame.
@@ -82,7 +83,7 @@ In goggles view, white monospace text in the corners like real FPV goggles: batt
 
 ## Out of scope
 
-Race positions vs other pilots, chat, name tags for friends (Phase 4).
+Race positions vs other pilots, chat, name tags for friends (Phase 5).
 
 ## Changelog
 

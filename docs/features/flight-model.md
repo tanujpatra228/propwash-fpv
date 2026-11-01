@@ -39,11 +39,21 @@ All values live in `config.ts` → `FLIGHT`.
 - Orientation is built as yaw → pitch → roll (`Euler` order `YXZ`). Forward is −Z.
 - Throttle shown in the HUD is derived from the vertical input and speed (display only).
 
+### Drone stats and battery power
+
+The values above are the **stock** drone. Every step also receives:
+
+- `DroneStats` (see battery-system; parts change it in Phase 3): drag ÷ `topSpeedFactor²`; tilt response, drift assist and turn rate × grip (turn rate uses `0.85 + 0.15 × grip`); climb/descend rates and horizontal thrust × `liftFactor × stockMass / massKg`; small random pitch/roll wobble up to `0.04 rad × wobble`.
+- `powerFactor` from the battery (1 normally, 0.6–1 below 20% charge): scales horizontal thrust and climb rate.
+- **Motors cut** (`powerFactor = 0`, battery empty): no thrust and no input; gravity 9.81 m/s² and drag only, so the drone falls.
+
+`step` returns `effort` (0–1), the battery's input for current draw: `0.45 × tilt / maxTilt + 0.35 × climbInput + 0.20 × (speed / topSpeed)²`.
+
 ## Technical design
 
 - `src/drone/flight-model.ts`: `FlightModel` class.
   - State: `position`, `velocity`, `yawRad`, `pitchRad`, `rollRad`, `yawRateRadps`, `throttle01`, `quaternion`.
-  - `step(input: FlightInput, dt: number): void`, pure motion only (no collisions, no DOM, no scene).
+  - `step(input: FlightInput, stats: DroneStats, powerFactor: number, dt: number): number` (returns `effort`), pure motion only (no collisions, no DOM, no scene).
   - `reset(position, yawRad)`, `setFromPose(position, quaternion, velocity)`.
 - `FlightInput` (from `input/`): `forward`, `back`, `left`, `right`, `up`, `down`, `turnLeft`, `turnRight` (0 or 1), `mouseYawRad`, `stickX`, `stickY` (−1..1 drag fallback).
 - Collisions and ground response are applied after `step` by `physics/` (see collisions-and-crash).

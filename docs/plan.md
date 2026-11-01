@@ -69,12 +69,13 @@ Golden-hour lighting, haze, clouds and grass that moves in the wind.
 
 | Mode | Phase | Description |
 |---|---|---|
-| Free flight | 1 | Start on the pad, fly anywhere, no timer |
-| Time trial | 1 | Fly laps against the clock and your best-lap ghost (saved in the browser) |
+| Free flight | 1 | Start on the pad, fly anywhere, no timer; land on the pad to swap the battery |
+| Time trial | 1 | One battery per run: fly laps against the clock and your best-lap ghost (saved in the browser) |
 | Training | 2 | Short lessons: take off, hover, land, fly through gates |
-| Online ghosts + leaderboard | 3 | Race friends' best laps, shared leaderboard |
-| Live race rooms | 4 | Create a room, share a link, up to 8 friends race live |
-| Track editor | 5 | Place gates, share tracks by code |
+| Battery Challenge | 3 | Finish the laps before the battery dies; setup choice matters |
+| Online ghosts + leaderboard | 4 | Race friends' best laps, shared leaderboard (Spec and Open classes) |
+| Live race rooms | 5 | Create a room, share a link, up to 8 friends race live |
+| Track editor | 6 | Place gates, share tracks by code |
 
 ### 3.4 Controls (default, all remappable)
 
@@ -107,6 +108,14 @@ Remapping: a Controls panel lists every action with a main and an alternate key.
 - **Height above ground (both cameras):** gauge in the bottom-left with the value in metres (one decimal below 10 m). Green above 2 m, yellow 0.6–2 m, red below 0.6 m. Measured to the lake surface when over water.
 - **Ground line (chase camera only):** dashed line from the drone to the ground with a ring at the landing point, using the same colors.
 - **Race panel (time trial):** current lap time, last lap, best lap, lap count, gate counter "GATE n / 12", next-gate marker, minimap.
+- **Battery gauge (both cameras):** charge %, bar and estimated time left; "LOW BATTERY" warning below 20%.
+
+### 3.6 Battery and drone setups
+
+- **Battery (Phase 1):** a real 4S 1,500 mAh battery model. Current draw rises with tilt, climbing and speed (hover ≈ 8 A, racing ≈ 35 A, about 3–4 laps per battery at racing pace). Below 20% the drone loses power; at 0% the motors cut and it falls. Time trial is one battery per run; free flight swaps the battery when you land on the pad. Details: `features/battery-system.md`.
+- **Parts and upgrades (Phase 3):** a Hangar to choose propellers (2-blade Swift, 3-blade Allround, 4-blade Grip, 5-blade Hauler) and batteries (1100, 1500, 1800 mAh 4S, 1300 mAh 6S). More blades = more grip and lift but more battery drain; fewer blades = faster and more efficient but twitchy. Parts upgrade to level 3 with credits earned by flying. Details: `features/drone-parts-and-upgrades.md`.
+- **Fair racing:** Spec class (stock parts) and Open class (any setup, shown next to the time) for best laps, leaderboards and live rooms.
+- **Built in from day one:** the flight model and battery read a `DroneStats` object (stock values in Phase 1), so parts plug in later without rewriting flight code.
 
 ---
 
@@ -145,13 +154,13 @@ propwash-fpv/
 - Rendering: `WebGLRenderer` with ACES tone mapping and soft shadows. Post-processing chain: render → bloom → output → FPV lens pass (distortion, vignette, grain, static).
 - Quality presets (Low / Medium / High) control pixel ratio, shadows, grass and bloom.
 
-### 4.3 Backend (Phase 3+)
+### 4.3 Backend (Phase 4+)
 
 - **Worker** (same project) serves the static game and a small JSON API.
 - **D1** stores pilots, best laps and ghost data (compressed path, a few KB each).
 - **Durable Object `RaceRoom`**: one per live race. Players connect over WebSocket. Clients send position updates at 10–15 Hz. The room relays them, tracks gates and finish order, and uses WebSocket hibernation to save duration.
 
-### 4.4 Free-plan budget (free plan only; verify current limits before Phase 3/4)
+### 4.4 Free-plan budget (free plan only; verify current limits before Phase 4/5)
 
 - Static asset requests: free and unlimited. Max 25 MiB per file, so compress textures and models.
 - Worker requests: about 100k/day.
@@ -213,6 +222,7 @@ Goal: a playable, deployed game with good-feeling flight.
 | 1.13 | Motor sound | Pitch follows throttle |
 | 1.14 | Cloudflare config + GitHub Actions deploy | Merge to main deploys automatically |
 | 1.15 | Engineering standards, `CLAUDE.md`, one feature doc per Phase 1 feature (with test cases) | Docs committed in `docs/` |
+| 1.16 | Battery system: drain, sag, low-power, motors cut at 0%, pad swap, battery gauge; flight model reads `DroneStats` | 3–4 laps per battery at racing pace; empty battery ends a time-trial run |
 
 ### Phase 2 — Looks and feel
 
@@ -222,22 +232,33 @@ Goal: a playable, deployed game with good-feeling flight.
 - Settings: field of view, camera uptilt, invert, units.
 - Performance pass: instancing audit, draw-call budget, adaptive quality.
 
-### Phase 3 — Async multiplayer
+### Phase 3 — Drone setups and progression
+
+- Hangar screen: choose propellers and battery, see stat changes and estimated flight time before equipping.
+- Propellers: 2, 3, 4 and 5 blades with speed / grip / lift / drain / wobble trade-offs.
+- Batteries: 4S 1100, 1500, 1800 and 6S 1300, with weight affecting lift and acceleration.
+- Upgrades (levels 1–3) and credits earned from laps, personal bests and challenges. Saved in the browser.
+- Battery Challenge mode: finish N laps on one battery, stars and rewards.
+- Spec and Open classes for time trial best laps.
+
+### Phase 4 — Async multiplayer
 
 - Pilot name (no account), stored in the browser.
-- Worker API + D1: submit best lap and ghost, fetch leaderboard and friends' ghosts.
+- Worker API + D1: submit best lap and ghost, fetch leaderboard and friends' ghosts. Separate Spec and Open leaderboards; Open shows the setup.
 - Race a friend's ghost from a shared link.
+- Sync progress (credits, parts) to D1, one write per session.
 
-### Phase 4 — Live race rooms
+### Phase 5 — Live race rooms
 
 - `RaceRoom` Durable Object with WebSocket hibernation.
 - Lobby: room code, invite link, ready status, ping, chat.
 - Countdown, live positions with interpolation, finish order, results screen, rematch.
+- Host picks the class: Spec (everyone on stock parts) or Open (own setups).
 
-### Phase 5 — Growth
+### Phase 6 — Growth
 
 - More zones and tracks, track editor with share codes.
-- Hangar: drone types (racer, freestyle, cinewhoop), paint, parts that change stats.
+- Drone types (racer, freestyle, cinewhoop), more parts (motors, frames), paint shop.
 - Freestyle mode with trick scoring.
 
 ---
@@ -255,6 +276,8 @@ Goal: a playable, deployed game with good-feeling flight.
 | Risk | Mitigation |
 |---|---|
 | Flight feels bad on keyboard | Altitude hold, turn assist, tunable constants, early playtests |
+| Parts make races unfair or one setup dominates | Spec class for fair races; every part has a real downside; playtest balance before Phase 4 leaderboards |
+| Battery feels punishing to beginners | Battery drain can be turned off in free flight; low-battery warning at 20%; generous pack size |
 | Low frame rate on older laptops | Quality presets, adaptive quality, instancing, fewer shadows |
 | Free-tier limits hit by live races | Lower tick rate, hibernation, peer-to-peer fallback |
 | Large assets exceed 25 MiB per file | KTX2 / meshopt compression, split files |

@@ -59,7 +59,7 @@ Orange padded gates with bright LED strips stand across the valley, on legs down
 
 ## Out of scope
 
-More tracks, track editor, moving gates (Phase 5).
+More tracks, track editor, moving gates (Phase 6).
 
 ## Changelog
 
