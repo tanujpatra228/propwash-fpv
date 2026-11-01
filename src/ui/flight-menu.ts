@@ -28,6 +28,7 @@ export class FlightMenu {
     this.reset.root.addEventListener('click', callbacks.onReset);
     this.controls.root.addEventListener('click', callbacks.onControls);
     this.controls.label.textContent = 'Change controls';
+    this.controls.key.hidden = true;
     parent.append(el('div', { class: 'flight-bar' }, [this.camera.root, this.analog.root, this.reset.root, this.controls.root]));
   }
 
