@@ -89,6 +89,19 @@ export class Game {
     this.input.enabled = true;
   }
 
+  /** Dev-only helper used by browser tests to put the drone somewhere specific. */
+  debugPlace(x: number, y: number, z: number, yawRad: number): void {
+    spawn.set(x, y, z);
+    this.flight.reset(spawn, yawRad);
+    this.rig.snap();
+  }
+
+  /** Dev-only: draw calls and triangles of the last frame. */
+  debugRenderInfo(): { calls: number; triangles: number; geometries: number } {
+    const { render, memory } = this.renderer.webgl.info;
+    return { calls: render.calls, triangles: render.triangles, geometries: memory.geometries };
+  }
+
   start(): void {
     requestAnimationFrame(this.frame);
   }
