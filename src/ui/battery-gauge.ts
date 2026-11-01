@@ -27,9 +27,9 @@ export class BatteryGauge {
     ]);
   }
 
-  update(charge01: number, timeLeftS: number): void {
+  update(charge01: number, timeLeftS: number, swapProgress01 = 0): void {
     this.percent.textContent = formatPercent(charge01);
-    this.time.textContent = formatTimeLeft(timeLeftS);
+    this.time.textContent = swapProgress01 > 0 ? `swapping ${formatPercent(swapProgress01)}` : formatTimeLeft(timeLeftS);
     this.fill.style.width = `${Math.max(0, Math.min(1, charge01)) * 100}%`;
     const state = batteryState(charge01);
     this.root.classList.toggle('warn', state === 'warn');

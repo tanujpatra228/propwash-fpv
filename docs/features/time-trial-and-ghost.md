@@ -1,8 +1,8 @@
 # Feature: Time Trial and Ghost
 
-Status: Planned
+Status: In progress
 Phase: 1
-Branch: `feat/time-trial`
+Branch: `feat/phase-1` (milestone M6)
 Last updated: 2026-11-01
 
 ## Summary
@@ -60,6 +60,15 @@ Choose Time trial. The drone hovers behind the start gate. 3, 2, 1, GO. The cloc
 - [ ] Best lap and ghost survive a page reload.
 - [ ] Ghost replays the best lap in sync with the current lap.
 - [ ] Encoded ghost for a 45 s lap is under 20 KB.
+
+## Implementation notes (M6)
+
+- Modes implement `game/modes/mode.ts` (`GameMode`) against a small `ModeHost` interface, so they are unit-tested with fakes (17 tests) and know nothing about the scene or DOM. The game switches modes with `setMode`; the main menu (M7) will call the same function.
+- Ghost: `drone/ghost.ts`. Samples are taken at exactly 20 Hz by interpolating between frames, so the ghost is in sync to the millimetre. Storage format is a compact text string (zigzag + 5-bit groups in base 64), not an array of numbers: a 45 s lap is about 4 to 9 KB.
+- Saved under `pw.trial.valley-sprint.w<WORLD.version>.v1`. Corrupt or wrong-shaped data is treated as no best lap.
+- A finished run (battery empty) shows a summary banner; the reset key starts a new run with a fresh battery.
+- Verified in the browser: countdown 3, 2, GO with input locked, a full lap through all 12 gates and back to gate 0 completes and saves, and the best lap survives a reload.
+- Not done in M6: the "Best lap" tag above the ghost.
 
 ## Test cases
 

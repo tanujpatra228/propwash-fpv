@@ -116,8 +116,11 @@ export const CAMERA = {
 
 /** FPV lens pass (goggles only) and its distance-based video noise. */
 export const LENS = {
-  /** Threshold is in linear light above plain white, so only emissive LEDs and the sun's glare bloom, not ordinary bright surfaces. */
-  bloom: { strength: 0.3, radius: 0.4, threshold: 1.6 },
+  /**
+   * Off by default: measured in M5, bloom turned a view toward the sun into a white-out (average brightness 180 vs 93)
+   * and costs GPU time. The gate LEDs still read well from their emissive colour alone. High quality may turn it on later.
+   */
+  bloom: { isEnabled: false, strength: 0.3, radius: 0.4, threshold: 1.6 },
   goggles: { fisheye: 1, vignette: 0.85, grainAnalog: 0.05, grainClean: 0.012 },
   flat: { fisheye: 0, vignette: 0.35, grain: 0.012 },
   static: {
@@ -154,9 +157,11 @@ export const DRONE = {
 export const RENDER = {
   /** Tuned by measurement in M5: the first values (0.74, sun 2.6, sky fill 1) over-exposed whites and made everything glow. */
   toneMappingExposure: 0.68,
-  sunIntensity: 2.2,
-  hemisphereIntensity: 0.45,
-  environmentIntensity: 0.7,
+  sunIntensity: 1.7,
+  hemisphereIntensity: 0.4,
+  environmentIntensity: 0.6,
+  /** Golden-hour haze. Lower turbidity and mie keep the sky clear when you face the sun. */
+  sky: { turbidity: 3.5, rayleigh: 1.4, mieCoefficient: 0.0015, mieDirectionalG: 0.85 },
   fogDensity: 0.0011,
   fogColor: 0xc8b8a4,
   sunElevationDeg: 15,
@@ -198,6 +203,35 @@ export const GATE = {
   minLegLengthM: 0.2,
   bannerAboveM: 0.75,
   bannerExtraWidthM: 1.6,
+} as const;
+
+/** Best-lap ghost and time-trial rules. */
+export const TRIAL = {
+  countdownS: 3,
+  /** How long "GO" stays on screen after the countdown. */
+  goShownS: 0.9,
+  /** Distance behind gate 0 where a run starts. */
+  startBehindGateM: 4,
+  splitShownS: 2,
+  bannerShownS: 2.5,
+  /** The run ends this long after the battery empties if the drone has not touched down. */
+  emptyBatteryGraceS: 3,
+} as const;
+
+export const GHOST = {
+  hz: 20,
+  /** Positions are stored in 1 cm steps and angles in 0.01 rad steps. */
+  positionStepM: 0.01,
+  angleStepRad: 0.01,
+  /** A lap longer than this stops recording (the lap still counts). */
+  maxRecordS: 600,
+  color: 0xbfe6ff,
+} as const;
+
+export const FREE_FLIGHT = {
+  /** Landed on the pad: below this height, within this distance of the centre, slower than this speed. */
+  swap: { maxHeightM: 0.15, maxDistanceM: 1.4, maxSpeedMps: 0.5, holdS: 2, /** Nothing to swap above this charge. */ skipAboveCharge01: 0.97 },
+  emptyBatteryGraceS: 3,
 } as const;
 
 export const STORAGE_PREFIX = 'pw.';

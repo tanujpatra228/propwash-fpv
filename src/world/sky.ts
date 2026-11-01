@@ -12,18 +12,26 @@ import {
 import { Sky } from 'three/addons/objects/Sky.js';
 import { RENDER } from '../config';
 
+/** The stock sky draws the sun disc about 19,000 times brighter than the sky, which bloom smears across half the screen. */
+const SUN_DISC_BRIGHTNESS = '19000.0';
+const SUN_DISC_BRIGHTNESS_CAPPED = '260.0';
+
 function createSkyDome(scale: number, sunDirection: Vector3): Sky {
   const sky = new Sky();
+  if (!sky.material.fragmentShader.includes(SUN_DISC_BRIGHTNESS)) {
+    console.warn('Sky shader changed: sun disc brightness could not be capped.');
+  }
+  sky.material.fragmentShader = sky.material.fragmentShader.replace(SUN_DISC_BRIGHTNESS, SUN_DISC_BRIGHTNESS_CAPPED);
   sky.scale.setScalar(scale);
   const uniforms = sky.material.uniforms;
   const set = (name: string, value: number): void => {
     const uniform = uniforms[name];
     if (uniform) uniform.value = value;
   };
-  set('turbidity', 5.5);
-  set('rayleigh', 1.4);
-  set('mieCoefficient', 0.004);
-  set('mieDirectionalG', 0.82);
+  set('turbidity', RENDER.sky.turbidity);
+  set('rayleigh', RENDER.sky.rayleigh);
+  set('mieCoefficient', RENDER.sky.mieCoefficient);
+  set('mieDirectionalG', RENDER.sky.mieDirectionalG);
   uniforms['sunPosition']?.value.copy(sunDirection);
   return sky;
 }
@@ -33,7 +41,7 @@ export interface SkyRig {
   followFocus(position: Vector3): void;
   setShadowExtent(extentM: number): void;
   /** Dev-only: try different light levels. */
-  debugLight(look: { sun?: number; hemisphere?: number; environment?: number }): void;
+  debugLight(look: { sun?: number; hemisphere?: number; environment?: number; turbidity?: number; mie?: number; mieG?: number; rayleigh?: number }): void;
 }
 
 /** Sky dome, sky-based lighting, warm haze, one shadow-casting sun. */
@@ -43,7 +51,8 @@ export function buildSky(scene: Scene, renderer: WebGLRenderer): SkyRig {
     MathUtils.degToRad(90 - RENDER.sunElevationDeg),
     MathUtils.degToRad(RENDER.sunAzimuthDeg),
   );
-  scene.add(createSkyDome(3000, sunDirection));
+  const dome = createSkyDome(3000, sunDirection);
+  scene.add(dome);
 
   const pmrem = new PMREMGenerator(renderer);
   const envScene = new Scene();
@@ -70,6 +79,11 @@ export function buildSky(scene: Scene, renderer: WebGLRenderer): SkyRig {
       if (look.sun !== undefined) sun.intensity = look.sun;
       if (look.hemisphere !== undefined) hemisphere.intensity = look.hemisphere;
       if (look.environment !== undefined) scene.environmentIntensity = look.environment;
+      const u = dome.material.uniforms;
+      if (look.turbidity !== undefined && u['turbidity']) u['turbidity'].value = look.turbidity;
+      if (look.mie !== undefined && u['mieCoefficient']) u['mieCoefficient'].value = look.mie;
+      if (look.mieG !== undefined && u['mieDirectionalG']) u['mieDirectionalG'].value = look.mieG;
+      if (look.rayleigh !== undefined && u['rayleigh']) u['rayleigh'].value = look.rayleigh;
     },
     setShadowExtent(extentM: number): void {
       if (extentM === currentExtentM) return;

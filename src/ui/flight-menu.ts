@@ -5,6 +5,7 @@ export interface FlightMenuCallbacks {
   onStatic(): void;
   onReset(): void;
   onControls(): void;
+  onMode(): void;
 }
 
 export interface FlightMenuLabels {
@@ -13,6 +14,8 @@ export interface FlightMenuLabels {
   cameraKey: string;
   staticKey: string;
   resetKey: string;
+  /** Name of the mode a click on the mode button switches to. */
+  otherModeLabel: string;
 }
 
 /** Top-right button list. Every button shows the key bound to it. Sound and Exit arrive with M7. */
@@ -20,16 +23,19 @@ export class FlightMenu {
   private readonly camera = this.button('hot');
   private readonly analog = this.button();
   private readonly reset = this.button();
+  private readonly mode = this.button();
   private readonly controls = this.button();
 
   constructor(parent: HTMLElement, callbacks: FlightMenuCallbacks) {
     this.camera.root.addEventListener('click', callbacks.onCamera);
     this.analog.root.addEventListener('click', callbacks.onStatic);
     this.reset.root.addEventListener('click', callbacks.onReset);
+    this.mode.root.addEventListener('click', callbacks.onMode);
+    this.mode.key.hidden = true;
     this.controls.root.addEventListener('click', callbacks.onControls);
     this.controls.label.textContent = 'Change controls';
     this.controls.key.hidden = true;
-    parent.append(el('div', { class: 'flight-bar' }, [this.camera.root, this.analog.root, this.reset.root, this.controls.root]));
+    parent.append(el('div', { class: 'flight-bar' }, [this.camera.root, this.analog.root, this.reset.root, this.mode.root, this.controls.root]));
   }
 
   private button(extraClass?: string): { root: HTMLButtonElement; label: HTMLElement; key: HTMLElement } {
@@ -46,5 +52,6 @@ export class FlightMenu {
     this.analog.key.textContent = labels.staticKey;
     this.reset.label.textContent = 'Reset to last gate';
     this.reset.key.textContent = labels.resetKey;
+    this.mode.label.textContent = `Switch to ${labels.otherModeLabel}`;
   }
 }

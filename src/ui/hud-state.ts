@@ -1,3 +1,5 @@
+import type { RacePanelState } from './race-panel';
+
 /** Everything the HUD shows, as plain numbers. The game builds one per frame; the HUD never reads game internals. */
 export interface HudState {
   isGoggles: boolean;
@@ -21,4 +23,12 @@ export interface HudState {
   nextGate: { x: number; y: number; distM: number };
   /** Drone on the minimap: world X, Z and heading (rotation about Y). */
   map: { x: number; z: number; yawRad: number };
+  mode: {
+    label: string;
+    hint: string;
+    /** Null outside time trial. */
+    race: RacePanelState | null;
+    countdown: string;
+    swapProgress01: number;
+  };
 }

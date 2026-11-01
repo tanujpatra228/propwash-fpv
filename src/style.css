@@ -562,3 +562,96 @@ kbd {
   .minimap { width: 120px; height: 120px; }
   .gauges { flex-wrap: wrap; max-width: calc(100% - 160px); }
 }
+
+/* ---------- race panel, mode tag, countdown */
+.race-panel {
+  position: absolute;
+  left: 20px;
+  top: 20px;
+  width: 230px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rp-main {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.rp-time {
+  font: 34px/1 var(--osd);
+}
+
+.rp-split {
+  font: 18px/1 var(--osd);
+}
+
+.rp-split.faster { color: var(--ok); }
+.rp-split.slower { color: var(--bad); }
+
+.rp-rows {
+  display: grid;
+  grid-template-columns: 0.6fr 1fr 1fr;
+  gap: 6px;
+}
+
+.rp-rows div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.rp-rows span {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.rp-val {
+  font: 14px/1 var(--osd);
+}
+
+.mode-tag {
+  position: absolute;
+  left: 20px;
+  top: 20px;
+  max-width: 260px;
+  padding: 10px 14px;
+  font: 700 18px/1 var(--display);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.mode-tag small {
+  display: block;
+  font: 500 12px/1.35 var(--body);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.countdown {
+  position: absolute;
+  left: 50%;
+  top: 40%;
+  transform: translate(-50%, -50%);
+  font: italic 800 160px/1 var(--display);
+  color: #fff;
+  text-shadow: 0 6px 40px rgba(0, 0, 0, 0.6);
+}
+
+.countdown.go {
+  color: var(--ok);
+}
+
+@media (max-width: 760px) {
+  .countdown { font-size: 100px; }
+  .race-panel, .mode-tag { width: 180px; }
+}
