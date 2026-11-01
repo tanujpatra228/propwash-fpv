@@ -1,6 +1,7 @@
 import { Scene, Vector3 } from 'three';
 import { COLLISION, GHOST, LOOP, TRACK } from '../config';
 import { MotorSound } from '../core/audio';
+import type { RemoteGhost } from '../net/api-client';
 import { formatLapTime } from '../core/format';
 import { FpsMeter } from '../core/fps-meter';
 import { ResolutionController } from '../core/resolution-controller';
@@ -48,6 +49,7 @@ import { TrainingMode } from './modes/training';
 import { TimeTrial } from './modes/time-trial';
 import { type Pose } from './respawn';
 import { applyQualityPreset } from './quality';
+import { OnlineUi } from './online-ui';
 import { loadPilotSettings, savePilotSettings, type PilotSettings } from '../core/pilot-settings';
 import { loadFreeBatteryDrain, loadQuality, saveFreeBatteryDrain, saveQuality } from './settings';
 import { loadBestLap } from './trial-storage';
@@ -83,6 +85,8 @@ export class Game {
   private readonly sound = new MotorSound();
   private readonly simulation: Simulation;
   private readonly presenter: Presenter;
+  private readonly trial: TimeTrial;
+  private readonly online: OnlineUi;
   private readonly modes: Record<ModeId, GameMode>;
   private mode: GameMode;
   private phase: 'menu' | 'playing' = 'menu';
@@ -123,13 +127,21 @@ export class Game {
       flashBanner: (title, subtitle, kind, seconds) => this.banner.show(title, subtitle, kind, seconds),
       hideBanner: () => this.banner.hide(),
       offerNextSteps: (title, subtitle, choices) => this.offerNextSteps(title, subtitle, choices),
+      reportBestLap: (lap) => this.online.reportBestLap(lap),
     };
+    this.trial = new TimeTrial(host);
     this.modes = {
       free: new FreeFlight(host, () => this.isFreeDrainOn),
-      trial: new TimeTrial(host),
+      trial: this.trial,
       training: new TrainingMode(host, { load: loadCompletedLessons, save: saveCompletedLessons }),
     };
     this.mode = this.modes.free;
+    this.online = new OnlineUi({
+      pauseInput: () => void (this.input.enabled = false),
+      resumeInput: () => void (this.input.enabled = this.phase === 'playing' && !this.nextSteps.isOpen),
+      notify: (title, subtitle) => this.banner.show(title, subtitle, 'info', 3),
+      raceGhost: (ghost) => this.raceGhost(ghost),
+    });
 
     this.bindings = loadBindings();
     const sensitivity = loadMouseSensitivity();
@@ -162,7 +174,8 @@ export class Game {
     this.menu = new MainMenu(
       {
         onFreeFlight: () => this.startMode('free'),
-        onTimeTrial: () => this.startMode('trial'),
+        onTimeTrial: () => this.startTimeTrial(),
+        onLeaderboard: () => void this.online.openLeaderboard(),
         onTraining: () => this.startMode('training'),
         onControls: () => this.openControls(),
         onQualityChange: (id) => this.applyQuality(id),
@@ -231,6 +244,24 @@ export class Game {
     this.menu.setBestLapText(best ? formatLapTime(best.lapTimeS) : null);
     this.menu.setTrainingText(trainingMenuText(loadCompletedLessons()));
     this.menu.setVisible(true);
+    this.online.flush();
+  }
+
+  /** A time trial against your own best lap. */
+  private startTimeTrial(): void {
+    this.trial.setOpponent(null);
+    this.startMode('trial');
+  }
+
+  /** A time trial against another pilot's ghost. */
+  private raceGhost(ghost: RemoteGhost): void {
+    this.trial.setOpponent(ghost);
+    this.startMode('trial');
+  }
+
+  /** For `?ghost=<id>` links: start racing that ghost, or stay on the menu if it is gone. */
+  startFromLink(id: string): void {
+    void this.online.raceFromLink(id);
   }
 
   private startMode(id: ModeId): void {
@@ -252,7 +283,7 @@ export class Game {
     this.input.enabled = false;
     this.nextSteps.show(title, subtitle, choices, (id) => {
       if (id === 'menu') this.returnToMenu();
-      else if (id === 'trial') this.startMode('trial');
+      else if (id === 'trial') this.startTimeTrial();
       else if (id === 'restart') {
         this.mode.handleReset();
         this.input.enabled = true;

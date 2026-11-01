@@ -3,6 +3,7 @@ import type { Battery } from '../../drone/battery';
 import type { FlightModel } from '../../drone/flight-model';
 import type { Gate } from '../../world/gates';
 import type { LapTracker } from '../lap-tracker';
+import type { GhostData } from '../../core/ghost-codec';
 import type { LessonPanelState } from '../../ui/lesson-panel';
 import type { Pose } from '../respawn';
 
@@ -33,6 +34,8 @@ export interface ModeHost {
   hideBanner(): void;
   /** Show a "what next?" dialog. The mouse is released while it is open; picking an option carries it out. */
   offerNextSteps(title: string, subtitle: string, choices: readonly NextStepChoice[]): void;
+  /** A new personal best lap was set (for uploading). */
+  reportBestLap(lap: { lapTimeS: number; splitsS: number[]; ghost: GhostData }): void;
 }
 
 export interface RaceHud {
@@ -56,6 +59,8 @@ export interface ModeHud {
   swapProgress01: number;
   /** The training checklist, or null outside training. */
   lesson: LessonPanelState | null;
+  /** Name shown above the ghost: "Best lap", or the pilot being raced. */
+  ghostLabel: string;
 }
 
 /** What the game tells a mode each frame, after the physics step. */

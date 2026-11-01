@@ -4,6 +4,7 @@ import { formatLapTime } from '../../core/format';
 import { GhostRecorder, GhostTrack } from '../../drone/ghost';
 import type { GateEvent } from '../lap-tracker';
 import { respawnPose, type Pose } from '../respawn';
+import type { RemoteGhost } from '../../net/api-client';
 import { loadBestLap, saveBestLap, toTrackerBest, type SavedBestLap } from '../trial-storage';
 import type { GameMode, ModeFrame, ModeHost, ModeHud, RaceHud } from './mode';
 
@@ -16,7 +17,12 @@ export class TimeTrial implements GameMode {
   readonly id = 'trial' as const;
   readonly drainsBattery = true;
   readonly race: RaceHud = { lap: 1, lapTimeS: 0, lastLapS: null, bestLapS: null, splitDeltaS: null };
-  readonly hud: ModeHud = { modeLabel: 'Time trial', hint: HINT_RUNNING, race: this.race, countdown: '', swapProgress01: 0, lesson: null };
+  readonly hud: ModeHud = { modeLabel: 'Time trial', hint: HINT_RUNNING, race: this.race, countdown: '', swapProgress01: 0, lesson: null, ghostLabel: 'Best lap' };
+
+  /** Race another pilot's ghost on the next `start` (null to race your own best lap). */
+  setOpponent(opponent: RemoteGhost | null): void {
+    this.opponent = opponent;
+  }
   private state: State = 'countdown';
   private countdownLeftS: number = TRIAL.countdownS;
   private goShownLeftS = 0;
@@ -26,6 +32,7 @@ export class TimeTrial implements GameMode {
   private recorder: GhostRecorder | null = null;
   private ghost: GhostTrack | null = null;
   private saved: SavedBestLap | null = null;
+  private opponent: RemoteGhost | null = null;
 
   constructor(private readonly host: ModeHost) {}
 
@@ -41,8 +48,21 @@ export class TimeTrial implements GameMode {
     this.saved = loadBestLap();
     this.ghost = this.saved ? GhostTrack.fromData(this.saved.ghost) : null;
     if (this.saved && !this.ghost) this.saved = null; // corrupt ghost: treat as no best lap
+    let target: { lapTimeS: number; splitsS: number[] } | null = this.saved ? toTrackerBest(this.saved) : null;
+    this.hud.ghostLabel = 'Best lap';
+    if (this.opponent) {
+      const theirs = GhostTrack.fromData(this.opponent.ghost);
+      if (theirs) {
+        // Race their ghost; splits compare against their lap. Your own saved best is kept separately.
+        this.ghost = theirs;
+        target = { lapTimeS: this.opponent.lapTimeS, splitsS: this.opponent.splitsS };
+        this.hud.ghostLabel = this.opponent.name;
+      } else {
+        this.opponent = null;
+      }
+    }
     this.host.tracker.reset();
-    this.host.tracker.best = this.saved ? toTrackerBest(this.saved) : null;
+    this.host.tracker.best = target;
     this.host.battery.refill();
     this.host.hideBanner();
     this.state = 'countdown';
@@ -54,7 +74,7 @@ export class TimeTrial implements GameMode {
     this.race.lap = 1;
     this.race.lapTimeS = 0;
     this.race.lastLapS = null;
-    this.race.bestLapS = this.saved?.lapTimeS ?? null;
+    this.race.bestLapS = target?.lapTimeS ?? null;
     this.race.splitDeltaS = null;
     this.host.placeDrone(this.startPose({ position: new Vector3(), yawRad: 0 }));
     this.updateCountdownText();
@@ -135,12 +155,23 @@ export class TimeTrial implements GameMode {
     this.race.lap = this.host.tracker.completedLaps + 1;
     const ghostData = this.recorder?.finish() ?? null;
     this.recorder = new GhostRecorder();
-    if (event.isBest && ghostData) {
+    if (!ghostData) return;
+    const isOwnBest = this.saved === null || event.lapTimeS < this.saved.lapTimeS;
+    const beatTarget = event.isBest; // faster than the lap being raced (your own best, or an opponent's)
+    const beaten = beatTarget ? this.opponent : null;
+    if (beatTarget) {
+      this.opponent = null; // from now on the ghost is your own lap
       this.race.bestLapS = event.lapTimeS;
-      this.saved = { lapTimeS: event.lapTimeS, splitsS: event.splitsS, ghost: ghostData };
       this.ghost = GhostTrack.fromData(ghostData);
+      this.hud.ghostLabel = 'Best lap';
+    }
+    if (isOwnBest) {
+      this.saved = { lapTimeS: event.lapTimeS, splitsS: event.splitsS, ghost: ghostData };
       const isSaved = saveBestLap(this.saved);
+      this.host.reportBestLap({ lapTimeS: event.lapTimeS, splitsS: event.splitsS, ghost: ghostData });
       this.host.flashBanner('New best lap', `${formatLapTime(event.lapTimeS)}${isSaved ? '' : ' (not saved: browser storage is blocked)'}`, 'info', TRIAL.bannerShownS);
+    } else if (beaten) {
+      this.host.flashBanner(`You beat ${beaten.name}`, formatLapTime(event.lapTimeS), 'info', TRIAL.bannerShownS);
     }
   }
 
