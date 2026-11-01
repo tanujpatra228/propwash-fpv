@@ -12,8 +12,16 @@ import {
 import { Sky } from 'three/addons/objects/Sky.js';
 import { RENDER } from '../config';
 
+/** The stock sky draws the sun disc about 19,000 times brighter than the sky, which bloom smears across half the screen. */
+const SUN_DISC_BRIGHTNESS = '19000.0';
+const SUN_DISC_BRIGHTNESS_CAPPED = '260.0';
+
 function createSkyDome(scale: number, sunDirection: Vector3): Sky {
   const sky = new Sky();
+  if (!sky.material.fragmentShader.includes(SUN_DISC_BRIGHTNESS)) {
+    console.warn('Sky shader changed: sun disc brightness could not be capped.');
+  }
+  sky.material.fragmentShader = sky.material.fragmentShader.replace(SUN_DISC_BRIGHTNESS, SUN_DISC_BRIGHTNESS_CAPPED);
   sky.scale.setScalar(scale);
   const uniforms = sky.material.uniforms;
   const set = (name: string, value: number): void => {
@@ -22,8 +30,8 @@ function createSkyDome(scale: number, sunDirection: Vector3): Sky {
   };
   set('turbidity', 5.5);
   set('rayleigh', 1.4);
-  set('mieCoefficient', 0.004);
-  set('mieDirectionalG', 0.82);
+  set('mieCoefficient', 0.003);
+  set('mieDirectionalG', 0.85);
   uniforms['sunPosition']?.value.copy(sunDirection);
   return sky;
 }

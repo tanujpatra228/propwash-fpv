@@ -100,7 +100,7 @@ export function createWorldTextures(maxAnisotropy: number): WorldTextures {
 
     // Light wall panel with two windows. Each house tints it with a material colour.
     houseWall: make(256, 256, (g, w, h) => {
-      g.fillStyle = '#f2eee6';
+      g.fillStyle = '#d6d1c6'; // off-white: real white walls reflect about 70%, not 95%
       g.fillRect(0, 0, w, h);
       g.fillStyle = 'rgba(0,0,0,.06)';
       for (let y = 0; y < h; y += 8) g.fillRect(0, y, w, 1);

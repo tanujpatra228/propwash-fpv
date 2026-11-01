@@ -154,9 +154,9 @@ export const DRONE = {
 export const RENDER = {
   /** Tuned by measurement in M5: the first values (0.74, sun 2.6, sky fill 1) over-exposed whites and made everything glow. */
   toneMappingExposure: 0.68,
-  sunIntensity: 2.2,
-  hemisphereIntensity: 0.45,
-  environmentIntensity: 0.7,
+  sunIntensity: 1.7,
+  hemisphereIntensity: 0.4,
+  environmentIntensity: 0.6,
   fogDensity: 0.0011,
   fogColor: 0xc8b8a4,
   sunElevationDeg: 15,

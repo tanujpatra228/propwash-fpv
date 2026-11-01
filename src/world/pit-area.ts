@@ -75,7 +75,7 @@ export function buildPitArea(scene: Scene, colliders: ColliderWorld, textures: W
   const legMesh = new Mesh(mergeGeometries(legs), new MeshStandardMaterial({ color: LEG, roughness: 0.4, metalness: 0.8 }));
   for (const leg of legs) leg.dispose();
   pits.add(legMesh);
-  const table = new Mesh(new BoxGeometry(1.8, 0.06, 0.8), new MeshStandardMaterial({ color: 0xdddddd }));
+  const table = new Mesh(new BoxGeometry(1.8, 0.06, 0.8), new MeshStandardMaterial({ color: 0xaaaaaa, roughness: 0.8 }));
   table.position.set(-4, 0.8, 0);
   table.castShadow = true;
   pits.add(table);
