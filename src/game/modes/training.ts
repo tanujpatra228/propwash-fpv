@@ -95,7 +95,11 @@ export class TrainingMode implements GameMode {
     this.store.save(Math.max(this.store.load(), finished));
     if (finished >= LESSONS.length) {
       this.isAllDone = true;
-      this.host.flashBanner('Training complete', 'You can fly. Try a time trial next.', 'info', TRAINING.lessonCompleteShownS * 2);
+      this.host.offerNextSteps('Training complete', 'You can take off, hover, land, turn and fly the gates.', [
+        { id: 'menu', label: 'Back to menu', isPrimary: true },
+        { id: 'trial', label: 'Try a time trial' },
+        { id: 'stay', label: 'Keep flying' },
+      ]);
       return;
     }
     this.host.flashBanner('Lesson complete', `Next: ${LESSONS[finished]?.title ?? ''}`, 'info', TRAINING.lessonCompleteShownS);

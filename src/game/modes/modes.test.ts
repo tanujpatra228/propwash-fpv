@@ -135,7 +135,7 @@ describe('TimeTrial', () => {
   });
 
   it('ends the run when the battery is empty and the drone touches down, then restarts on reset', () => {
-    const { host, battery, banners, tracker } = makeHost();
+    const { host, battery, offers, tracker } = makeHost();
     const trial = new TimeTrial(host);
     trial.start();
     run(trial, 3.1);
@@ -146,7 +146,8 @@ describe('TimeTrial', () => {
     run(trial, 0.1, landed);
     expect(trial.isFinished).toBe(true);
     expect(trial.isInputLocked).toBe(true);
-    expect(banners).toContain('Battery empty');
+    expect(offers[0]?.title).toBe('Battery empty');
+    expect(offers[0]?.choices).toEqual(['restart', 'menu']);
     expect(trial.handleReset()).toBe(true);
     expect(battery.charge01).toBe(1);
     expect(trial.isFinished).toBe(false);

@@ -68,16 +68,19 @@ describe('TrainingMode', () => {
     expect(out.position.z).toBeCloseTo(-50 - 2);
   });
 
-  it('shows "Training complete" after the last lesson and stops', () => {
-    const { mode, banners, tracker } = setup(5); // lesson 6
+  it('offers what to do next after the last lesson, and stops', () => {
+    const { mode, offers, tracker } = setup(5); // lesson 6
     mode.onGateCrossed(0);
     mode.onGateCrossed(1);
     mode.onGateCrossed(2);
     mode.onGateCrossed(3);
     expect(tracker.lastPassedGate).toBe(3);
     mode.update(1 / 60, airborne);
-    expect(banners).toContain('Training complete');
+    expect(offers).toHaveLength(1);
+    expect(offers[0]?.title).toBe('Training complete');
+    expect(offers[0]?.choices).toEqual(['menu', 'trial', 'stay']);
     mode.update(1, airborne);
     expect(mode.hud.lesson?.number).toBe(6);
+    expect(offers).toHaveLength(1); // only offered once
   });
 });

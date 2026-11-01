@@ -105,8 +105,11 @@ export class TimeTrial implements GameMode {
     const laps = this.host.tracker.completedLaps;
     const best = this.host.tracker.best;
     const bestText = best ? `best ${formatLapTime(best.lapTimeS)}` : 'no lap completed';
-    this.host.flashBanner('Battery empty', `${laps} ${laps === 1 ? 'lap' : 'laps'} · ${bestText}. Press reset to fly again.`, 'info', 3600);
-    this.hud.hint = 'Run over. Press the reset key or "Reset to last gate" for a fresh battery and a new run.';
+    this.host.offerNextSteps('Battery empty', `${laps} ${laps === 1 ? 'lap' : 'laps'} · ${bestText}`, [
+      { id: 'restart', label: 'New run', isPrimary: true },
+      { id: 'menu', label: 'Back to menu' },
+    ]);
+    this.hud.hint = 'Run over. Start a new run for a fresh battery.';
   }
 
   onGateCrossed(index: number): void {

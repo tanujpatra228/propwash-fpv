@@ -24,6 +24,7 @@ import { clampToWorld } from '../physics/bounds';
 import { ColliderWorld } from '../physics/colliders';
 import { resolveDrone, substepCount, type CrashReason } from '../physics/resolve';
 import { Banner } from '../ui/banner';
+import { ChoiceDialog } from '../ui/choice-dialog';
 import { ControlsPanel } from '../ui/controls-panel';
 import { helpText } from '../ui/help-text';
 import { MainMenu, type QualityId } from '../ui/menu';
@@ -43,7 +44,7 @@ import { HudBridge } from './hud-bridge';
 import { LapTracker } from './lap-tracker';
 import { MenuDirector } from './menu-director';
 import { FreeFlight } from './modes/free-flight';
-import type { GameMode, ModeHost, ModeId } from './modes/mode';
+import type { GameMode, ModeHost, ModeId, NextStep } from './modes/mode';
 import { TrainingMode } from './modes/training';
 import { TimeTrial } from './modes/time-trial';
 import { type Pose } from './respawn';
@@ -80,6 +81,7 @@ export class Game {
   private readonly input: Input;
   private readonly controls: ControlsPanel;
   private readonly banner = new Banner();
+  private readonly nextSteps = new ChoiceDialog<NextStep>();
   private readonly hud: HudBridge;
   private readonly menu: MainMenu;
   private readonly sound = new MotorSound();
@@ -121,6 +123,7 @@ export class Game {
       placeDrone: (pose) => this.placeDrone(pose),
       flashBanner: (title, subtitle, kind, seconds) => this.banner.show(title, subtitle, kind, seconds),
       hideBanner: () => this.banner.hide(),
+      offerNextSteps: (title, subtitle, choices) => this.offerNextSteps(title, subtitle, choices),
     };
     this.modes = {
       free: new FreeFlight(host, () => this.isFreeDrainOn),
@@ -197,6 +200,7 @@ export class Game {
   // ---- phases ----
 
   private returnToMenu(): void {
+    this.nextSteps.hide();
     this.phase = 'menu';
     this.input.enabled = false; // also releases the mouse
     this.crashTimerS = 0;
@@ -224,6 +228,19 @@ export class Game {
     this.mode.start();
     this.refreshLabels();
     this.input.enabled = true;
+  }
+
+  /** Shows the "what next?" dialog (the mouse is released while it is open) and carries out the pilot's choice. */
+  private offerNextSteps(title: string, subtitle: string, choices: Parameters<ModeHost['offerNextSteps']>[2]): void {
+    this.input.enabled = false;
+    this.nextSteps.show(title, subtitle, choices, (id) => {
+      if (id === 'menu') this.returnToMenu();
+      else if (id === 'trial') this.startMode('trial');
+      else if (id === 'restart') {
+        this.mode.handleReset();
+        this.input.enabled = true;
+      } else this.input.enabled = true;
+    });
   }
 
   private openControls(): void {
