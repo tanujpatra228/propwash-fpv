@@ -40,6 +40,8 @@ export interface SkyRig {
   /** Moves the shadow-casting sun so shadows follow the camera focus. */
   followFocus(position: Vector3): void;
   setShadowExtent(extentM: number): void;
+  /** 0 turns shadows off; otherwise the shadow map size in pixels. */
+  setShadowQuality(mapSizePx: number): void;
   /** Dev-only: try different light levels. */
   debugLight(look: { sun?: number; hemisphere?: number; environment?: number; turbidity?: number; mie?: number; mieG?: number; rayleigh?: number }): void;
 }
@@ -75,6 +77,14 @@ export function buildSky(scene: Scene, renderer: WebGLRenderer): SkyRig {
 
   let currentExtentM = 0;
   const rig: SkyRig = {
+    setShadowQuality(mapSizePx: number): void {
+      sun.castShadow = mapSizePx > 0;
+      if (mapSizePx > 0 && sun.shadow.mapSize.x !== mapSizePx) {
+        sun.shadow.mapSize.set(mapSizePx, mapSizePx);
+        sun.shadow.map?.dispose();
+        sun.shadow.map = null;
+      }
+    },
     debugLight(look): void {
       if (look.sun !== undefined) sun.intensity = look.sun;
       if (look.hemisphere !== undefined) hemisphere.intensity = look.hemisphere;

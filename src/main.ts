@@ -6,4 +6,4 @@ import { Game } from './game/game';
 const game = new Game(mustGet<HTMLCanvasElement>('world'));
 game.start();
 
-if (import.meta.env.DEV) (window as unknown as { __game: Game }).__game = game;
+if (import.meta.env.DEV) (window as unknown as { __game: Game['debug'] }).__game = game.debug;

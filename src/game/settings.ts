@@ -1,4 +1,6 @@
+import { QUALITY } from '../config';
 import { loadJson, saveJson } from '../core/storage';
+import type { QualityId } from '../ui/menu';
 
 const FREE_BATTERY_KEY = 'freeBattery.v1';
 
@@ -11,4 +13,15 @@ export function loadFreeBatteryDrain(): boolean {
 
 export function saveFreeBatteryDrain(isOn: boolean): void {
   saveJson(FREE_BATTERY_KEY, isOn);
+}
+
+const QUALITY_KEY = 'quality.v1';
+const isQualityId = (value: unknown): value is QualityId => typeof value === 'string' && value in QUALITY;
+
+export function loadQuality(): QualityId {
+  return loadJson(QUALITY_KEY, isQualityId) ?? 'medium';
+}
+
+export function saveQuality(quality: QualityId): void {
+  saveJson(QUALITY_KEY, quality);
 }

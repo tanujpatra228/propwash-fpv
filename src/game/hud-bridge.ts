@@ -57,6 +57,11 @@ export class HudBridge {
     this.groundMarker = new GroundMarker(scene);
   }
 
+  setVisible(isVisible: boolean): void {
+    this.hud.setVisible(isVisible);
+    if (!isVisible) this.groundMarker.hide();
+  }
+
   setHelpText(text: string): void {
     this.hud.setHelpText(text);
   }
