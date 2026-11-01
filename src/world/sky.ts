@@ -32,6 +32,8 @@ export interface SkyRig {
   /** Moves the shadow-casting sun so shadows follow the camera focus. */
   followFocus(position: Vector3): void;
   setShadowExtent(extentM: number): void;
+  /** Dev-only: try different light levels. */
+  debugLight(look: { sun?: number; hemisphere?: number; environment?: number }): void;
 }
 
 /** Sky dome, sky-based lighting, warm haze, one shadow-casting sun. */
@@ -58,10 +60,16 @@ export function buildSky(scene: Scene, renderer: WebGLRenderer): SkyRig {
   sun.shadow.normalBias = 0.03;
   sun.shadow.camera.near = 1;
   sun.shadow.camera.far = 600;
-  scene.add(sun, sun.target, new HemisphereLight(0xbcd2ff, 0x5a4a35, 0.55));
+  const hemisphere = new HemisphereLight(0xbcd2ff, 0x5a4a35, 0.55);
+  scene.add(sun, sun.target, hemisphere);
 
   let currentExtentM = 0;
   const rig: SkyRig = {
+    debugLight(look): void {
+      if (look.sun !== undefined) sun.intensity = look.sun;
+      if (look.hemisphere !== undefined) hemisphere.intensity = look.hemisphere;
+      if (look.environment !== undefined) scene.environmentIntensity = look.environment;
+    },
     setShadowExtent(extentM: number): void {
       if (extentM === currentExtentM) return;
       currentExtentM = extentM;

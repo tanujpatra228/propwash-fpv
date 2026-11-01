@@ -47,6 +47,15 @@ export class GameRenderer {
     Object.assign(this.lens, next);
   }
 
+  /** Dev-only: try look settings from the browser console or tests. */
+  debugLook(look: { exposure?: number; bloomStrength?: number; bloomThreshold?: number; bloomRadius?: number; bloom?: boolean }): void {
+    if (look.exposure !== undefined) this.webgl.toneMappingExposure = look.exposure;
+    if (look.bloomStrength !== undefined) this.bloomPass.strength = look.bloomStrength;
+    if (look.bloomThreshold !== undefined) this.bloomPass.threshold = look.bloomThreshold;
+    if (look.bloomRadius !== undefined) this.bloomPass.radius = look.bloomRadius;
+    if (look.bloom !== undefined) this.bloomPass.enabled = look.bloom;
+  }
+
   setBloomEnabled(isEnabled: boolean): void {
     this.bloomPass.enabled = isEnabled;
   }
