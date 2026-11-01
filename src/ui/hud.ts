@@ -66,12 +66,12 @@ export class Hud {
     this.lessonPanel.update(state.mode.lesson);
     this.countdown.update(state.mode.countdown);
     this.ghostTag.update(state.ghost.isVisible, state.ghost.x, state.ghost.y);
-    this.gateMarker.update(state.nextGate.x, state.nextGate.y, state.nextGate.distM, isTextFrame);
+    this.gateMarker.update(state.nextGate.x, state.nextGate.y, state.nextGate.distM, state.units, isTextFrame);
     if (isTextFrame) {
       this.gateMarker.setCounter(state.gatesPassed, state.gateCount);
-      this.height.update(state.heightM);
+      this.height.update(state.heightM, state.units);
       this.battery.update(state.charge01, state.timeLeftS, state.mode.swapProgress01);
-      this.speed.update(state.speedMps);
+      this.speed.update(state.speedMps, state.units);
     }
     if (this.frameCount % HUD.minimapEveryNFrames === 0) this.minimap.update(state);
   }

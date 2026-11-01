@@ -9,6 +9,7 @@ import type { HudState } from '../ui/hud-state';
 import type { FlightMenuCallbacks, FlightMenuLabels } from '../ui/flight-menu';
 import type { Gate } from '../world/gates';
 import type { GameMode } from './modes/mode';
+import type { PilotSettings } from '../core/pilot-settings';
 import { groundY } from '../world/terrain';
 import { GroundMarker } from './ground-marker';
 import type { LapTracker } from './lap-tracker';
@@ -24,6 +25,7 @@ export interface HudFrame {
   tracker: LapTracker;
   gates: readonly Gate[];
   mode: GameMode;
+  pilot: PilotSettings;
   /** Where the ghost drone is, or null when it is not shown. */
   ghostPosition: Vector3 | null;
   camera: Camera;
@@ -38,6 +40,9 @@ export class HudBridge {
   private readonly groundMarker: GroundMarker;
   private readonly state: HudState = {
     isGoggles: true,
+    units: 'metric',
+    uptiltDeg: 0,
+    fovDeg: 86,
     speedMps: 0,
     heightM: 0,
     throttle01: 0,
@@ -94,6 +99,9 @@ export class HudBridge {
       s.nextGate.distM = position.distanceTo(next.position);
     }
     s.isGoggles = frame.isGoggles;
+    s.units = frame.pilot.units;
+    s.uptiltDeg = frame.pilot.uptiltDeg;
+    s.fovDeg = frame.pilot.fovDeg;
     s.speedMps = flight.velocity.length();
     s.heightM = heightM;
     s.throttle01 = flight.throttle01;

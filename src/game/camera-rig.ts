@@ -15,19 +15,31 @@ export interface CameraTarget {
 const wanted = new Vector3();
 const lookAt = new Vector3();
 const offset = new Vector3();
-const uptilt = new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), MathUtils.degToRad(CAMERA.goggles.uptiltDeg));
+const X_AXIS = new Vector3(1, 0, 0);
 
 /** Owns the one scene camera: goggles (fixed to the drone, tilted up) or chase (smoothed, behind it). */
 export class CameraRig {
   readonly camera = new PerspectiveCamera(CAMERA.goggles.fovDeg, 1, CAMERA.goggles.nearM, CAMERA.farM);
   private mode: CameraMode = 'goggles';
   private hasPlacedCamera = false;
+  private gogglesFovDeg: number = CAMERA.goggles.fovDeg;
+  private readonly uptilt = new Quaternion().setFromAxisAngle(X_AXIS, MathUtils.degToRad(CAMERA.goggles.uptiltDeg));
   private readonly broadcastPosition = new Vector3();
   private readonly broadcastLookAt = new Vector3();
   private modeBeforeBroadcast: CameraMode = 'goggles';
 
   get currentMode(): CameraMode {
     return this.mode;
+  }
+
+  /** Pilot settings: the goggles view's field of view and upward tilt. Applies at once if the goggles are in use. */
+  setGogglesView(fovDeg: number, uptiltDeg: number): void {
+    this.gogglesFovDeg = fovDeg;
+    this.uptilt.setFromAxisAngle(X_AXIS, MathUtils.degToRad(uptiltDeg));
+    if (this.mode === 'goggles' && this.camera.fov !== fovDeg) {
+      this.camera.fov = fovDeg;
+      this.camera.updateProjectionMatrix();
+    }
   }
 
   /** Switches to the menu's TV-style camera and remembers the pilot's camera to come back to. */
@@ -50,7 +62,7 @@ export class CameraRig {
     if (mode === this.mode) return;
     this.mode = mode;
     const lens = mode === 'goggles' ? CAMERA.goggles : CAMERA.chase;
-    this.camera.fov = lens.fovDeg;
+    this.camera.fov = mode === 'goggles' ? this.gogglesFovDeg : lens.fovDeg;
     this.camera.near = lens.nearM;
     this.camera.updateProjectionMatrix();
     this.hasPlacedCamera = false;
@@ -86,7 +98,7 @@ export class CameraRig {
   private updateGoggles(target: CameraTarget): void {
     offset.set(0, CAMERA.goggles.upM, -CAMERA.goggles.forwardM).applyQuaternion(target.quaternion);
     this.camera.position.copy(target.position).add(offset);
-    this.camera.quaternion.copy(target.quaternion).multiply(uptilt);
+    this.camera.quaternion.copy(target.quaternion).multiply(this.uptilt);
   }
 
   private updateChase(dtS: number, target: CameraTarget): void {

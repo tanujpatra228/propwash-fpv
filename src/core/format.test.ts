@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatHeight, formatPercent, formatTimeLeft, formatLapTime, formatSpeedKmh, formatSplit, formatTimer } from './format';
+import { formatDistance, formatHeight, formatHeightUnits, formatSpeed, formatPercent, formatTimeLeft, formatLapTime, formatSpeedKmh, formatSplit, formatTimer } from './format';
 
 describe('format', () => {
   it('formats lap times', () => {
@@ -34,5 +34,16 @@ describe('format', () => {
     expect(formatTimeLeft(-5)).toBe('≈ 0:00');
     expect(formatPercent(0.874)).toBe('87%');
     expect(formatPercent(2)).toBe('100%');
+  });
+
+  it('formats speed, height and distance in both unit systems', () => {
+    expect(formatSpeed(28, 'metric')).toBe('101 km/h');
+    expect(formatSpeed(28, 'imperial')).toBe('63 mph');
+    expect(formatHeightUnits(2.44, 'metric')).toEqual({ value: '2.4', unit: 'm' });
+    expect(formatHeightUnits(2.44, 'imperial')).toEqual({ value: '8.0', unit: 'ft' });
+    expect(formatHeightUnits(23.4, 'imperial')).toEqual({ value: '77', unit: 'ft' });
+    expect(formatHeightUnits(-1, 'imperial').value).toBe('0.0');
+    expect(formatDistance(195, 'metric')).toBe('195m');
+    expect(formatDistance(195, 'imperial')).toBe('640ft');
   });
 });

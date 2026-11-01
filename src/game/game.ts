@@ -49,6 +49,7 @@ import { TrainingMode } from './modes/training';
 import { TimeTrial } from './modes/time-trial';
 import { type Pose } from './respawn';
 import { applyQualityPreset } from './quality';
+import { loadPilotSettings, savePilotSettings, type PilotSettings } from '../core/pilot-settings';
 import { loadFreeBatteryDrain, loadQuality, saveFreeBatteryDrain, saveQuality } from './settings';
 import { loadBestLap } from './trial-storage';
 import { loadCompletedLessons, saveCompletedLessons, trainingMenuText } from './training-progress';
@@ -91,6 +92,7 @@ export class Game {
   private readonly flightInput: FlightInput = { ...NO_INPUT };
   private bindings: Bindings;
   private isFreeDrainOn = loadFreeBatteryDrain();
+  private pilot: PilotSettings = loadPilotSettings();
   private lastTimeMs = 0;
   private clockS = 0;
   private crashTimerS = 0;
@@ -167,13 +169,19 @@ export class Game {
         onTraining: () => this.startMode('training'),
         onControls: () => this.openControls(),
         onQualityChange: (id) => this.applyQuality(id),
+        onPilotChange: (next) => {
+          this.pilot = next;
+          savePilotSettings(next);
+          this.applyPilotSettings();
+        },
         onFreeDrainChange: (isOn) => {
           this.isFreeDrainOn = isOn;
           saveFreeBatteryDrain(isOn);
         },
       },
-      { quality, isFreeDrainOn: this.isFreeDrainOn },
+      { quality, isFreeDrainOn: this.isFreeDrainOn, pilot: this.pilot },
     );
+    this.applyPilotSettings();
     this.applyQuality(quality, false);
     this.input.onPress((action) => this.onPress(action));
     this.debug = createDebugApi({
@@ -246,6 +254,12 @@ export class Game {
   private openControls(): void {
     this.input.enabled = false;
     this.controls.open();
+  }
+
+  /** Pushes the pilot's camera, mouse and units choices to the parts that use them. */
+  private applyPilotSettings(): void {
+    this.rig.setGogglesView(this.pilot.fovDeg, this.pilot.uptiltDeg);
+    this.input.setInvertTurn(this.pilot.isTurnInverted);
   }
 
   private applyQuality(id: QualityId, shouldSave = true): void {
@@ -422,6 +436,7 @@ export class Game {
       tracker: this.tracker,
       gates: this.gates,
       mode: this.mode,
+      pilot: this.pilot,
       ghostPosition: isGhostShown ? ghostPosition : null,
       camera: this.rig.camera,
       isGoggles,

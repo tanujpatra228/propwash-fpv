@@ -1,7 +1,6 @@
 import { MathUtils } from 'three';
-import { CAMERA } from '../config';
 import { el } from '../core/dom';
-import { formatSpeedKmh, formatTimer } from '../core/format';
+import { formatSpeed, formatTimer } from '../core/format';
 import { valueNoise } from '../core/math';
 import type { HudState } from './hud-state';
 
@@ -38,9 +37,9 @@ export class Osd {
 
   update(state: HudState, timeS: number, isTextFrame: boolean): void {
     if (this.root.hidden) return;
-    const pitchDeg = MathUtils.radToDeg(state.pitchRad) + CAMERA.goggles.uptiltDeg;
+    const pitchDeg = MathUtils.radToDeg(state.pitchRad) + state.uptiltDeg;
     const rollDeg = MathUtils.radToDeg(state.rollRad);
-    this.horizon.style.transform = `translateY(${pitchDeg * (window.innerHeight / CAMERA.goggles.fovDeg)}px) rotate(${rollDeg}deg)`;
+    this.horizon.style.transform = `translateY(${pitchDeg * (window.innerHeight / state.fovDeg)}px) rotate(${rollDeg}deg)`;
     if (!isTextFrame) return;
     this.volts.textContent = `${state.voltage.toFixed(1)}V`;
     this.volts.classList.toggle('warn', state.isBatteryLow);
@@ -51,6 +50,6 @@ export class Osd {
     this.link.textContent = `LQ ${LINK_QUALITY_BASE + Math.floor((valueNoise(timeS * 0.7, 3.1) * 0.5 + 0.5) * LINK_QUALITY_SPREAD)}`;
     this.timer.textContent = formatTimer(state.flightTimeS);
     this.throttle.textContent = `THR ${Math.round(state.throttle01 * 100)}%`;
-    this.speed.textContent = formatSpeedKmh(state.speedMps);
+    this.speed.textContent = formatSpeed(state.speedMps, state.units);
   }
 }

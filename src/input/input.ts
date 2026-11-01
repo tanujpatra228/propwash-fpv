@@ -16,6 +16,7 @@ export class Input {
   private readonly listeners: PressListener[] = [];
   private mouseYawRad = 0;
   private sensitivity = 1;
+  private isTurnInverted = false;
   private isDragging = false;
   private canUsePointerLock = true;
   private dragOriginX = 0;
@@ -60,6 +61,11 @@ export class Input {
 
   setSensitivity(value: number): void {
     this.sensitivity = value;
+  }
+
+  /** Pilot setting: flip the mouse turn direction. */
+  setInvertTurn(isInverted: boolean): void {
+    this.isTurnInverted = isInverted;
   }
 
   /** Subscribe to one-shot presses (camera, reset...). Returns an unsubscribe function. */
@@ -134,7 +140,7 @@ export class Input {
   private readonly onMouseMove = (event: MouseEvent): void => {
     if (!this.isEnabled || !this.hasPointerLock) return;
     // Moving right turns right, which is a negative (clockwise) yaw.
-    this.mouseYawRad -= event.movementX * MOUSE_RAD_PER_PX * this.sensitivity;
+    this.mouseYawRad -= event.movementX * MOUSE_RAD_PER_PX * this.sensitivity * (this.isTurnInverted ? -1 : 1);
   };
 
   private readonly onPointerDown = (event: PointerEvent): void => {
