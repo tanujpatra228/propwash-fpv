@@ -1,6 +1,7 @@
 import type { Scene } from 'three';
 import type { ColliderWorld } from '../physics/colliders';
 import { buildClouds } from './clouds';
+import { ContainerBatch } from './containers';
 import { buildFactory } from './factory';
 import { buildGrass, type Grass } from './grass';
 import { buildHamlet } from './houses';
@@ -21,8 +22,10 @@ export interface Scenery {
 export function buildScenery(scene: Scene, colliders: ColliderWorld, textures: WorldTextures): Scenery {
   const exclusions = new Exclusions();
   exclusions.add(PIT_PAD.position.x, PIT_PAD.position.z, PIT_EXCLUSION_RADIUS_M);
-  buildPitArea(scene, colliders, textures);
-  buildFactory(scene, colliders, textures);
+  const containers = new ContainerBatch(colliders, textures.ribs);
+  buildPitArea(scene, colliders, textures, containers);
+  buildFactory(scene, colliders, textures, containers);
+  containers.build(scene);
   buildHamlet(scene, colliders, textures, exclusions);
   buildVegetation(scene, colliders, exclusions);
   const grass = buildGrass(scene);
