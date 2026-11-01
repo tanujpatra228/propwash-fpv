@@ -297,6 +297,30 @@ export const TRAINING = {
   nextLessonDelayS: 2.5,
 } as const;
 
+/** Online laps: what the server accepts. This is a sanity filter, not anti-cheat. */
+export const ONLINE = {
+  /** The track is about 1.1 km and top speed 28 m/s, so a lap under this is impossible. */
+  minLapS: 30,
+  maxLapS: 600,
+  /** The recorded ghost may differ from the lap time by this fraction (sampling is 20 Hz). */
+  ghostLengthTolerance: 0.05,
+  /** No two ghost samples may be further apart than this speed allows (catches teleports). */
+  maxGhostSpeedMps: 45,
+  /** The ghost must start this close to the start gate. */
+  startRadiusM: 30,
+  maxBodyBytes: 40_000,
+  maxGhostChars: 30_000,
+  pilotIdMinLength: 8,
+  pilotIdMaxLength: 64,
+  /** One accepted submission per pilot per this many seconds. */
+  minSecondsBetweenSubmissions: 10,
+  leaderboardDefaultLimit: 20,
+  leaderboardMaxLimit: 50,
+  leaderboardCacheS: 30,
+  ghostCacheS: 300,
+  requestTimeoutMs: 6000,
+} as const;
+
 export const STORAGE_PREFIX = 'pw.';
 
 /** Stock-drone flight tuning. Units: metres, seconds, radians. */
