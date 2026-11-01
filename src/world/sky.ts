@@ -41,7 +41,7 @@ export interface SkyRig {
   followFocus(position: Vector3): void;
   setShadowExtent(extentM: number): void;
   /** Dev-only: try different light levels. */
-  debugLight(look: { sun?: number; hemisphere?: number; environment?: number }): void;
+  debugLight(look: { sun?: number; hemisphere?: number; environment?: number; turbidity?: number; mie?: number; mieG?: number; rayleigh?: number }): void;
 }
 
 /** Sky dome, sky-based lighting, warm haze, one shadow-casting sun. */
@@ -51,7 +51,8 @@ export function buildSky(scene: Scene, renderer: WebGLRenderer): SkyRig {
     MathUtils.degToRad(90 - RENDER.sunElevationDeg),
     MathUtils.degToRad(RENDER.sunAzimuthDeg),
   );
-  scene.add(createSkyDome(3000, sunDirection));
+  const dome = createSkyDome(3000, sunDirection);
+  scene.add(dome);
 
   const pmrem = new PMREMGenerator(renderer);
   const envScene = new Scene();
@@ -78,6 +79,11 @@ export function buildSky(scene: Scene, renderer: WebGLRenderer): SkyRig {
       if (look.sun !== undefined) sun.intensity = look.sun;
       if (look.hemisphere !== undefined) hemisphere.intensity = look.hemisphere;
       if (look.environment !== undefined) scene.environmentIntensity = look.environment;
+      const u = dome.material.uniforms;
+      if (look.turbidity !== undefined && u['turbidity']) u['turbidity'].value = look.turbidity;
+      if (look.mie !== undefined && u['mieCoefficient']) u['mieCoefficient'].value = look.mie;
+      if (look.mieG !== undefined && u['mieDirectionalG']) u['mieDirectionalG'].value = look.mieG;
+      if (look.rayleigh !== undefined && u['rayleigh']) u['rayleigh'].value = look.rayleigh;
     },
     setShadowExtent(extentM: number): void {
       if (extentM === currentExtentM) return;

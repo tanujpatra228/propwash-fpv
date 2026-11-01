@@ -200,6 +200,35 @@ export const GATE = {
   bannerExtraWidthM: 1.6,
 } as const;
 
+/** Best-lap ghost and time-trial rules. */
+export const TRIAL = {
+  countdownS: 3,
+  /** How long "GO" stays on screen after the countdown. */
+  goShownS: 0.9,
+  /** Distance behind gate 0 where a run starts. */
+  startBehindGateM: 4,
+  splitShownS: 2,
+  bannerShownS: 2.5,
+  /** The run ends this long after the battery empties if the drone has not touched down. */
+  emptyBatteryGraceS: 3,
+} as const;
+
+export const GHOST = {
+  hz: 20,
+  /** Positions are stored in 1 cm steps and angles in 0.01 rad steps. */
+  positionStepM: 0.01,
+  angleStepRad: 0.01,
+  /** A lap longer than this stops recording (the lap still counts). */
+  maxRecordS: 600,
+  color: 0xbfe6ff,
+} as const;
+
+export const FREE_FLIGHT = {
+  /** Landed on the pad: below this height, within this distance of the centre, slower than this speed. */
+  swap: { maxHeightM: 0.15, maxDistanceM: 1.4, maxSpeedMps: 0.5, holdS: 2 },
+  emptyBatteryGraceS: 3,
+} as const;
+
 export const STORAGE_PREFIX = 'pw.';
 
 /** Stock-drone flight tuning. Units: metres, seconds, radians. */
