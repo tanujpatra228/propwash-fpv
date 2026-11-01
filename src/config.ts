@@ -63,7 +63,7 @@ export const SCENERY = {
   broadleafCount: 900,
   rockCount: 500,
   grassCount: 70000,
-  cloudCount: 16,
+  cloudCount: 12,
   scatterHalfSizeM: 950,
   treeMinTrackDistanceM: 13,
   broadleafMinTrackDistanceM: 12,

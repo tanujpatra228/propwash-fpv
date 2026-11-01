@@ -1,4 +1,4 @@
-import { BoxGeometry, CylinderGeometry, Group, Mesh, MeshStandardMaterial, type Scene } from 'three';
+import { BoxGeometry, Color, CylinderGeometry, InstancedMesh, MeshStandardMaterial, Object3D, Vector3, type Scene } from 'three';
 import { LAKE_SURFACE_Y, heightAt } from './terrain';
 import { SCENERY, VALLEY, WORLD } from '../config';
 import { createRng, randRange } from '../core/math';
@@ -7,7 +7,10 @@ import { Exclusions, distanceToTrack, slopeAt } from './scatter';
 import type { WorldTextures } from './textures';
 
 const WALL_HEIGHT_M = 3.1;
-const ROOF_SQUASH = 0.45;
+/** Roof height as a fraction of roof depth. */
+const ROOF_PITCH = 0.45;
+/** A unit prism's base sits this far below its centre (its radius is 1/sqrt(3); the base is at -radius/2). */
+const PRISM_BASE_OFFSET = 1 / (2 * Math.sqrt(3));
 const SQRT3 = Math.sqrt(3);
 const WALL_TINTS = [0xf2e6d0, 0xe8c9a0, 0xd9d4c8, 0xcfa88a, 0xe6dfc9] as const;
 const ROOF_TINTS = [0x8a3a2a, 0x6b4a3a, 0x4d5a64, 0x7a5a3a] as const;
@@ -36,49 +39,58 @@ export function buildHamlet(scene: Scene, colliders: ColliderWorld, textures: Wo
     placed.push({ x, z });
   }
 
-  const wallGeometry = new BoxGeometry(1, WALL_HEIGHT_M, 1);
-  for (const { x, z } of placed) {
+  // Two instanced meshes (walls, roofs) keep the whole hamlet to a handful of draw calls.
+  const wallMesh = new InstancedMesh(
+    new BoxGeometry(1, WALL_HEIGHT_M, 1),
+    new MeshStandardMaterial({ map: textures.houseWall, color: 0xffffff, roughness: 0.9 }),
+    placed.length,
+  );
+  const roofGeometry = new CylinderGeometry(1 / SQRT3, 1 / SQRT3, 1, 3);
+  roofGeometry.rotateZ(Math.PI / 2); // ridge along the house width (X)
+  roofGeometry.rotateX(-Math.PI / 2); // ridge pointing up
+  const roofMesh = new InstancedMesh(
+    roofGeometry,
+    new MeshStandardMaterial({ color: 0xffffff, roughness: 0.85, flatShading: true }),
+    placed.length,
+  );
+  const dummy = new Object3D();
+  const tint = new Color();
+  const halfExtents = new Vector3(0.5, WALL_HEIGHT_M / 2, 0.5);
+
+  placed.forEach(({ x, z }, i) => {
     const width = randRange(rng, 6, 9);
     const depth = randRange(rng, 5, 7.5);
-    const baseY = Math.max(
-      heightAt(x - width / 2, z - depth / 2),
-      heightAt(x + width / 2, z - depth / 2),
-      heightAt(x - width / 2, z + depth / 2),
-      heightAt(x + width / 2, z + depth / 2),
-    );
-    const house = new Group();
-    house.position.set(x, baseY - 0.4, z);
-    house.rotation.y = Math.round(randRange(rng, 0, 24)) * (Math.PI / 12);
-    scene.add(house);
+    const baseY =
+      Math.max(
+        heightAt(x - width / 2, z - depth / 2),
+        heightAt(x + width / 2, z - depth / 2),
+        heightAt(x - width / 2, z + depth / 2),
+        heightAt(x + width / 2, z + depth / 2),
+      ) - 0.4;
+    const yawRad = Math.round(randRange(rng, 0, 24)) * (Math.PI / 12);
 
-    const wallMaterial = new MeshStandardMaterial({
-      map: textures.houseWall,
-      color: WALL_TINTS[Math.floor(rng() * WALL_TINTS.length)] ?? 0xffffff,
-      roughness: 0.9,
-    });
-    const walls = new Mesh(wallGeometry, wallMaterial);
-    walls.scale.set(width, 1, depth);
-    walls.position.y = WALL_HEIGHT_M / 2;
-    walls.castShadow = true;
-    walls.receiveShadow = true;
-    house.add(walls);
+    dummy.position.set(x, baseY + WALL_HEIGHT_M / 2, z);
+    dummy.rotation.set(0, yawRad, 0);
+    dummy.scale.set(width, 1, depth);
+    dummy.updateMatrix();
+    wallMesh.setMatrixAt(i, dummy.matrix);
+    wallMesh.setColorAt(i, tint.set(WALL_TINTS[Math.floor(rng() * WALL_TINTS.length)] ?? 0xffffff));
+    colliders.addBox(dummy.matrix, halfExtents, 'building');
 
-    // Gable roof: a 3-sided prism along the long axis, squashed to a gentle pitch.
-    const radius = (depth + 0.9) / SQRT3;
-    const roofGeometry = new CylinderGeometry(radius, radius, width + 0.9, 3);
-    roofGeometry.rotateZ(Math.PI / 2); // axis along the house width (X)
-    roofGeometry.rotateX(-Math.PI / 2); // ridge pointing up
-    const roof = new Mesh(
-      roofGeometry,
-      new MeshStandardMaterial({ color: ROOF_TINTS[Math.floor(rng() * ROOF_TINTS.length)] ?? 0x884433, roughness: 0.85, flatShading: true }),
-    );
-    roof.scale.y = ROOF_SQUASH;
-    roof.position.y = WALL_HEIGHT_M + (radius * ROOF_SQUASH) / 2;
-    roof.castShadow = true;
-    house.add(roof);
+    // Gable roof: a 3-sided prism with a gentle pitch, a little wider than the walls.
+    const roofDepth = depth + 0.9;
+    const pitch = ROOF_PITCH * roofDepth;
+    dummy.position.set(x, baseY + WALL_HEIGHT_M + PRISM_BASE_OFFSET * pitch, z);
+    dummy.scale.set(width + 0.9, pitch, roofDepth);
+    dummy.updateMatrix();
+    roofMesh.setMatrixAt(i, dummy.matrix);
+    roofMesh.setColorAt(i, tint.set(ROOF_TINTS[Math.floor(rng() * ROOF_TINTS.length)] ?? 0x884433));
 
-    house.updateMatrixWorld(true);
-    colliders.addMeshBox(walls, 'building');
     exclusions.add(x, z, FOOTPRINT_EXCLUSION_M + Math.max(width, depth) / 2);
+  });
+  for (const mesh of [wallMesh, roofMesh]) {
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    scene.add(mesh);
   }
 }
