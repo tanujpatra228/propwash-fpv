@@ -76,6 +76,10 @@ Players open one URL (`https://propwash-fpv.<account>.workers.dev`) and the game
 | 4 | Open a PR to `main` | Build runs; deploy step skipped | Manual |
 | 5 | `pnpm cf:dev`, open the local URL | Game loads on the Workers runtime | Manual |
 
+## Unsupported devices
+
+Phones and tablets cannot fly this (no keyboard or mouse). `core/device.ts` (`isUnsupportedDevice`, tested) detects them by user agent, iPads posing as Macs, or a touch-only main pointer, and `main.ts` shows `ui/unsupported-screen.ts` ("Not supported on mobile devices") before the world is built, so a phone never downloads the heavy part. A small "continue anyway" link covers desktop browsers that are wrongly flagged. A touch-screen laptop is not flagged, because its main pointer is still a mouse or trackpad.
+
 ## Out of scope
 
 Worker API routes, D1 and Durable Objects (Phase 4–5). Custom domain.
