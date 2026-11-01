@@ -130,8 +130,9 @@ export class MainMenu {
     this.trialSubtitle.textContent = text === null ? 'Set your first lap time' : `Best lap ${text}`;
   }
 
-  setFps(fps: number): void {
+  setFps(fps: number, renderScale = 1): void {
     if (this.settings.hidden) return;
-    this.fps.textContent = `Running at about ${Math.round(fps)} frames per second on this device.`;
+    const sharpness = renderScale < 0.995 ? ` The picture is rendered at ${Math.round(renderScale * 100)}% to keep it smooth.` : '';
+    this.fps.textContent = `Running at about ${Math.round(fps)} frames per second on this device.${sharpness}`;
   }
 }

@@ -77,6 +77,8 @@ export const SCENERY = {
   grassCount: 70000,
   cloudCount: 12,
   scatterHalfSizeM: 950,
+  /** Trees, rocks and grass are split into map chunks this wide so the GPU can skip the ones out of view. */
+  chunkSizeM: 200,
   treeMinTrackDistanceM: 13,
   broadleafMinTrackDistanceM: 12,
   rockMinTrackDistanceM: 6,

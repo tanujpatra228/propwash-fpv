@@ -3,6 +3,7 @@ import { VALLEY, WORLD, SCENERY } from '../config';
 import { createRng, randRange } from '../core/math';
 import { LAKE_SURFACE_Y, heightAt } from './terrain';
 import { PIT_PAD } from './pit-area';
+import { InstanceChunks } from './instance-chunks';
 import { slopeAt } from './scatter';
 import { track } from './track';
 
@@ -14,7 +15,8 @@ const PAD_CLEAR_RADIUS_M = 7;
 const TWO_PI = Math.PI * 2;
 
 export interface Grass {
-  mesh: InstancedMesh;
+  meshes: InstancedMesh[];
+  setVisible(isVisible: boolean): void;
   /** Advances the wind. */
   update(timeS: number): void;
 }
@@ -22,7 +24,7 @@ export interface Grass {
 /** Wind-blown grass blades, concentrated along the track and around the pits. */
 export function buildGrass(scene: Scene): Grass {
   const rng = createRng(WORLD.seed + 97);
-  const blade = new PlaneGeometry(0.09, BLADE_HEIGHT_M, 1, 3).translate(0, BLADE_HEIGHT_M / 2, 0);
+  const blade = new PlaneGeometry(0.09, BLADE_HEIGHT_M, 1, 2).translate(0, BLADE_HEIGHT_M / 2, 0);
   const p = blade.attributes.position;
   if (!p) throw new Error('Grass blade has no positions');
   for (let i = 0; i < p.count; i++) p.setX(i, p.getX(i) * (1 - p.getY(i) / (BLADE_HEIGHT_M + 0.02)));
@@ -47,7 +49,7 @@ export function buildGrass(scene: Scene): Grass {
       shader.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n diffuseColor.rgb *= mix(0.42, 1.08, vH);');
   };
 
-  const mesh = new InstancedMesh(blade, material, SCENERY.grassCount);
+  const chunks = new InstanceChunks(SCENERY.chunkSizeM);
   const dummy = new Object3D();
   const color = new Color();
   const pad = PIT_PAD.position;
@@ -70,17 +72,16 @@ export function buildGrass(scene: Scene): Grass {
     dummy.rotation.set(randRange(rng, -0.25, 0.25), randRange(rng, 0, TWO_PI), randRange(rng, -0.25, 0.25));
     dummy.scale.set(s, s * randRange(rng, 0.7, 1.3), s);
     dummy.updateMatrix();
-    mesh.setMatrixAt(count, dummy.matrix);
-    mesh.setColorAt(count, color.set(PALETTE[Math.floor(rng() * PALETTE.length)] ?? 0x5d7a2c));
+    chunks.add(x, z, dummy.matrix, color.set(PALETTE[Math.floor(rng() * PALETTE.length)] ?? 0x5d7a2c));
     count++;
   }
-  mesh.count = count;
-  mesh.frustumCulled = false;
-  mesh.receiveShadow = true;
-  scene.add(mesh);
+  const meshes = chunks.build(blade, material, scene, { castShadow: false, receiveShadow: true });
 
   return {
-    mesh,
+    meshes,
+    setVisible(isVisible: boolean): void {
+      for (const mesh of meshes) mesh.visible = isVisible;
+    },
     update(timeS: number): void {
       uniforms.uTime.value = timeS;
     },

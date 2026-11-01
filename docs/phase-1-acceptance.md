@@ -24,13 +24,26 @@ An honest record of what has been checked and how, so nothing is ticked that has
 | Motor sound | Tone mapping from throttle and speed (unit) | **How it sounds. Nobody has listened yet.** |
 | Battery system | Drain, sag, low power, empty, voltage curve (unit) | **Tuning: a synthetic 26 s lap used about 11% of the pack, so a real 45 s lap would use roughly 20%, about five laps per battery against the 3 to 4 target.** Needs a real lap to confirm. |
 
+## Performance (measured after the first player report)
+
+Player report on a real machine: Low 60 fps, Medium 46 to 48, High 45 to 47 (High matches Medium because the screen's pixel ratio is 1).
+
+Changes made:
+- Trees, rocks and grass are split into 200 m map chunks (`world/instance-chunks.ts`). Before, each kind was one object spanning the whole valley, so every tree was drawn every frame and again for shadows.
+- Grass blades have two height segments instead of three.
+- **Dynamic resolution** (`core/resolution-controller.ts`): once a second, if the frame rate is under 55 the picture renders at a slightly lower resolution (down to 60%); after four seconds at 59 or more it sharpens again. The settings screen says when it is active.
+
+Measured with a software renderer (whole frame including shadow and post passes, so not comparable with the older numbers above): 478 K to 922 K triangles and 140 to 228 draw calls depending on the view. That is below the old 1.34 M triangles but above the 150 draw-call budget in the plan; on a real GPU triangles and pixels matter more than the call count at this scale, but it is a known deviation.
+
+**Still open:** the player re-checking Medium frame rate after this change.
+
 ## Known deviations from the docs
 
 - Bloom is off by default (the doc says on for Medium and High): it white-washed the view toward the sun.
 - Drag constants changed so top speed meets the acceptance criterion (see flight-model).
 - A speed gauge was added next to the height and battery gauges.
 - The world boundary is a hard wall with a faint grid, not a "signal lost" respawn.
-- `game/game.ts` is 408 lines (target 300, split at 400); the dev-only test hooks already live in `debug-api.ts`.
+- `game/game.ts` is 423 lines (target 300, split at 400); the dev-only test hooks already live in `debug-api.ts`.
 - The "Best lap" tag above the ghost is built (`ui/ghost-tag.ts`).
 
 ## What the player should check next

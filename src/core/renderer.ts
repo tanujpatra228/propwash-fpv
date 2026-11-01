@@ -14,12 +14,15 @@ export class GameRenderer {
   private readonly fpvPass = createFpvPass();
   private readonly bloomPass: UnrealBloomPass;
   private pixelRatioCap = 1;
+  private resolutionScale = 1;
   private readonly lens: LensSettings = { fisheye: 0, vignette: 0.35, grain: 0.012, staticAmount: 0 };
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     this.webgl = new WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
     this.webgl.toneMapping = ACESFilmicToneMapping;
     this.webgl.toneMappingExposure = RENDER.toneMappingExposure;
+    // Count the whole frame (shadow pass, scene, post passes), not just the last pass.
+    this.webgl.info.autoReset = false;
     this.webgl.shadowMap.enabled = true;
     this.webgl.shadowMap.type = PCFShadowMap;
 
@@ -66,6 +69,7 @@ export class GameRenderer {
     this.renderPass.scene = scene;
     this.renderPass.camera = camera;
     applyLens(this.fpvPass, this.lens, timeS, this.aspect);
+    this.webgl.info.reset();
     this.composer.render();
   }
 
@@ -75,8 +79,18 @@ export class GameRenderer {
     this.resize();
   }
 
+  /** Dynamic resolution: render at this fraction of the preset's pixel ratio (1 = full). */
+  setResolutionScale(scale: number): void {
+    this.resolutionScale = scale;
+    this.resize();
+  }
+
+  get currentResolutionScale(): number {
+    return this.resolutionScale;
+  }
+
   readonly resize = (): void => {
-    const ratio = Math.min(window.devicePixelRatio, this.pixelRatioCap);
+    const ratio = Math.min(window.devicePixelRatio, this.pixelRatioCap) * this.resolutionScale;
     this.webgl.setPixelRatio(ratio);
     this.webgl.setSize(window.innerWidth, window.innerHeight, false);
     this.composer.setPixelRatio(ratio);

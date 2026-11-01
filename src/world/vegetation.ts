@@ -3,7 +3,6 @@ import {
   CylinderGeometry,
   DodecahedronGeometry,
   IcosahedronGeometry,
-  InstancedMesh,
   MeshStandardMaterial,
   Object3D,
   type BufferGeometry,
@@ -15,6 +14,7 @@ import { SCENERY, VALLEY, WORLD } from '../config';
 import { createRng, fbm, randRange, valueNoise } from '../core/math';
 import type { ColliderWorld } from '../physics/colliders';
 import { PIT_PAD } from './pit-area';
+import { InstanceChunks } from './instance-chunks';
 import { Exclusions, distanceToTrack, scatter, slopeAt } from './scatter';
 import { addTreeColliders, type TreeKind } from './tree-colliders';
 
@@ -87,51 +87,42 @@ export function buildVegetation(scene: Scene, colliders: ColliderWorld, exclusio
 
   const trunkGeometry = new CylinderGeometry(0.16, 0.28, 3.2, 6).translate(0, 1.6, 0);
   const foliageMaterial = new MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, flatShading: true });
-  const trunks = new InstancedMesh(trunkGeometry, new MeshStandardMaterial({ color: 0x4a3626, roughness: 1 }), pines.length + broadleaf.length);
-  const pineMesh = new InstancedMesh(pineGeometry(), foliageMaterial, pines.length);
-  const broadMesh = new InstancedMesh(broadleafGeometry(), foliageMaterial, broadleaf.length);
+  const trunks = new InstanceChunks(SCENERY.chunkSizeM);
+  const pineChunks = new InstanceChunks(SCENERY.chunkSizeM);
+  const broadChunks = new InstanceChunks(SCENERY.chunkSizeM);
 
-  let trunkIndex = 0;
-  const place = (points: Point[], mesh: InstancedMesh, kind: TreeKind, palette: readonly number[], minScale: number, maxScale: number): void => {
-    points.forEach(([x, h, z], i) => {
+  const place = (points: Point[], chunks: InstanceChunks, kind: TreeKind, palette: readonly number[], minScale: number, maxScale: number): void => {
+    for (const [x, h, z] of points) {
       const s = randRange(rng, minScale, maxScale);
       dummy.position.set(x, h - TREE_SINK_M, z);
       dummy.rotation.set(randRange(rng, -0.05, 0.05), randRange(rng, 0, TWO_PI), randRange(rng, -0.05, 0.05));
       const stretch = randRange(rng, 0.9, 1.2);
       dummy.scale.set(s, s * stretch, s);
       dummy.updateMatrix();
-      mesh.setMatrixAt(i, dummy.matrix);
-      trunks.setMatrixAt(trunkIndex++, dummy.matrix);
+      trunks.add(x, z, dummy.matrix);
       tint.set(palette[Math.floor(rng() * palette.length)] ?? 0x335522).offsetHSL(randRange(rng, -0.02, 0.02), 0, randRange(rng, -0.04, 0.04));
-      mesh.setColorAt(i, tint);
+      chunks.add(x, z, dummy.matrix, tint);
       addTreeColliders(colliders, kind, x, z, h - TREE_SINK_M, s, s * stretch);
-    });
+    }
   };
-  place(pines, pineMesh, 'pine', PINE_COLORS, 0.8, 1.7);
-  place(broadleaf, broadMesh, 'broadleaf', BROADLEAF_COLORS, 0.7, 1.3);
-  for (const mesh of [trunks, pineMesh, broadMesh]) {
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    scene.add(mesh);
-  }
+  place(pines, pineChunks, 'pine', PINE_COLORS, 0.8, 1.7);
+  place(broadleaf, broadChunks, 'broadleaf', BROADLEAF_COLORS, 0.7, 1.3);
+  const treeShadow = { castShadow: true, receiveShadow: true };
+  trunks.build(trunkGeometry, new MeshStandardMaterial({ color: 0x4a3626, roughness: 1 }), scene, treeShadow);
+  pineChunks.build(pineGeometry(), foliageMaterial, scene, treeShadow);
+  broadChunks.build(broadleafGeometry(), foliageMaterial, scene, treeShadow);
 
   const rocks = scatter<Point>(SCENERY.rockCount, rng, (x, z) => {
     const h = isFree(x, z, SCENERY.rockMinTrackDistanceM);
     return h === null ? null : [x, h, z];
   });
-  const rockMesh = new InstancedMesh(
-    new DodecahedronGeometry(1, 0),
-    new MeshStandardMaterial({ color: 0x7a756d, roughness: 0.9, flatShading: true }),
-    rocks.length,
-  );
-  rocks.forEach(([x, h, z], i) => {
+  const rockChunks = new InstanceChunks(SCENERY.chunkSizeM);
+  for (const [x, h, z] of rocks) {
     dummy.position.set(x, h, z);
     dummy.rotation.set(randRange(rng, 0, 6), randRange(rng, 0, 6), randRange(rng, 0, 6));
     dummy.scale.set(randRange(rng, 0.5, 2.4), randRange(rng, 0.4, 1.4), randRange(rng, 0.5, 2.2));
     dummy.updateMatrix();
-    rockMesh.setMatrixAt(i, dummy.matrix);
-  });
-  rockMesh.castShadow = true;
-  rockMesh.receiveShadow = true;
-  scene.add(rockMesh);
+    rockChunks.add(x, z, dummy.matrix);
+  }
+  rockChunks.build(new DodecahedronGeometry(1, 0), new MeshStandardMaterial({ color: 0x7a756d, roughness: 0.9, flatShading: true }), scene, treeShadow);
 }
