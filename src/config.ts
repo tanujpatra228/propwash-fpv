@@ -234,6 +234,50 @@ export const FREE_FLIGHT = {
   emptyBatteryGraceS: 3,
 } as const;
 
+/** Synthesised motor and wind sound. Nothing is downloaded. */
+export const AUDIO = {
+  motorBaseHz: 120,
+  motorHzPerThrottle: 360,
+  /** The second oscillator sits a slightly harsh fifth above the first. */
+  motorHarmonicRatio: 1.502,
+  cutoffBaseHz: 700,
+  cutoffHzPerThrottle: 2600,
+  filterQ: 3,
+  volumeBase: 0.035,
+  volumePerThrottle: 0.05,
+  windBandHz: 700,
+  windMaxVolume: 0.12,
+  windSpeedForFullMps: 30,
+  windVolumeAtFull: 0.1,
+  /** Parameter changes ramp over about this long, so the sound never clicks. */
+  smoothingS: 0.05,
+  motorsCutFadeS: 0.3,
+} as const;
+
+/** Graphics presets. Pixel ratio is capped by the device's own ratio. */
+export const QUALITY = {
+  low: { label: 'Low', description: 'Older laptops. No shadows or grass.', pixelRatio: 0.75, shadowMapPx: 0, hasGrass: false },
+  medium: { label: 'Medium', description: 'Most laptops. Shadows and grass.', pixelRatio: 1, shadowMapPx: 1024, hasGrass: true },
+  high: { label: 'High', description: 'Gaming laptops. Sharper image.', pixelRatio: 1.75, shadowMapPx: 2048, hasGrass: true },
+} as const;
+
+export const MENU = {
+  /** AI drones that fly the track behind the menu. */
+  racers: [
+    { color: 0x3ec7ff, topSpeedMps: 25.7, lateralOffsetM: -1.0 },
+    { color: 0xff4fa3, topSpeedMps: 25.0, lateralOffsetM: 1.0 },
+    { color: 0xb6ff3b, topSpeedMps: 24.2, lateralOffsetM: -0.2 },
+  ],
+  /** AI never pulls more sideways acceleration than this; it slows for tight bends. */
+  maxLateralAccelMps2: 18,
+  lookAheadS: 0.6,
+  speedUpPerS: 0.9,
+  slowDownPerS: 2.5,
+  shotLengthS: 7,
+  shots: { chaseBehindM: 7, sideOutM: 13, trackside: { aheadM: 120, heightM: 3 } },
+  fpsSampleS: 1,
+} as const;
+
 export const STORAGE_PREFIX = 'pw.';
 
 /** Stock-drone flight tuning. Units: metres, seconds, radians. */

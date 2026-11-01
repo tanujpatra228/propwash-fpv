@@ -3,7 +3,7 @@ import { CAMERA } from '../config';
 import { damp } from '../core/math';
 import { groundY } from '../world/terrain';
 
-export type CameraMode = 'goggles' | 'chase';
+export type CameraMode = 'goggles' | 'chase' | 'broadcast';
 
 /** What the camera follows. Read-only. */
 export interface CameraTarget {
@@ -22,9 +22,28 @@ export class CameraRig {
   readonly camera = new PerspectiveCamera(CAMERA.goggles.fovDeg, 1, CAMERA.goggles.nearM, CAMERA.farM);
   private mode: CameraMode = 'goggles';
   private hasPlacedCamera = false;
+  private readonly broadcastPosition = new Vector3();
+  private readonly broadcastLookAt = new Vector3();
+  private modeBeforeBroadcast: CameraMode = 'goggles';
 
   get currentMode(): CameraMode {
     return this.mode;
+  }
+
+  /** Switches to the menu's TV-style camera and remembers the pilot's camera to come back to. */
+  enterBroadcast(): void {
+    if (this.mode !== 'broadcast') this.modeBeforeBroadcast = this.mode;
+    this.setMode('broadcast');
+  }
+
+  leaveBroadcast(): void {
+    if (this.mode === 'broadcast') this.setMode(this.modeBeforeBroadcast);
+  }
+
+  /** Place the broadcast camera (hard cuts, no smoothing). */
+  setBroadcastShot(position: Vector3, lookAt: Vector3): void {
+    this.broadcastPosition.copy(position);
+    this.broadcastLookAt.copy(lookAt);
   }
 
   setMode(mode: CameraMode): void {
@@ -37,7 +56,9 @@ export class CameraRig {
     this.hasPlacedCamera = false;
   }
 
+  /** Goggles <-> chase (the broadcast camera is not part of the pilot's toggle). */
   toggleMode(): CameraMode {
+    if (this.mode === 'broadcast') return this.mode;
     this.setMode(this.mode === 'goggles' ? 'chase' : 'goggles');
     return this.mode;
   }
@@ -55,7 +76,11 @@ export class CameraRig {
 
   update(dtS: number, target: CameraTarget): void {
     if (this.mode === 'goggles') this.updateGoggles(target);
-    else this.updateChase(dtS, target);
+    else if (this.mode === 'chase') this.updateChase(dtS, target);
+    else {
+      this.camera.position.copy(this.broadcastPosition);
+      this.camera.lookAt(this.broadcastLookAt);
+    }
   }
 
   private updateGoggles(target: CameraTarget): void {
