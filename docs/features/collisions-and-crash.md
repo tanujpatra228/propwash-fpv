@@ -1,8 +1,8 @@
 # Feature: Collisions and Crash
 
-Status: Planned
+Status: In progress
 Phase: 1
-Branch: `feat/collisions`
+Branch: `feat/phase-1` (milestone M4)
 Last updated: 2026-11-01
 
 ## Summary
@@ -57,6 +57,14 @@ Crash reasons: "Hit the ground", "Splashed into the lake", "Hit a gate", "Hit th
 - [ ] Touching the lake always crashes.
 - [ ] Respawn faces the next gate at the last passed gate.
 - [ ] R resets instantly.
+
+## Implementation notes (M4)
+
+- `physics/resolve.ts` takes a minimal `Body` (position, velocity) and an injected surface query, so `physics/` never imports `world/` or `drone/`. `substepCount` splits a frame into sub-steps of at most 0.25 m.
+- Ground friction is time-based (`0.85` per 1/60 s) so it does not depend on frame rate.
+- The vertical descent rate is capped at 5 m/s by the flight model, so a pure vertical dive never crashes. Ground crashes come from flying into rising terrain at over 8 m/s.
+- Crash freezes the drone for 1.6 s, then respawns just past the last gate, facing the next. Pre-gate respawns use the pad (free flight); the time-trial start position comes with M6.
+- Verified in the browser with scripted flights (dev-only `debugSimulate`): gate frame at speed crashes ("gate"), factory roof crashes ("factory"), lake touch crashes ("water"), gentle descent lands safely.
 
 ## Test cases
 
