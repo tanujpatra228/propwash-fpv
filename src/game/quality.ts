@@ -9,5 +9,5 @@ export function applyQualityPreset(id: QualityId, renderer: GameRenderer, sky: S
   const preset = QUALITY[id];
   renderer.setPixelRatioCap(preset.pixelRatio);
   sky.setShadowQuality(preset.shadowMapPx);
-  scenery.grass.mesh.visible = preset.hasGrass;
+  scenery.grass.setVisible(preset.hasGrass);
 }
