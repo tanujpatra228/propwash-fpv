@@ -1,8 +1,8 @@
 # Feature: Main Menu and Settings
 
-Status: Planned
+Status: In progress
 Phase: 1
-Branch: `feat/menu`
+Branch: `feat/phase-1` (milestone M7)
 Last updated: 2026-11-01
 
 ## Summary
@@ -66,6 +66,15 @@ A loading screen ("Building the valley…") fades into the menu. Behind the titl
 - [ ] Every button works; Time trial shows the saved best lap.
 - [ ] Quality presets apply immediately and persist.
 - [ ] P returns to the menu from flight and releases the mouse.
+
+## Implementation notes (M7)
+
+- `ui/menu.ts` (DOM only, calls back into the game), `game/menu-director.ts` (3 AI racers on `drone/track-racer.ts`, TV-style shots from `game/broadcast-shots.ts`, hard cut every 7 s), `CameraRig` has a `broadcast` mode that remembers the pilot's camera.
+- The game has two phases, `menu` and `playing`. **P** or the flight menu's "Exit to menu" returns to the menu and releases the mouse.
+- Quality presets live in `config.ts` → `QUALITY` and are saved in `pw.quality.v1`. **Bloom is off in all presets** (see cameras doc): measured, it white-washes the view toward the sun and costs GPU time. The table above is therefore pixel ratio, shadows and grass only. Low also drops shadows entirely.
+- The settings panel also has the free-flight battery drain toggle (`pw.freeBattery.v1`).
+- Racers start halfway between gates so the menu camera never sits inside a gate frame.
+- Verified in a browser: menu loads over the flyby; Free flight, P, Time trial and Exit all switch phases correctly; quality and drain choices are saved. Not verified on a real GPU: the frame rate readout showed about 36 fps in the software renderer.
 
 ## Test cases
 

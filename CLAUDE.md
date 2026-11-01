@@ -31,8 +31,8 @@ Each feature gets its own file in `docs/features/`, written from the template be
 | Collisions and crash | [collisions-and-crash.md](docs/features/collisions-and-crash.md) | 1 | In progress |
 | Time trial and ghost | [time-trial-and-ghost.md](docs/features/time-trial-and-ghost.md) | 1 | In progress |
 | Free flight | [free-flight.md](docs/features/free-flight.md) | 1 | In progress |
-| Main menu and settings | [main-menu-and-settings.md](docs/features/main-menu-and-settings.md) | 1 | Planned |
-| Motor sound | [motor-sound.md](docs/features/motor-sound.md) | 1 | Planned |
+| Main menu and settings | [main-menu-and-settings.md](docs/features/main-menu-and-settings.md) | 1 | In progress |
+| Motor sound | [motor-sound.md](docs/features/motor-sound.md) | 1 | In progress |
 | Battery system | [battery-system.md](docs/features/battery-system.md) | 1 | In progress |
 | Drone parts and upgrades | [drone-parts-and-upgrades.md](docs/features/drone-parts-and-upgrades.md) | 3 | Planned |
 | Battery Challenge | [battery-challenge.md](docs/features/battery-challenge.md) | 3 | Planned |
