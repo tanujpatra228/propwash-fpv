@@ -9,8 +9,8 @@
   },
   "scripts": {
     "dev": "vite",
-    "typecheck": "tsc --noEmit",
-    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit && tsc -p worker/tsconfig.json --noEmit",
+    "build": "pnpm typecheck && vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "cf:dev": "pnpm build && wrangler dev",
@@ -26,6 +26,7 @@
     "three": "0.187.0"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "5.20261101.1",
     "@types/three": "0.187.0",
     "typescript": "7.0.2",
     "vite": "8.3.5",

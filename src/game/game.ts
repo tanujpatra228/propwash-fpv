@@ -1,9 +1,8 @@
 import { Scene, Vector3 } from 'three';
 import { COLLISION, GHOST, LOOP, TRACK } from '../config';
 import { MotorSound } from '../core/audio';
+import type { RemoteGhost } from '../net/api-client';
 import { formatLapTime } from '../core/format';
-import { FpsMeter } from '../core/fps-meter';
-import { ResolutionController } from '../core/resolution-controller';
 import { clamp } from '../core/math';
 import { GameRenderer } from '../core/renderer';
 import { Battery } from '../drone/battery';
@@ -47,7 +46,8 @@ import type { GameMode, ModeHost, ModeId, NextStep } from './modes/mode';
 import { TrainingMode } from './modes/training';
 import { TimeTrial } from './modes/time-trial';
 import { type Pose } from './respawn';
-import { applyQualityPreset } from './quality';
+import { Tuning } from './tuning';
+import { OnlineUi } from './online-ui';
 import { loadPilotSettings, savePilotSettings, type PilotSettings } from '../core/pilot-settings';
 import { loadFreeBatteryDrain, loadQuality, saveFreeBatteryDrain, saveQuality } from './settings';
 import { loadBestLap } from './trial-storage';
@@ -83,6 +83,8 @@ export class Game {
   private readonly sound = new MotorSound();
   private readonly simulation: Simulation;
   private readonly presenter: Presenter;
+  private readonly trial: TimeTrial;
+  private readonly online: OnlineUi;
   private readonly modes: Record<ModeId, GameMode>;
   private mode: GameMode;
   private phase: 'menu' | 'playing' = 'menu';
@@ -95,8 +97,7 @@ export class Game {
   private crashTimerS = 0;
   private flightTimeS = 0;
   private isAnalogOn = true;
-  private readonly fpsMeter = new FpsMeter();
-  private readonly resolution = new ResolutionController();
+  private readonly tuning: Tuning;
   readonly debug: DebugApi;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -123,18 +124,27 @@ export class Game {
       flashBanner: (title, subtitle, kind, seconds) => this.banner.show(title, subtitle, kind, seconds),
       hideBanner: () => this.banner.hide(),
       offerNextSteps: (title, subtitle, choices) => this.offerNextSteps(title, subtitle, choices),
+      reportBestLap: (lap) => this.online.reportBestLap(lap),
     };
+    this.trial = new TimeTrial(host);
     this.modes = {
       free: new FreeFlight(host, () => this.isFreeDrainOn),
-      trial: new TimeTrial(host),
+      trial: this.trial,
       training: new TrainingMode(host, { load: loadCompletedLessons, save: saveCompletedLessons }),
     };
     this.mode = this.modes.free;
+    this.online = new OnlineUi({
+      pauseInput: () => void (this.input.enabled = false),
+      resumeInput: () => void (this.input.enabled = this.phase === 'playing' && !this.nextSteps.isOpen),
+      notify: (title, subtitle) => this.banner.show(title, subtitle, 'info', 3),
+      raceGhost: (ghost) => this.raceGhost(ghost),
+    });
 
     this.bindings = loadBindings();
     const sensitivity = loadMouseSensitivity();
     this.input = new Input(canvas, this.bindings);
     this.input.setSensitivity(sensitivity);
+    this.tuning = new Tuning({ renderer: this.renderer, sky: this.sky, scenery: this.scenery, rig: this.rig, input: this.input });
     this.controls = new ControlsPanel(this.bindings, sensitivity, {
       onBindingsChange: (next) => {
         this.bindings = next;
@@ -162,14 +172,15 @@ export class Game {
     this.menu = new MainMenu(
       {
         onFreeFlight: () => this.startMode('free'),
-        onTimeTrial: () => this.startMode('trial'),
+        onTimeTrial: () => this.startTimeTrial(),
+        onLeaderboard: () => void this.online.openLeaderboard(),
         onTraining: () => this.startMode('training'),
         onControls: () => this.openControls(),
         onQualityChange: (id) => this.applyQuality(id),
         onPilotChange: (next) => {
           this.pilot = next;
           savePilotSettings(next);
-          this.applyPilotSettings();
+          this.tuning.applyPilot(this.pilot);
         },
         onFreeDrainChange: (isOn) => {
           this.isFreeDrainOn = isOn;
@@ -178,7 +189,7 @@ export class Game {
       },
       { quality, isFreeDrainOn: this.isFreeDrainOn, pilot: this.pilot },
     );
-    this.applyPilotSettings();
+    this.tuning.applyPilot(this.pilot);
     this.simulation = new Simulation(this.flight, this.battery, this.colliders, this.gates, this.tracker);
     this.presenter = new Presenter({
       renderer: this.renderer,
@@ -231,6 +242,24 @@ export class Game {
     this.menu.setBestLapText(best ? formatLapTime(best.lapTimeS) : null);
     this.menu.setTrainingText(trainingMenuText(loadCompletedLessons()));
     this.menu.setVisible(true);
+    this.online.flush();
+  }
+
+  /** A time trial against your own best lap. */
+  private startTimeTrial(): void {
+    this.trial.setOpponent(null);
+    this.startMode('trial');
+  }
+
+  /** A time trial against another pilot's ghost. */
+  private raceGhost(ghost: RemoteGhost): void {
+    this.trial.setOpponent(ghost);
+    this.startMode('trial');
+  }
+
+  /** For `?ghost=<id>` links: start racing that ghost, or stay on the menu if it is gone. */
+  startFromLink(id: string): void {
+    void this.online.raceFromLink(id);
   }
 
   private startMode(id: ModeId): void {
@@ -252,7 +281,7 @@ export class Game {
     this.input.enabled = false;
     this.nextSteps.show(title, subtitle, choices, (id) => {
       if (id === 'menu') this.returnToMenu();
-      else if (id === 'trial') this.startMode('trial');
+      else if (id === 'trial') this.startTimeTrial();
       else if (id === 'restart') {
         this.mode.handleReset();
         this.input.enabled = true;
@@ -265,16 +294,8 @@ export class Game {
     this.controls.open();
   }
 
-  /** Pushes the pilot's camera, mouse and units choices to the parts that use them. */
-  private applyPilotSettings(): void {
-    this.rig.setGogglesView(this.pilot.fovDeg, this.pilot.uptiltDeg);
-    this.input.setInvertTurn(this.pilot.isTurnInverted);
-  }
-
   private applyQuality(id: QualityId, shouldSave = true): void {
-    this.resolution.reset();
-    this.renderer.setResolutionScale(1);
-    applyQualityPreset(id, this.renderer, this.sky, this.scenery);
+    this.tuning.applyQuality(id);
     if (shouldSave) saveQuality(id);
   }
 
@@ -350,22 +371,13 @@ export class Game {
     const dtS = clamp((nowMs - this.lastTimeMs) / 1000, LOOP.minDtS, LOOP.maxDtS);
     this.lastTimeMs = nowMs;
     this.clockS += dtS;
-    const fps = this.fpsMeter.tick(dtS);
-    if (fps !== null) this.onFpsSample(fps);
+    const fps = this.tuning.tick(dtS, this.phase === 'playing');
+    if (fps !== null) this.menu.setFps(fps, this.renderer.currentResolutionScale);
     if (this.phase === 'menu') this.presenter.presentMenu(dtS, this.clockS, this.director, this.flight);
     else this.updatePlaying(dtS);
     this.renderer.render(this.scene, this.rig.camera, this.clockS);
     requestAnimationFrame(this.frame);
   };
-
-  /** Once a second: show the rate in settings and, while flying, keep the picture smooth by adjusting the resolution. */
-  private onFpsSample(fps: number): void {
-    if (this.phase === 'playing') {
-      const scale = this.resolution.update(fps);
-      if (scale !== null) this.renderer.setResolutionScale(scale);
-    }
-    this.menu.setFps(fps, this.renderer.currentResolutionScale);
-  }
 
   private simulate(input: Readonly<FlightInput>, dtS: number): CrashReason | null {
     return this.simulation.step(input, dtS, this.mode.drainsBattery, (index) => this.mode.onGateCrossed(index));

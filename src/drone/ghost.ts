@@ -1,14 +1,11 @@
 import { Euler, Quaternion, Vector3 } from 'three';
 import { GHOST } from '../config';
+import { GHOST_CHANNELS, decodeGhost, encodeInts, type GhostData } from '../core/ghost-codec';
 import { clamp } from '../core/math';
 
-/** A recorded lap in storage form. `data` is a compact text string (see encodeGhost). */
-export interface GhostData {
-  hz: number;
-  data: string;
-}
+export type { GhostData };
 
-const CHANNELS = 6; // x, y, z, yaw, pitch, roll
+const CHANNELS = GHOST_CHANNELS;
 const euler = new Euler(0, 0, 0, 'YXZ');
 const TWO_PI = Math.PI * 2;
 
@@ -88,43 +85,6 @@ export class GhostRecorder {
   }
 }
 
-// ---- text encoding: zigzag + 5-bit groups in a base-64 alphabet; small deltas cost one character ----
-
-const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-const CONTINUE = 32;
-
-function encodeInts(values: readonly number[]): string {
-  let out = '';
-  for (const v of values) {
-    let n = v >= 0 ? v * 2 : -v * 2 - 1;
-    do {
-      const group = n % 32;
-      n = Math.floor(n / 32);
-      out += ALPHABET[group + (n > 0 ? CONTINUE : 0)];
-    } while (n > 0);
-  }
-  return out;
-}
-
-function decodeInts(text: string): number[] | null {
-  const out: number[] = [];
-  let n = 0;
-  let scale = 1;
-  for (const ch of text) {
-    const index = ALPHABET.indexOf(ch);
-    if (index < 0) return null;
-    n += (index % 32) * scale;
-    if (index >= CONTINUE) {
-      scale *= 32;
-      continue;
-    }
-    out.push(n % 2 === 0 ? n / 2 : -(n + 1) / 2);
-    n = 0;
-    scale = 1;
-  }
-  return scale === 1 ? out : null;
-}
-
 /** A lap ready for playback: absolute positions and angles, interpolated between samples. */
 export class GhostTrack {
   private readonly samples: Float64Array;
@@ -139,18 +99,8 @@ export class GhostTrack {
 
   /** Returns null for data that does not decode cleanly. */
   static fromData(data: GhostData): GhostTrack | null {
-    if (!Number.isFinite(data.hz) || data.hz <= 0) return null;
-    const ints = decodeInts(data.data);
-    if (!ints || ints.length === 0 || ints.length % CHANNELS !== 0) return null;
-    const samples = new Float64Array(ints.length);
-    const running = new Array<number>(CHANNELS).fill(0);
-    for (let i = 0; i < ints.length; i++) {
-      const c = i % CHANNELS;
-      running[c] = (running[c] ?? 0) + (ints[i] ?? 0);
-      const step = c < 3 ? GHOST.positionStepM : GHOST.angleStepRad;
-      samples[i] = (running[c] ?? 0) * step;
-    }
-    return new GhostTrack(samples, data.hz);
+    const decoded = decodeGhost(data);
+    return decoded ? new GhostTrack(decoded.samples, decoded.hz) : null;
   }
 
   /** Pose at `lapTimeS`, or false once the lap is over. Allocation-free. */

@@ -23,6 +23,7 @@ Version log of every package and GitHub Action. Exact versions only. Add a row i
 | typescript | 7.0.2 | Type checking (`tsc --noEmit`) | 2026-11-01 |
 | vite | 8.3.5 | Dev server and production build | 2026-11-01 |
 | vitest | 5.0.5 | Unit tests for pure logic | 2026-11-01 |
+| @cloudflare/workers-types | 5.20261101.1 | Types for the Worker (`worker/`), typechecked by `tsc -p worker/tsconfig.json` | 2026-11-01 |
 | wrangler | 4.156.0 | Cloudflare Workers CLI (local run, manual deploy) | 2026-11-01 |
 
 ## GitHub Actions

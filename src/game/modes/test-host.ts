@@ -24,6 +24,7 @@ export function makeHost() {
   const placed: Pose[] = [];
   const banners: string[] = [];
   const offers: Array<{ title: string; choices: string[] }> = [];
+  const reported: Array<{ lapTimeS: number }> = [];
   const host: ModeHost = {
     flight,
     battery,
@@ -37,7 +38,8 @@ export function makeHost() {
     },
     flashBanner: (title) => void banners.push(title),
     hideBanner: () => undefined,
+    reportBestLap: (lap) => void reported.push({ lapTimeS: lap.lapTimeS }),
     offerNextSteps: (title, _subtitle, choices) => void offers.push({ title, choices: choices.map((c) => c.id) }),
   };
-  return { host, flight, battery, tracker, placed, banners, offers };
+  return { host, flight, battery, tracker, placed, banners, offers, reported };
 }

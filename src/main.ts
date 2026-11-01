@@ -10,6 +10,8 @@ async function boot(): Promise<void> {
   if (isUnsupportedDevice(readDeviceInfo())) await showUnsupportedScreen();
   const game = new Game(mustGet<HTMLCanvasElement>('world'));
   game.start();
+  const ghostId = new URLSearchParams(window.location.search).get('ghost');
+  if (ghostId) game.startFromLink(ghostId);
   if (import.meta.env.DEV) (window as unknown as { __game: Game['debug'] }).__game = game.debug;
 }
 
