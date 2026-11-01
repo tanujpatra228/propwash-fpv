@@ -808,3 +808,17 @@ kbd {
   gap: 10px;
   flex-wrap: wrap;
 }
+
+.ghost-tag {
+  position: absolute;
+  left: 0;
+  top: 0;
+  padding: 3px 7px;
+  font: 600 12px/1 var(--body);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  background: rgba(8, 14, 20, 0.6);
+  border-left: 3px solid #cfefff;
+  color: #fff;
+  will-change: transform;
+}

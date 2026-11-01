@@ -4,6 +4,7 @@ import { BatteryGauge } from './battery-gauge';
 import { Countdown } from './countdown';
 import { FlightMenu, type FlightMenuCallbacks, type FlightMenuLabels } from './flight-menu';
 import { GateMarker } from './gate-marker';
+import { GhostTag } from './ghost-tag';
 import { HeightGauge } from './height-gauge';
 import { HelpBar } from './help-bar';
 import type { HudState } from './hud-state';
@@ -23,6 +24,7 @@ export class Hud {
   private readonly racePanel = new RacePanel(this.root);
   private readonly modeTag = new ModeTag(this.root);
   private readonly countdown = new Countdown(this.root);
+  private readonly ghostTag = new GhostTag(this.root);
   private readonly height: HeightGauge;
   private readonly speed: SpeedGauge;
   private readonly battery: BatteryGauge;
@@ -60,6 +62,7 @@ export class Hud {
     if (state.mode.race) this.racePanel.update(state.mode.race, isTextFrame);
     this.modeTag.update(state.mode.race === null, state.mode.label, state.mode.hint);
     this.countdown.update(state.mode.countdown);
+    this.ghostTag.update(state.ghost.isVisible, state.ghost.x, state.ghost.y);
     this.gateMarker.update(state.nextGate.x, state.nextGate.y, state.nextGate.distM, isTextFrame);
     if (isTextFrame) {
       this.gateMarker.setCounter(state.gatesPassed, state.gateCount);

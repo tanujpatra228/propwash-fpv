@@ -3,6 +3,7 @@ import { COLLISION, TRACK } from '../config';
 import type { Battery } from '../drone/battery';
 import type { FlightModel } from '../drone/flight-model';
 import { clampToScreenEdge } from '../ui/gate-marker';
+import { isOnScreen } from '../ui/ghost-tag';
 import { Hud } from '../ui/hud';
 import type { HudState } from '../ui/hud-state';
 import type { FlightMenuCallbacks, FlightMenuLabels } from '../ui/flight-menu';
@@ -14,6 +15,8 @@ import type { LapTracker } from './lap-tracker';
 import type { Scene } from 'three';
 
 const projected = new Vector3();
+/** The label floats this far above the ghost drone. */
+const GHOST_TAG_ABOVE_M = 0.6;
 
 export interface HudFrame {
   flight: FlightModel;
@@ -21,6 +24,8 @@ export interface HudFrame {
   tracker: LapTracker;
   gates: readonly Gate[];
   mode: GameMode;
+  /** Where the ghost drone is, or null when it is not shown. */
+  ghostPosition: Vector3 | null;
   camera: Camera;
   isGoggles: boolean;
   flightTimeS: number;
@@ -49,6 +54,7 @@ export class HudBridge {
     gateCount: TRACK.gateCount,
     nextGate: { x: 0, y: 0, distM: 0 },
     map: { x: 0, z: 0, yawRad: 0 },
+    ghost: { isVisible: false, x: 0, y: 0 },
     mode: { label: '', hint: '', race: null, countdown: '', swapProgress01: 0 },
   };
 
@@ -104,11 +110,25 @@ export class HudBridge {
     s.map.x = position.x;
     s.map.z = position.z;
     s.map.yawRad = flight.yawRad;
+    this.projectGhost(frame, s.ghost);
     s.mode.label = frame.mode.hud.modeLabel;
     s.mode.hint = frame.mode.hud.hint;
     s.mode.race = frame.mode.hud.race;
     s.mode.countdown = frame.mode.hud.countdown;
     s.mode.swapProgress01 = frame.mode.hud.swapProgress01;
     this.hud.update(s, frame.timeS);
+  }
+
+  /** Projects a point just above the ghost to the screen. */
+  private projectGhost(frame: HudFrame, out: { isVisible: boolean; x: number; y: number }): void {
+    out.isVisible = false;
+    if (!frame.ghostPosition) return;
+    frame.camera.updateMatrixWorld();
+    projected.copy(frame.ghostPosition);
+    projected.y += GHOST_TAG_ABOVE_M;
+    projected.project(frame.camera);
+    out.isVisible = isOnScreen(projected.x, projected.y, projected.z);
+    out.x = projected.x;
+    out.y = projected.y;
   }
 }
