@@ -67,6 +67,12 @@ None (world only).
 - `track.ts` is built here (not in M4) because trees, rocks and houses must stay clear of the racing line. `PIT_PAD` (spawn and battery pad) is derived from the start gate.
 - Textures use the seeded generator, so every player sees identical pixels. The preview used `Math.random()`.
 
+## Status after M3
+
+Built and checked in a headless browser: terrain, lake, sky and lighting, factory with containers, pit area (pad, tent, table, containers), 8-house hamlet, instanced pines and broadleaf trees, rocks, wind-blown grass, clouds.
+
+Measured (software renderer, Medium-equivalent settings): **68 to 81 draw calls** depending on the view, about **1.34 M triangles** per frame. Not yet measured on a real GPU: the 60 fps target is checked in M8. Remaining for later milestones: Low/Medium/High quality presets (M7).
+
 ## Test cases
 
 | # | Steps | Expected result | Type |
