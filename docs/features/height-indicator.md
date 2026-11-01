@@ -1,8 +1,8 @@
 # Feature: Height Indicator
 
-Status: Planned
+Status: In progress
 Phase: 1
-Branch: `feat/height-indicator`
+Branch: `feat/phase-1` (milestone M5)
 Last updated: 2026-11-01
 
 ## Summary
@@ -42,7 +42,7 @@ Values in `config.ts` → `HUD.height`.
 - `src/world/terrain.ts`: `groundY(x, z)` (shared with collisions and crash checks; not re-implemented).
 - `src/core/format.ts`: `formatHeight(m)`.
 - `src/ui/height-gauge.ts`: DOM gauge; `update(heightM)` sets text, bar height and state class.
-- `src/ui/ground-marker.ts`: one `Line` with `LineDashedMaterial` and one ring mesh, created once; `update(dronePos, groundY, state, visible)`; positions updated in place (no allocations).
+- `src/game/ground-marker.ts` (a 3D scene object, so it lives in the game layer, not `ui/`): one `Line` with `LineDashedMaterial` and one ring mesh, created once; `update(dronePos, groundY, state, visible)`; positions updated in place (no allocations).
 - Thresholds read from `config.ts` and shared by both so colors always match.
 
 ## Edge cases

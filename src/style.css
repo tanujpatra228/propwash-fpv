@@ -293,7 +293,7 @@ kbd {
 /* goggles on-screen display */
 .osd {
   position: absolute;
-  inset: 12% 26% 13%;
+  inset: 12% 26% max(13%, 150px);
   font: 17px/1.25 var(--osd);
   color: #fff;
   letter-spacing: 0.04em;

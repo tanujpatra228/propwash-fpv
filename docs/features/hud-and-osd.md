@@ -1,8 +1,8 @@
 # Feature: HUD and OSD
 
-Status: Planned
+Status: In progress
 Phase: 1
-Branch: `feat/hud`
+Branch: `feat/phase-1` (milestone M5)
 Last updated: 2026-11-01
 
 ## Summary
@@ -70,6 +70,12 @@ In goggles view, white monospace text in the corners like real FPV goggles: batt
 - [ ] Next-gate marker always points to the correct next gate, on or off screen.
 - [ ] Minimap arrow matches the drone's position and heading.
 - [ ] No layout overlap at 1280×720 and 1920×1080.
+
+## Implementation notes (M5)
+
+- `game/hud-bridge.ts` turns game objects into one plain `HudState` per frame; `ui/hud.ts` composes the elements. Text refreshes every 3rd frame, the gate marker every frame, the minimap every 2nd frame.
+- **Added beyond the original design:** a **speed gauge** (km/h) next to the height and battery gauges, shown in both cameras. Playtesting showed that without it the player cannot judge how fast the drone is moving. The OSD still shows speed in the goggles view too.
+- Built in M5: OSD, height gauge, battery gauge, speed gauge, gate marker and counter, minimap, flight menu (camera, analog static, reset, change controls), help bar. Race panel and countdown arrive with time trial (M6); sound and exit buttons with M7.
 
 ## Test cases
 
