@@ -142,6 +142,12 @@ export class Game {
     return { crashed, position: this.flight.position.toArray() };
   }
 
+  /** Dev-only: change exposure, bloom and light levels live. */
+  debugLook(look: Parameters<GameRenderer['debugLook']>[0] & Parameters<ReturnType<typeof buildSky>['debugLight']>[0]): void {
+    this.renderer.debugLook(look);
+    this.sky.debugLight(look);
+  }
+
   /** Dev-only: lap and gate state for browser tests. */
   debugState(): { nextGate: number; lastPassedGate: number; laps: number; crashTimerS: number; battery: number } {
     return {

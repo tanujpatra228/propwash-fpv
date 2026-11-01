@@ -116,7 +116,8 @@ export const CAMERA = {
 
 /** FPV lens pass (goggles only) and its distance-based video noise. */
 export const LENS = {
-  bloom: { strength: 0.38, radius: 0.5, threshold: 0.88 },
+  /** Threshold is in linear light above plain white, so only emissive LEDs and the sun's glare bloom, not ordinary bright surfaces. */
+  bloom: { strength: 0.3, radius: 0.4, threshold: 1.6 },
   goggles: { fisheye: 1, vignette: 0.85, grainAnalog: 0.05, grainClean: 0.012 },
   flat: { fisheye: 0, vignette: 0.35, grain: 0.012 },
   static: {
@@ -151,7 +152,11 @@ export const DRONE = {
 } as const;
 
 export const RENDER = {
-  toneMappingExposure: 0.74,
+  /** Tuned by measurement in M5: the first values (0.74, sun 2.6, sky fill 1) over-exposed whites and made everything glow. */
+  toneMappingExposure: 0.68,
+  sunIntensity: 2.2,
+  hemisphereIntensity: 0.45,
+  environmentIntensity: 0.7,
   fogDensity: 0.0011,
   fogColor: 0xc8b8a4,
   sunElevationDeg: 15,
