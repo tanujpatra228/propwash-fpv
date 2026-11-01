@@ -81,7 +81,7 @@ Mouse: horizontal movement turns (pointer lock). If pointer lock is refused, cli
 
 | # | Steps | Expected result | Type |
 |---|---|---|---|
-| 1 | `rebind(defaults, 'down', 1, 'KeyS')` | `down` alt = KeyS, `back` main cleared, returns `'back'` | Unit |
+| 1 | `rebind(defaults, 'down', 1, 'KeyS')` | `bindings.down[1]` = KeyS, `back` main cleared, `movedFrom` = `'back'`; input bindings unchanged | Unit |
 | 2 | Load corrupt JSON from storage | Defaults returned | Unit |
 | 3 | Controls → set "Go up" to J, reload, fly | J climbs | Manual |
 | 4 | Click the view, move the mouse | Drone turns; Esc releases the mouse | Manual |
