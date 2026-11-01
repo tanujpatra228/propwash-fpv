@@ -13,7 +13,6 @@ export class ChoiceDialog<Id extends string> {
   private readonly title = el('h2');
   private readonly subtitle = el('p', { class: 'cd-sub' });
   private readonly buttons = el('div', { class: 'cd-buttons' });
-  private onChoose: ((id: Id) => void) | null = null;
 
   constructor() {
     this.root = el('div', { class: 'modal', hidden: true }, [
@@ -29,7 +28,6 @@ export class ChoiceDialog<Id extends string> {
   show(title: string, subtitle: string, choices: ReadonlyArray<Choice<Id>>, onChoose: (id: Id) => void): void {
     this.title.textContent = title;
     this.subtitle.textContent = subtitle;
-    this.onChoose = onChoose;
     const nodes = choices.map((choice) => {
       const button = el('button', { type: 'button', class: choice.isPrimary ? 'btn' : 'btn ghost', text: choice.label });
       button.addEventListener('click', () => {
@@ -46,6 +44,5 @@ export class ChoiceDialog<Id extends string> {
 
   hide(): void {
     this.root.hidden = true;
-    this.onChoose = null;
   }
 }
