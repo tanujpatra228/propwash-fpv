@@ -20,6 +20,8 @@ export class GameRenderer {
     this.webgl = new WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
     this.webgl.toneMapping = ACESFilmicToneMapping;
     this.webgl.toneMappingExposure = RENDER.toneMappingExposure;
+    // Count the whole frame (shadow pass, scene, post passes), not just the last pass.
+    this.webgl.info.autoReset = false;
     this.webgl.shadowMap.enabled = true;
     this.webgl.shadowMap.type = PCFShadowMap;
 
@@ -66,6 +68,7 @@ export class GameRenderer {
     this.renderPass.scene = scene;
     this.renderPass.camera = camera;
     applyLens(this.fpvPass, this.lens, timeS, this.aspect);
+    this.webgl.info.reset();
     this.composer.render();
   }
 
