@@ -49,6 +49,22 @@ export function groundY(x: number, z: number): number {
   return Math.hypot(x - lake.x, z - lake.z) < lake.radiusM ? Math.max(h, LAKE_SURFACE_Y) : h;
 }
 
+export interface Surface {
+  /** Height of what the drone would touch first. */
+  y: number;
+  /** True over the lake, where touching the surface is a crash. */
+  isWater: boolean;
+}
+
+/** Like groundY, but also says whether the surface is water. Writes into `out` (no allocation). */
+export function surfaceAt(x: number, z: number, out: Surface): Surface {
+  const h = heightAt(x, z);
+  const isOverLake = Math.hypot(x - lake.x, z - lake.z) < lake.radiusM;
+  out.isWater = isOverLake && h < LAKE_SURFACE_Y;
+  out.y = out.isWater ? LAKE_SURFACE_Y : h;
+  return out;
+}
+
 const COLORS = {
   grassA: new Color(0x4a6526),
   grassB: new Color(0x6f7c32),
