@@ -21,8 +21,63 @@ export const VALLEY = {
   mountainRingRadiusM: 460,
   lake: { x: -40, z: 74, radiusM: 44, depthBelowShoreM: 2.2 },
   bando: { x: 112, z: 100, innerRadiusM: 24, outerRadiusM: 42 },
-  /** Where the drone starts until the pit area exists (M3/M4). */
-  spawn: { x: 14, z: -140, yawRad: 0 },
+} as const;
+
+/** Control points of "Valley Sprint": [x, z, clearance above ground in metres, or a named zone]. */
+export const TRACK = {
+  name: 'Valley Sprint',
+  points: [
+    [0, -150, 5],
+    [95, -138, 6],
+    [168, -78, 8],
+    [178, 10, 7],
+    [112, 100, 'bando'],
+    [45, 150, 7],
+    [-36, 74, 'lake'],
+    [-112, 114, 9],
+    [-180, 30, 13],
+    [-160, -62, 6],
+    [-88, -130, 4],
+  ],
+  samples: 4000,
+  gateCount: 12,
+  /** How far above the highest ground within groundScanRadiusM a normal control point sits. */
+  groundScanRadiusM: 14,
+  bandoClearanceM: 3.4,
+  lakeClearanceM: 2.4,
+  minGroundClearanceM: 1.8,
+  /** Samples within this distance of the factory centre are not forced above the terrain. */
+  bandoZoneRadiusM: 30,
+  smoothingPasses: 4,
+  smoothingHalfWindow: 6,
+  curvatureHalfWindow: 6,
+  curvatureSmoothPasses: 2,
+  curvatureSmoothHalfWindow: 8,
+  /** Highest sideways acceleration an AI drone or ghost is posed for. */
+  maxLateralAccelMps2: 22,
+} as const;
+
+export const SCENERY = {
+  pad: { behindStartM: 10, besideStartM: 14, radiusM: 1.4 },
+  pineCount: 3400,
+  broadleafCount: 900,
+  rockCount: 500,
+  grassCount: 70000,
+  cloudCount: 12,
+  scatterHalfSizeM: 950,
+  treeMinTrackDistanceM: 13,
+  broadleafMinTrackDistanceM: 12,
+  rockMinTrackDistanceM: 6,
+  houseMinTrackDistanceM: 22,
+  maxTreeSlope: 0.9,
+  maxGrassSlope: 0.6,
+  maxTreeHeightM: 165,
+  treeExclusion: { bandoRadiusM: 44, padRadiusM: 22 },
+  grassReachM: 34,
+  grassNearPadChance: 0.06,
+  /** Collision cylinder of a tree: radius and height are multiplied by the tree scale. */
+  treeCollider: { radiusM: 0.5, heightM: 10 },
+  hamlet: { x: 40, z: -30, spreadM: 38, houseCount: 8 },
 } as const;
 
 export const CAMERA = {
@@ -45,6 +100,11 @@ export const RENDER = {
   sunElevationDeg: 15,
   sunAzimuthDeg: 205,
   shadowExtentM: 90,
+} as const;
+
+export const COLLISION = {
+  /** Cell size of the tree lookup grid. */
+  gridCellM: 16,
 } as const;
 
 export const STORAGE_PREFIX = 'pw.';

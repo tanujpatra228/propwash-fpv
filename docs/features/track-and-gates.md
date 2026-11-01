@@ -64,3 +64,4 @@ More tracks, track editor, moving gates (Phase 6).
 ## Changelog
 
 - 2026-11-01: Created.
+- 2026-11-01: M3: `world/track.ts` (spline, samples, `poseAt`) was built early in M3 because scenery placement depends on it. Gates and lap logic stay in M4.

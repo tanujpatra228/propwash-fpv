@@ -6,6 +6,7 @@ import {
   MeshStandardMaterial,
   PlaneGeometry,
   type Scene,
+  type Texture,
 } from 'three';
 import { VALLEY } from '../config';
 import { fbm, smoothstep } from '../core/math';
@@ -58,7 +59,7 @@ const COLORS = {
 };
 
 /** Builds the vertex-coloured terrain mesh. Colours blend by noise, slope and height. */
-export function buildTerrain(scene: Scene): Mesh {
+export function buildTerrain(scene: Scene, detail: Texture): Mesh {
   const geometry = new PlaneGeometry(VALLEY.sizeM, VALLEY.sizeM, VALLEY.segments, VALLEY.segments);
   geometry.rotateX(-Math.PI / 2);
   const position = geometry.attributes.position;
@@ -88,7 +89,7 @@ export function buildTerrain(scene: Scene): Mesh {
 
   const mesh = new Mesh(
     geometry,
-    new MeshStandardMaterial({ vertexColors: true, roughness: 0.97, metalness: 0, envMapIntensity: 0.5 }),
+    new MeshStandardMaterial({ vertexColors: true, map: detail, roughness: 0.97, metalness: 0, envMapIntensity: 0.5 }),
   );
   mesh.receiveShadow = true;
   scene.add(mesh);
