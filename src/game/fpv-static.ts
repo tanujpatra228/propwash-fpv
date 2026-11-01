@@ -1,4 +1,6 @@
-import { LENS } from '../config';
+import { LENS, TRACK, VALLEY } from '../config';
+import type { Vector3 } from 'three';
+import { PIT_PAD } from '../world/pit-area';
 import type { LensSettings } from '../core/fpv-shader';
 import { clamp01, smoothstep } from '../core/math';
 
@@ -36,4 +38,24 @@ export function lensFor(isGoggles: boolean, isAnalogOn: boolean, staticValue: nu
     grain: isAnalogOn ? LENS.goggles.grainAnalog : LENS.goggles.grainClean,
     staticAmount: staticValue,
   };
+}
+
+export interface FrameLensInputs {
+  isGoggles: boolean;
+  isAnalogOn: boolean;
+  position: Vector3;
+  crashRemainingS: number;
+}
+
+/** Lens look for the drone's current position: static grows away from the pits, inside the factory and in a crash. */
+export function frameLens(inputs: FrameLensInputs): LensSettings {
+  const { position } = inputs;
+  const staticValue = staticAmount({
+    isGoggles: inputs.isGoggles,
+    isAnalogOn: inputs.isAnalogOn,
+    distanceFromPadM: position.distanceTo(PIT_PAD.position),
+    isInFactory: Math.hypot(position.x - VALLEY.bando.x, position.z - VALLEY.bando.z) < TRACK.bandoZoneRadiusM,
+    crashRemainingS: inputs.crashRemainingS,
+  });
+  return lensFor(inputs.isGoggles, inputs.isAnalogOn, staticValue);
 }
