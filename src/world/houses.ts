@@ -1,4 +1,4 @@
-import { BoxGeometry, Color, CylinderGeometry, InstancedMesh, MeshStandardMaterial, Object3D, Vector3, type Scene } from 'three';
+import { BoxGeometry, Color, CylinderGeometry, InstancedMesh, Matrix4, MeshStandardMaterial, Object3D, Vector3, type Scene } from 'three';
 import { LAKE_SURFACE_Y, heightAt } from './terrain';
 import { SCENERY, VALLEY, WORLD } from '../config';
 import { createRng, randRange } from '../core/math';
@@ -16,6 +16,10 @@ const WALL_TINTS = [0xf2e6d0, 0xe8c9a0, 0xd9d4c8, 0xcfa88a, 0xe6dfc9] as const;
 const ROOF_TINTS = [0x8a3a2a, 0x6b4a3a, 0x4d5a64, 0x7a5a3a] as const;
 const MIN_HOUSE_SPACING_M = 15;
 const FOOTPRINT_EXCLUSION_M = 10;
+/** Roof collision slabs are this thick (full thickness), thick enough that a fast drone cannot skip through. */
+const ROOF_SLAB_THICKNESS_M = 0.5;
+/** Height of a unit roof prism's apex above its base (radius 1/sqrt(3) times 1.5). */
+const PRISM_APEX_HEIGHT = (1.5 * 1) / Math.sqrt(3);
 
 interface Placed {
   x: number;
@@ -85,6 +89,19 @@ export function buildHamlet(scene: Scene, colliders: ColliderWorld, textures: Wo
     dummy.updateMatrix();
     roofMesh.setMatrixAt(i, dummy.matrix);
     roofMesh.setColorAt(i, tint.set(ROOF_TINTS[Math.floor(rng() * ROOF_TINTS.length)] ?? 0x884433));
+
+    // Two sloped slabs, one per roof face, so the roof is solid like the walls.
+    const apexM = PRISM_APEX_HEIGHT * pitch;
+    const slopeAngle = Math.atan2(apexM, roofDepth / 2);
+    const slopeLength = Math.hypot(roofDepth / 2, apexM);
+    const slabHalf = new Vector3((width + 0.9) / 2, ROOF_SLAB_THICKNESS_M / 2, slopeLength / 2);
+    const houseMatrix = new Matrix4().compose(dummy.position.clone().setY(baseY), dummy.quaternion, new Vector3(1, 1, 1));
+    for (const side of [-1, 1] as const) {
+      const slab = new Matrix4()
+        .makeTranslation(0, WALL_HEIGHT_M + apexM / 2, (side * roofDepth) / 4)
+        .multiply(new Matrix4().makeRotationX(side * slopeAngle));
+      colliders.addBox(houseMatrix.clone().multiply(slab), slabHalf, 'building');
+    }
 
     exclusions.add(x, z, FOOTPRINT_EXCLUSION_M + Math.max(width, depth) / 2);
   });
