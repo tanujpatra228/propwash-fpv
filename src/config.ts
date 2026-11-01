@@ -75,8 +75,24 @@ export const SCENERY = {
   treeExclusion: { bandoRadiusM: 44, padRadiusM: 22 },
   grassReachM: 34,
   grassNearPadChance: 0.06,
-  /** Collision cylinder of a tree: radius and height are multiplied by the tree scale. */
-  treeCollider: { radiusM: 0.5, heightM: 10 },
+  /**
+   * Tree collision shapes as stacked vertical cylinders: [base above the trunk's foot, height, radius] in metres at
+   * scale 1. Pines follow their three cone tiers (at about 75% of the tier's base radius); broadleaf crowns are a
+   * wide band plus a narrower, taller core. All are multiplied by the tree's scale.
+   */
+  treeColliders: {
+    pine: [
+      [0, 10.65, 0.5],
+      [2.1, 4.6, 2.0],
+      [4.85, 3.9, 1.5],
+      [7.35, 3.3, 0.95],
+    ],
+    broadleaf: [
+      [0, 4, 0.4],
+      [3.2, 3.2, 2.4],
+      [2.6, 4.4, 1.6],
+    ],
+  },
   hamlet: { x: 40, z: -30, spreadM: 38, houseCount: 8 },
 } as const;
 

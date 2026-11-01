@@ -16,12 +16,15 @@ import { createRng, fbm, randRange, valueNoise } from '../core/math';
 import type { ColliderWorld } from '../physics/colliders';
 import { PIT_PAD } from './pit-area';
 import { Exclusions, distanceToTrack, scatter, slopeAt } from './scatter';
+import { addTreeColliders, type TreeKind } from './tree-colliders';
 
 const PINE_COLORS = [0x2c4a25, 0x33552a, 0x253f22, 0x3b5a2c] as const;
 const BROADLEAF_COLORS = [0x557a2e, 0x6b8a34, 0x4a6e2a, 0x8a8a3a] as const;
 const ROCK_ZONE_MIN_ABOVE_WATER_M = 0.6;
 const BROADLEAF_RADIUS_LIMIT_M = 420;
 const TWO_PI = Math.PI * 2;
+/** Trees are planted this far into the ground so trunks never float. */
+const TREE_SINK_M = 0.3;
 
 const dummy = new Object3D();
 const tint = new Color();
@@ -89,22 +92,23 @@ export function buildVegetation(scene: Scene, colliders: ColliderWorld, exclusio
   const broadMesh = new InstancedMesh(broadleafGeometry(), foliageMaterial, broadleaf.length);
 
   let trunkIndex = 0;
-  const place = (points: Point[], mesh: InstancedMesh, palette: readonly number[], minScale: number, maxScale: number): void => {
+  const place = (points: Point[], mesh: InstancedMesh, kind: TreeKind, palette: readonly number[], minScale: number, maxScale: number): void => {
     points.forEach(([x, h, z], i) => {
       const s = randRange(rng, minScale, maxScale);
-      dummy.position.set(x, h - 0.3, z);
+      dummy.position.set(x, h - TREE_SINK_M, z);
       dummy.rotation.set(randRange(rng, -0.05, 0.05), randRange(rng, 0, TWO_PI), randRange(rng, -0.05, 0.05));
-      dummy.scale.set(s, s * randRange(rng, 0.9, 1.2), s);
+      const stretch = randRange(rng, 0.9, 1.2);
+      dummy.scale.set(s, s * stretch, s);
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
       trunks.setMatrixAt(trunkIndex++, dummy.matrix);
       tint.set(palette[Math.floor(rng() * palette.length)] ?? 0x335522).offsetHSL(randRange(rng, -0.02, 0.02), 0, randRange(rng, -0.04, 0.04));
       mesh.setColorAt(i, tint);
-      colliders.addCylinder(x, z, h, SCENERY.treeCollider.heightM * s, SCENERY.treeCollider.radiusM * s, 'tree');
+      addTreeColliders(colliders, kind, x, z, h - TREE_SINK_M, s, s * stretch);
     });
   };
-  place(pines, pineMesh, PINE_COLORS, 0.8, 1.7);
-  place(broadleaf, broadMesh, BROADLEAF_COLORS, 0.7, 1.3);
+  place(pines, pineMesh, 'pine', PINE_COLORS, 0.8, 1.7);
+  place(broadleaf, broadMesh, 'broadleaf', BROADLEAF_COLORS, 0.7, 1.3);
   for (const mesh of [trunks, pineMesh, broadMesh]) {
     mesh.castShadow = true;
     mesh.receiveShadow = true;
