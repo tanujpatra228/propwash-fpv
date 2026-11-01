@@ -1,6 +1,6 @@
 # Feature: Online Ghosts and Leaderboard
 
-Status: Planned
+Status: In progress
 Phase: 4
 Branch: `feat/phase-4`
 Last updated: 2026-11-01
@@ -29,7 +29,7 @@ Your best lap is uploaded under a pilot name, a shared leaderboard shows the fas
   - the whole request is under 40 KB.
 - This is **not** anti-cheat: a determined person can still forge a plausible lap. The plan says the game is for friends; the checks only stop accidents and obvious junk.
 - Pilot ids are random UUIDs kept in the browser; they only tell one browser's laps apart. They are not secrets and nobody is verified.
-- Names are plain text, trimmed and length checked; the client never inserts them as HTML (`textContent`).
+- **Pilot names** (`core/pilot-name.ts`, shared by game and server): 2 to 12 characters, where an emoji (even a family emoji) counts as one. Letters and numbers from any language, emoji, and the separators space, `_`, `-` and `.` are allowed; they cannot start or end a name, and at least 2 visible characters are needed. Everything else is refused, never silently changed: markup and symbols, control and invisible characters (zero-width, right-to-left override, blank braille), more than 2 stacked combining marks on one character, a single "character" hiding a pile of code points, and absurdly long input (refused before any heavy work). Spaces are collapsed and the text normalised (NFC). The leaderboard also truncates with an ellipsis, so a wide name can never break the layout.
 - Classes: Phase 3 (Spec and Open) is skipped for now, so there is one class, `spec`, with stock parts. The table has a `class` column set to `spec` so Phase 3 can add `open` later without a migration.
 
 ## API (Worker, JSON)
@@ -123,6 +123,12 @@ Design rules that keep it free (from the standards):
 | 7 | Local Worker: leaderboard order and caching headers | Sorted; `max-age=30` | Integration |
 | 8 | Browser: set a lap offline, go online | Lap uploaded on next menu open | Manual |
 | 9 | Open `?ghost=<id>` | Time trial against that ghost | Manual |
+
+## Implementation notes
+
+- Built and tested so far (branch `feat/phase-4`): `core/pilot-name.ts` (16 tests), `core/ghost-codec.ts` (decoder with no 3D library, so the Worker stays small), `core/lap-validation.ts` (14 tests, about 1 ms per lap), `worker/` (routes, D1 queries), `migrations/0001_laps.sql`.
+- **Verified locally with a real Worker and a local D1 database** (`wrangler dev --local`): first lap saved at rank 1; an immediate repeat is refused (429); a slower lap changes nothing; a faster one replaces it; a second pilot with an emoji name is rank 2; markup name, 12 s lap, 500-character name, 100 KB body and non-JSON are all refused with clear errors and the leaderboard stays clean; caching headers are `max-age=30` (leaderboard) and `max-age=300, immutable` (ghost); the game page is still served as a static asset. A 40 s lap's ghost is 6 KB.
+- Rank counting reads the faster laps through the index, so it grows with the number of pilots (1,000 pilots is still about 500 K rows a day at the assumed submit rate, 10% of the free read limit).
 
 ## Out of scope
 

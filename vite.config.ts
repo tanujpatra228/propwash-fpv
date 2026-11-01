@@ -1,6 +1,8 @@
 import { defineConfig } from 'vite';
 
 export default defineConfig({
+  // In development the API runs in `wrangler dev` (port 8788); in production the same Worker serves both.
+  server: { proxy: { '/api': 'http://localhost:8788' } },
   build: {
     outDir: 'dist',
     target: 'es2022',
