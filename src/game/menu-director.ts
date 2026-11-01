@@ -1,5 +1,5 @@
 import { Quaternion, Vector3, type Scene } from 'three';
-import { MENU } from '../config';
+import { MENU, TRACK } from '../config';
 import { createDroneModel, type DroneModel } from '../drone/drone-model';
 import { TrackRacer } from '../drone/track-racer';
 import { track } from '../world/track';
@@ -21,7 +21,7 @@ export class MenuDirector {
   constructor(scene: Scene) {
     const count = MENU.racers.length;
     this.racers = MENU.racers.map((config, i) =>
-      new TrackRacer({ topSpeedMps: config.topSpeedMps, lateralOffsetM: config.lateralOffsetM, phase: i * 2.1, startDistM: (track.lengthM * (i + 1)) / (count + 1) }),
+      new TrackRacer({ topSpeedMps: config.topSpeedMps, lateralOffsetM: config.lateralOffsetM, phase: i * 2.1, startDistM: (track.lengthM * (i + 1)) / (count + 1) + track.lengthM / TRACK.gateCount / 2 }),
     );
     this.models = MENU.racers.map((config) => createDroneModel({ color: config.color }));
     for (const model of this.models) {
