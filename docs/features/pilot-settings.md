@@ -52,6 +52,12 @@ Settings screen sections: Graphics quality, Camera (two sliders with live values
 - [ ] Imperial shows mph and ft everywhere the metric version shows km/h and m.
 - [ ] Out-of-range or corrupt saved values fall back safely.
 
+## Implementation notes
+
+- Built in `core/pilot-settings.ts` (pure, clamped, tested), `core/format.ts` (units), `game/camera-rig.ts` (`setGogglesView`), `input/input.ts` (`setInvertTurn`) and the settings screen in `ui/menu.ts`.
+- Verified in a browser: sliders and toggles save to `pw.pilot.v1` and survive a reload; with imperial units the speed gauge reads mph and the height and gate distance read feet.
+- Not verified by a human: how the field of view and tilt feel in flight; invert direction.
+
 ## Test cases
 
 | # | Steps | Expected result | Type |
