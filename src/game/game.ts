@@ -1,7 +1,8 @@
 import { Quaternion, Scene, Vector3 } from 'three';
-import { COLLISION, GHOST, LOOP, QUALITY, TRACK, VALLEY } from '../config';
+import { COLLISION, GHOST, LOOP, TRACK } from '../config';
 import { MotorSound } from '../core/audio';
 import { formatLapTime } from '../core/format';
+import { FpsMeter } from '../core/fps-meter';
 import { clamp } from '../core/math';
 import { GameRenderer } from '../core/renderer';
 import { Battery } from '../drone/battery';
@@ -23,6 +24,7 @@ import { ColliderWorld } from '../physics/colliders';
 import { resolveDrone, substepCount, type CrashReason } from '../physics/resolve';
 import { Banner } from '../ui/banner';
 import { ControlsPanel } from '../ui/controls-panel';
+import { helpText } from '../ui/help-text';
 import { MainMenu, type QualityId } from '../ui/menu';
 import { buildBoundary, type Boundary } from '../world/boundary';
 import { checkGateCrossing } from '../world/gate-crossing';
@@ -35,7 +37,7 @@ import { createWorldTextures } from '../world/textures';
 import { CameraRig } from './camera-rig';
 import { CRASH_MESSAGES } from './crash-messages';
 import { createDebugApi, type DebugApi } from './debug-api';
-import { lensFor, staticAmount } from './fpv-static';
+import { frameLens, lensFor } from './fpv-static';
 import { HudBridge } from './hud-bridge';
 import { LapTracker } from './lap-tracker';
 import { MenuDirector } from './menu-director';
@@ -43,6 +45,7 @@ import { FreeFlight } from './modes/free-flight';
 import type { GameMode, ModeHost, ModeId } from './modes/mode';
 import { TimeTrial } from './modes/time-trial';
 import { type Pose } from './respawn';
+import { applyQualityPreset } from './quality';
 import { loadFreeBatteryDrain, loadQuality, saveFreeBatteryDrain, saveQuality } from './settings';
 import { loadBestLap } from './trial-storage';
 
@@ -88,8 +91,7 @@ export class Game {
   private crashTimerS = 0;
   private flightTimeS = 0;
   private isAnalogOn = true;
-  private fpsAccumulatorS = 0;
-  private fpsFrames = 0;
+  private readonly fpsMeter = new FpsMeter();
   readonly debug: DebugApi;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -220,10 +222,7 @@ export class Game {
   }
 
   private applyQuality(id: QualityId, shouldSave = true): void {
-    const preset = QUALITY[id];
-    this.renderer.setPixelRatioCap(preset.pixelRatio);
-    this.sky.setShadowQuality(preset.shadowMapPx);
-    this.scenery.grass.mesh.visible = preset.hasGrass;
+    applyQualityPreset(id, this.renderer, this.sky, this.scenery);
     if (shouldSave) saveQuality(id);
   }
 
@@ -283,11 +282,7 @@ export class Game {
   /** Key hints and menu labels, rebuilt when bindings, camera, sound or analog setting change. */
   private refreshLabels(): void {
     const key = (id: ActionId): string => primaryKeyLabel(this.bindings, id);
-    this.hud.setHelpText(
-      `${key('up')} up · ${key('down')} down · ${key('forward')}/${key('back')} fly · ` +
-        `${key('left')}/${key('right')} slide · mouse or ${key('turnLeft')}/${key('turnRight')} turn · ` +
-        `${key('reset')} reset · ${key('pause')} menu`,
-    );
+    this.hud.setHelpText(helpText(this.bindings));
     this.hud.setMenuLabels({
       cameraLabel: this.rig.currentMode === 'chase' ? 'chase' : 'goggles',
       isAnalogOn: this.isAnalogOn,
@@ -306,21 +301,13 @@ export class Game {
     const dtS = clamp((nowMs - this.lastTimeMs) / 1000, LOOP.minDtS, LOOP.maxDtS);
     this.lastTimeMs = nowMs;
     this.clockS += dtS;
-    this.trackFps(dtS);
+    const fps = this.fpsMeter.tick(dtS);
+    if (fps !== null) this.menu.setFps(fps);
     if (this.phase === 'menu') this.updateMenu(dtS);
     else this.updatePlaying(dtS);
     this.renderer.render(this.scene, this.rig.camera, this.clockS);
     requestAnimationFrame(this.frame);
   };
-
-  private trackFps(dtS: number): void {
-    this.fpsAccumulatorS += dtS;
-    this.fpsFrames++;
-    if (this.fpsAccumulatorS < 1) return;
-    this.menu.setFps(this.fpsFrames / this.fpsAccumulatorS);
-    this.fpsAccumulatorS = 0;
-    this.fpsFrames = 0;
-  }
 
   private updateMenu(dtS: number): void {
     this.director.update(dtS, this.clockS);
@@ -414,14 +401,8 @@ export class Game {
   }
 
   private updateLens(isGoggles: boolean): void {
-    const { position } = this.flight;
-    const staticValue = staticAmount({
-      isGoggles,
-      isAnalogOn: this.isAnalogOn,
-      distanceFromPadM: position.distanceTo(PIT_PAD.position),
-      isInFactory: Math.hypot(position.x - VALLEY.bando.x, position.z - VALLEY.bando.z) < TRACK.bandoZoneRadiusM,
-      crashRemainingS: Math.max(0, this.crashTimerS),
-    });
-    this.renderer.setLens(lensFor(isGoggles, this.isAnalogOn, staticValue));
+    this.renderer.setLens(
+      frameLens({ isGoggles, isAnalogOn: this.isAnalogOn, position: this.flight.position, crashRemainingS: Math.max(0, this.crashTimerS) }),
+    );
   }
 }
