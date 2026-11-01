@@ -208,7 +208,7 @@ Names describe what something is to the player or the game, not how it's built (
 
 - **Branches:** one branch per phase (`feat/phase-1`), holding many small commits. Bug fixes and document updates made outside a phase get their own `fix/<name>` or `docs/<name>` branch.
 - **Commits:** small and focused, prefixed with the milestone, then a Conventional Commits message: `M1: chore: add Vitest`, `M2: feat: add height gauge`. Every commit in a phase branch names its milestone.
-- **Merge flow:** push branch → open a PR and merge into `main` (at the end of the phase, or earlier when the owner asks) → GitHub Actions deploys to Cloudflare → confirm the deploy passed → delete the branch locally and on GitHub.
+- **Merge flow:** push branch → open a PR and merge into `main` (periodically, normally at the end of each milestone; the phase branch stays open and keeps receiving commits) → GitHub Actions deploys to Cloudflare → confirm the deploy passed. Delete a branch only when its work is finished: the phase branch after the last merge of the phase, short-lived `fix/` and `docs/` branches right after their merge.
 - `main` must always build and deploy.
 - **Never commit secrets.** Cloudflare credentials live only in GitHub Actions secrets (`CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`) and local `.dev.vars` (git-ignored).
 - Commit `pnpm-lock.yaml` with every dependency change.

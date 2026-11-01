@@ -44,7 +44,7 @@ Each feature gets its own file in `docs/features/`, written from the template be
 - **Layers:** `config → core → physics / world / input → drone → ui → game → main`. Never import against the arrow.
 - **Free plan only:** client does the heavy work; no per-frame server calls; any Cloudflare usage needs a free-plan budget note in its feature doc.
 - **pnpm only** (never npm or yarn). **Exact versions** (`pnpm add -E pkg@x.y.z`), and log every package in `docs/dependencies.md`.
-- **Git:** one branch per phase (`feat/phase-1`) with many small commits, each prefixed with its milestone (`M1: ...`); other fixes and doc updates get `fix/` or `docs/` branches → push → merge into `main` (auto-deploys to Cloudflare via GitHub Actions) → confirm the deploy → delete the branch locally and on GitHub.
+- **Git:** one branch per phase (`feat/phase-1`) with many small commits, each prefixed with its milestone (`M1: ...`); other fixes and doc updates get `fix/` or `docs/` branches → push → periodically merge into `main` with a merge-commit PR (auto-deploys to Cloudflare via GitHub Actions) → confirm the deploy. Keep the phase branch until the phase is complete, then delete it locally and on GitHub; delete `fix/` and `docs/` branches right after their merge.
 - **Secrets:** `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` live only in GitHub Actions secrets. Never commit them.
 
 ## Commands

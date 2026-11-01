@@ -147,7 +147,8 @@ M1: config, core/{math,storage,dom,format}, tooling, CI
 - **One branch for the whole phase:** `feat/phase-1`, branched from `main`.
 - **Many small commits.** Every commit message starts with its milestone: `M1: chore: add Vitest`, `M3: feat: add instanced pines`. A milestone can have as many commits as it needs.
 - Each feature doc is updated in the same commit series as its code.
-- **Merge:** the branch is merged into `main` through a pull request when the owner says so (default: end of Phase 1; the first deploy check can be done earlier). After the merge: confirm the Actions run is green, then delete the branch locally and on GitHub.
+- **Periodic merges:** `feat/phase-1` is merged into `main` through a pull request at the end of each milestone (or when the owner asks) so progress shows on the live URL. Use a merge commit, not a squash, so the branch history stays shared and later merges stay clean. After each merge confirm the Actions run is green and the site updated.
+- **The phase branch is never deleted until Phase 1 is complete.** Keep working on it after each merge. Delete it (locally and on GitHub) only after the final M8 merge.
 - Work outside a phase (a bug found on live `main`, a doc-only change) gets its own `fix/<name>` or `docs/<name>` branch with the same merge and delete steps.
 - Pushes go to `feat/phase-1` at the end of each milestone (and more often when useful), so work is never only in the container.
 
