@@ -11,6 +11,18 @@ export const WORLD = {
   /** Bump when noise or seeds change: it invalidates saved ghosts and best laps. */
   version: 1,
   seed: 1337,
+  /** The drone cannot leave this box. Centre is the origin; the floor is the terrain. */
+  bounds: { halfSizeM: 900, ceilingM: 300 },
+  /** The faint grid that marks the boundary. It only shows when the drone is close. */
+  boundaryGrid: {
+    spacingM: 25,
+    lineColor: 0xa8e6ff,
+    maxOpacity: 0.3,
+    /** Fully visible closer than this to the wall, gone beyond fadeEndM. */
+    fadeStartM: 25,
+    fadeEndM: 140,
+    bottomM: -30,
+  },
 } as const;
 
 /** Valley layout. Changing noise, sizes or seeds changes the world: bump WORLD.version. */

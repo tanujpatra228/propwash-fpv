@@ -167,7 +167,7 @@ M1: config, core/{math,storage,dom,format}, tooling, CI
 ## 7. Doc issues to fix along the way
 
 - `plan.md` §3.6 says hover is about 8 A and the battery lasts 2.5 to 3 minutes at racing pace, while `battery-system.md` also quotes "3 to 4 laps". With a 45 s lap that is 2.25 to 3 minutes: consistent, but only if lap time is near 45 s. Verify in M6; adjust whichever number is wrong.
-- `free-flight.md` allows flight to 900 m from centre while `world-and-environment.md` calls the mountain ring (beyond 460 m) scenery. Decide whether the ring is flyable or the bound should be about 460 m. Decide before M6.
+- ~~Flight bounds vs mountain ring~~ Resolved in M5: a hard ±900 m box with a 300 m ceiling and a faint grid wall; the mountain ring inside it is flyable.
 - `main-menu-and-settings.md` lists the quality presets but `config.ts` `QUALITY` is not defined anywhere else; define it once in M3.
 - `project-setup-and-deploy.md` does not mention Vitest. Add it in M1.
 
@@ -179,5 +179,4 @@ Resolved:
 3. Branch strategy: one `feat/phase-1` branch with milestone-prefixed commits, see §5.
 
 Open:
-- Flight bounds vs mountain ring (§7) must be decided before M6.
 - Three.js version: the preview runs 0.160.0. M1 picks the exact pin (the latest stable at install time is fine unless addons used by the preview moved; check `Sky`, `OutputPass`, `UnrealBloomPass` imports).

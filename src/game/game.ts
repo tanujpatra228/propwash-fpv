@@ -17,11 +17,13 @@ import {
   type ActionId,
   type Bindings,
 } from '../input/key-bindings';
+import { clampToWorld } from '../physics/bounds';
 import { ColliderWorld } from '../physics/colliders';
 import { resolveDrone, substepCount, type CrashReason } from '../physics/resolve';
 import { Banner } from '../ui/banner';
 import { ControlsPanel } from '../ui/controls-panel';
 import { checkGateCrossing } from '../world/gate-crossing';
+import { buildBoundary, type Boundary } from '../world/boundary';
 import { buildGates, type Gate } from '../world/gates';
 import { PIT_PAD } from '../world/pit-area';
 import { buildScenery, type Scenery } from '../world/scenery';
@@ -52,6 +54,7 @@ export class Game {
   private readonly colliders = new ColliderWorld();
   private readonly scenery: Scenery;
   private readonly gates: Gate[];
+  private readonly boundary: Boundary;
   private readonly tracker = new LapTracker(TRACK.gateCount);
   private readonly flight = new FlightModel();
   private readonly battery = new Battery(STOCK_STATS);
@@ -76,6 +79,7 @@ export class Game {
     buildWater(this.scene);
     this.scenery = buildScenery(this.scene, this.colliders, textures);
     this.gates = buildGates(this.scene, this.colliders, textures);
+    this.boundary = buildBoundary(this.scene);
     this.scene.add(this.drone.group);
 
     this.bindings = loadBindings();
@@ -251,6 +255,7 @@ export class Game {
       stepInput.mouseYawRad = input.mouseYawRad / steps;
       effortSum += this.flight.step(stepInput, STOCK_STATS, this.battery.powerFactor, subDtS);
 
+      clampToWorld(this.flight);
       const result = resolveDrone(this.flight, this.colliders, surfaceAt, subDtS);
       if (result.crashed && result.reason) return result.reason;
 
@@ -285,6 +290,7 @@ export class Game {
     this.drone.spinProps(this.crashTimerS > 0 ? 0 : this.flight.throttle01, dtS);
     if (this.crashTimerS <= 0) this.flightTimeS += dtS;
     this.scenery.update(this.clockS);
+    this.boundary.update(this.flight.position);
     this.sky.followFocus(this.flight.position);
     this.rig.setAspect(this.renderer.aspect);
     this.rig.update(dtS, { position: this.flight.position, yawRad: this.flight.yawRad, quaternion: this.flight.quaternion });

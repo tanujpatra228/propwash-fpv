@@ -33,6 +33,11 @@ A golden-hour valley: green rolling hills near the track, rocky slopes and snowy
 - **Vegetation:** about 3,400 pines and 900 broadleaf trees (instanced), kept off the track (≥ 12 m), the lake, the factory and the pit area. About 500 rocks. Up to 70,000 grass blades near the track and pits, swaying in the wind.
 - **Quality presets** (from `config.ts`): Low hides grass and shadows; Medium and High show them.
 
+## World boundary
+
+- The flyable area is ±900 m around the centre, up to a 300 m ceiling (`WORLD.bounds`). The terrain mesh itself extends to ±1,300 m, so the wall is always inside it and the void beyond the terrain is never reachable. The highest peak stays at least 30 m under the ceiling (unit test).
+- `physics/bounds.ts` (`clampToWorld`) stops the drone at the wall and removes only the outward speed. `world/boundary.ts` draws a faint grid (25 m cells, one-pixel lines, 30% max opacity) on the four walls and ceiling; it fades with distance to the drone, so it is invisible from afar.
+
 ## UI
 
 None (world only).
