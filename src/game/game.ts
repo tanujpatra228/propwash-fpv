@@ -1,5 +1,5 @@
 import { Scene, Vector3 } from 'three';
-import { LOOP, VALLEY } from '../config';
+import { LOOP } from '../config';
 import { mustGet } from '../core/dom';
 import { clamp } from '../core/math';
 import { GameRenderer } from '../core/renderer';
@@ -18,7 +18,11 @@ import {
 } from '../input/key-bindings';
 import { ControlsPanel } from '../ui/controls-panel';
 import { buildSky } from '../world/sky';
+import { ColliderWorld } from '../physics/colliders';
+import { PIT_PAD } from '../world/pit-area';
+import { buildScenery, type Scenery } from '../world/scenery';
 import { buildTerrain, buildWater, groundY } from '../world/terrain';
+import { createWorldTextures } from '../world/textures';
 import { CameraRig } from './camera-rig';
 
 const REST_OFFSET_M = 0.1;
@@ -31,6 +35,8 @@ export class Game {
   private readonly scene = new Scene();
   private readonly rig = new CameraRig();
   private readonly sky;
+  private readonly colliders = new ColliderWorld();
+  private readonly scenery: Scenery;
   private readonly flight = new FlightModel();
   private readonly battery = new Battery(STOCK_STATS);
   private readonly drone = createDroneModel({ color: 0xff7a1a });
@@ -40,12 +46,15 @@ export class Game {
   private readonly flightInput: FlightInput = { ...NO_INPUT };
   private bindings: Bindings;
   private lastTimeMs = 0;
+  private clockS = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new GameRenderer(canvas);
     this.sky = buildSky(this.scene, this.renderer.webgl);
-    buildTerrain(this.scene);
+    const textures = createWorldTextures(this.renderer.webgl.capabilities.getMaxAnisotropy());
+    buildTerrain(this.scene, textures.detail);
     buildWater(this.scene);
+    this.scenery = buildScenery(this.scene, this.colliders, textures);
     this.scene.add(this.drone.group);
 
     this.bindings = loadBindings();
@@ -85,8 +94,9 @@ export class Game {
   }
 
   private resetToSpawn(): void {
-    spawn.set(VALLEY.spawn.x, groundY(VALLEY.spawn.x, VALLEY.spawn.z) + REST_OFFSET_M, VALLEY.spawn.z);
-    this.flight.reset(spawn, VALLEY.spawn.yawRad);
+    spawn.copy(PIT_PAD.position);
+    spawn.y = groundY(spawn.x, spawn.z) + REST_OFFSET_M;
+    this.flight.reset(spawn, PIT_PAD.yawRad);
     this.rig.snap();
   }
 
@@ -101,6 +111,7 @@ export class Game {
   private readonly frame = (nowMs: number): void => {
     const dtS = clamp((nowMs - this.lastTimeMs) / 1000, LOOP.minDtS, LOOP.maxDtS);
     this.lastTimeMs = nowMs;
+    this.clockS += dtS;
     this.update(dtS);
     this.renderer.render(this.scene, this.rig.camera);
     requestAnimationFrame(this.frame);
@@ -125,6 +136,7 @@ export class Game {
     this.drone.group.position.copy(this.flight.position);
     this.drone.group.quaternion.copy(this.flight.quaternion);
     this.drone.spinProps(this.flight.throttle01, dtS);
+    this.scenery.update(this.clockS);
     this.sky.followFocus(this.flight.position);
     this.rig.setAspect(this.renderer.aspect);
     this.rig.update(dtS, { position: this.flight.position, yawRad: this.flight.yawRad });

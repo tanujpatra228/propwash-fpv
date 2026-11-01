@@ -1,8 +1,8 @@
 # Feature: World and Environment
 
-Status: Planned
+Status: In progress
 Phase: 1
-Branch: `feat/world`
+Branch: `feat/phase-1` (milestone M3)
 Last updated: 2026-11-01
 
 ## Summary
@@ -29,6 +29,7 @@ A golden-hour valley: green rolling hills near the track, rocky slopes and snowy
 
 - **Terrain colors** blend by noise, slope and height: grass (two greens), dry grass, mud near water, rock on slopes over ~35°, snow on high flat areas.
 - **Lighting:** sun at 15° elevation, warm color, one shadow-casting directional light that follows the camera focus. Sky dome (Three.js `Sky`), image-based lighting from the same sky, warm exponential fog.
+- **Hamlet:** a small cluster of 8 houses (gabled roofs, windows) near (40, -30), at least 22 m from the track. They give the player familiar objects of known size to judge speed and height against. They are solid obstacles ("Hit a building").
 - **Vegetation:** about 3,400 pines and 900 broadleaf trees (instanced), kept off the track (≥ 12 m), the lake, the factory and the pit area. About 500 rocks. Up to 70,000 grass blades near the track and pits, swaying in the wind.
 - **Quality presets** (from `config.ts`): Low hides grass and shadows; Medium and High show them.
 
@@ -59,6 +60,13 @@ None (world only).
 - [ ] 60 fps on Medium at 1080p on a mid-range laptop; under 150 draw calls.
 - [ ] Low preset visibly removes grass and shadows.
 
+## Implementation notes (M3)
+
+- Modules: `world/{terrain,sky,textures,track,scatter,containers,pit-area,factory,houses,vegetation,grass,clouds,scenery}.ts`, `physics/colliders.ts`.
+- `ColliderWorld.query(position, radius, out)` writes into a reused `CollisionHit` instead of returning an object, so the game loop allocates nothing. Kinds: `gate`, `factory`, `container`, `building`, `tree`.
+- `track.ts` is built here (not in M4) because trees, rocks and houses must stay clear of the racing line. `PIT_PAD` (spawn and battery pad) is derived from the start gate.
+- Textures use the seeded generator, so every player sees identical pixels. The preview used `Math.random()`.
+
 ## Test cases
 
 | # | Steps | Expected result | Type |
@@ -76,3 +84,4 @@ Real CC0 textures, HDRI sky, glTF tree and rock models, LOD (Phase 2). Weather a
 ## Changelog
 
 - 2026-11-01: Created.
+- 2026-11-01: M3: added the hamlet (houses with windows) as scale references; added `building` collider kind.

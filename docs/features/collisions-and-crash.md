@@ -22,14 +22,14 @@ Values in `config.ts` → `COLLISION`.
 | Drone collision radius | 0.18 m |
 | Ground | Crash if speed > 8 m/s on contact; otherwise rest 0.1 m above ground, stop downward speed, slide friction 0.85 |
 | Water (lake) | Any contact with the surface = crash ("Splashed into the lake") |
-| Obstacles | Gate frame bars, factory pillars/roof/walls/beams, containers, pit tent and table, tree trunks |
+| Obstacles | Gate frame bars, factory pillars/roof/walls/beams, containers, pit tent and table, houses, tree trunks |
 | Obstacle hit | Crash if speed > 4 m/s; otherwise push out along the surface normal and remove the velocity into the surface |
 | Tree shape | Vertical cylinder, radius 0.5 m × tree scale, from ground to 10 m × scale (core of the tree, so outer branches are forgiving) |
 | Crash time | 1.6 s, input ignored, static 0.4 → 1.0 |
 | Respawn | At the last passed gate (or the pad in free flight if none), 0.3 m above ground if needed, facing the next gate, zero velocity |
 | Manual reset | **R** respawns immediately (no crash) |
 
-Crash reasons: "Hit the ground", "Splashed into the lake", "Hit a gate", "Hit the factory", "Hit a container", "Hit a tree".
+Crash reasons: "Hit the ground", "Splashed into the lake", "Hit a gate", "Hit the factory", "Hit a container", "Hit a building", "Hit a tree".
 
 **Battery empty** is not a crash reason by itself: the motors cut and the drone falls (see battery-system). Touching the ground or water afterwards (or 3 s passing) ends the time-trial run or respawns on the pad in free flight, using the "Battery empty" banner instead of "Crashed".
 
@@ -37,7 +37,7 @@ Crash reasons: "Hit the ground", "Splashed into the lake", "Hit a gate", "Hit th
 
 - `src/physics/colliders.ts`:
   - `ColliderWorld` with `addBox(mesh, kind)`, which stores the inverse world matrix, half-extents and a bounding sphere for a quick distance check, and `addCylinder(x, z, baseY, heightM, radiusM, kind)`, which goes into a 16 m grid.
-  - `query(position, radiusM): CollisionHit | null` returns `kind`, `normal`, `depth`.
+  - `query(position, radiusM, out): boolean` writes `kind`, `normal`, `depth` into a reused `CollisionHit` (no allocation in the loop).
   - Pure geometry, no game rules.
 - `src/physics/resolve.ts`: `resolveDrone(flight, world, groundY): CollisionResult` applies ground, water and obstacle rules and returns `{ crashed: boolean; reason?: CrashReason }`.
 - World builders (`world/gates.ts`, `world/scenery.ts`) register shapes as they create meshes, so visuals and colliders never drift apart.
