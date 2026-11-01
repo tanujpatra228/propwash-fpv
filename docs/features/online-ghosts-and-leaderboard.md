@@ -89,7 +89,7 @@ Design rules that keep it free (from the standards):
 - `src/ui/leaderboard-screen.ts`, `src/ui/name-prompt.ts`; main menu button; `?ghost=<id>` handling in `main.ts`.
 - `src/game/modes/time-trial.ts` accepts an optional external ghost.
 - `wrangler.jsonc`: `main` for the Worker, `assets.binding`, `run_worker_first: ["/api/*"]`, a D1 binding, a fixed `compatibility_date`.
-- CI: a step applies D1 migrations (`wrangler d1 migrations apply --remote`) before deploy. **The Cloudflare API token needs D1 Edit permission.**
+- CI (deploy job, `main` only): `scripts/ensure-d1.mjs` finds the D1 database by name (creating it only if missing) and writes its id into `wrangler.jsonc` for that run; then `wrangler d1 migrations apply DB --remote`; then the deploy. Finding by name avoids the trap of automatic provisioning creating a fresh, empty database on every deploy. The repo's `wrangler.jsonc` deliberately has no `database_id`, so local development uses a local database. **The Cloudflare API token needs D1 Edit permission (confirmed by the owner).**
 - Dev dependencies (exact pins, logged): `@cloudflare/workers-types`.
 
 ## Edge cases
@@ -129,6 +129,12 @@ Design rules that keep it free (from the standards):
 - Built and tested so far (branch `feat/phase-4`): `core/pilot-name.ts` (16 tests), `core/ghost-codec.ts` (decoder with no 3D library, so the Worker stays small), `core/lap-validation.ts` (14 tests, about 1 ms per lap), `worker/` (routes, D1 queries), `migrations/0001_laps.sql`.
 - **Verified locally with a real Worker and a local D1 database** (`wrangler dev --local`): first lap saved at rank 1; an immediate repeat is refused (429); a slower lap changes nothing; a faster one replaces it; a second pilot with an emoji name is rank 2; markup name, 12 s lap, 500-character name, 100 KB body and non-JSON are all refused with clear errors and the leaderboard stays clean; caching headers are `max-age=30` (leaderboard) and `max-age=300, immutable` (ghost); the game page is still served as a static asset. A 40 s lap's ghost is 6 KB.
 - Rank counting reads the faster laps through the index, so it grows with the number of pilots (1,000 pilots is still about 500 K rows a day at the assumed submit rate, 10% of the free read limit).
+
+## Verified so far (Phase 4 build)
+
+- Server: real Worker + local D1 (see above).
+- Game, in a browser, through the dev proxy to that local Worker: a queued lap uploaded by itself on the next menu open and the queue cleared; the leaderboard screen lists names (emoji included), times and gaps; the name box refuses markup, too-short, too-long and zero-width names as you type and accepts `🚀 Ace`; "Race" starts a time trial against that lap with the opponent's time as the target; `?ghost=<id>` starts the race straight away; a dead link stays on the menu with a clear message. 255 tests pass.
+- **Not verified:** the real Cloudflare deployment (first deploy to `main` is the test), real-network latency, a human playing a full lap and seeing it appear.
 
 ## Out of scope
 

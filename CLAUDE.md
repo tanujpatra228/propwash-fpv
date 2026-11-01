@@ -37,7 +37,7 @@ Each feature gets its own file in `docs/features/`, written from the template be
 | Battery system | [battery-system.md](docs/features/battery-system.md) | 1 | In progress |
 | Pilot settings | [pilot-settings.md](docs/features/pilot-settings.md) | 2 | In progress |
 | Training mode | [training-mode.md](docs/features/training-mode.md) | 2 | In progress |
-| Online ghosts and leaderboard | [online-ghosts-and-leaderboard.md](docs/features/online-ghosts-and-leaderboard.md) | 4 | Planned |
+| Online ghosts and leaderboard | [online-ghosts-and-leaderboard.md](docs/features/online-ghosts-and-leaderboard.md) | 4 | In progress |
 | Drone parts and upgrades | [drone-parts-and-upgrades.md](docs/features/drone-parts-and-upgrades.md) | 3 | Planned |
 | Battery Challenge | [battery-challenge.md](docs/features/battery-challenge.md) | 3 | Planned |
 

@@ -3,8 +3,6 @@ import { COLLISION, GHOST, LOOP, TRACK } from '../config';
 import { MotorSound } from '../core/audio';
 import type { RemoteGhost } from '../net/api-client';
 import { formatLapTime } from '../core/format';
-import { FpsMeter } from '../core/fps-meter';
-import { ResolutionController } from '../core/resolution-controller';
 import { clamp } from '../core/math';
 import { GameRenderer } from '../core/renderer';
 import { Battery } from '../drone/battery';
@@ -48,7 +46,7 @@ import type { GameMode, ModeHost, ModeId, NextStep } from './modes/mode';
 import { TrainingMode } from './modes/training';
 import { TimeTrial } from './modes/time-trial';
 import { type Pose } from './respawn';
-import { applyQualityPreset } from './quality';
+import { Tuning } from './tuning';
 import { OnlineUi } from './online-ui';
 import { loadPilotSettings, savePilotSettings, type PilotSettings } from '../core/pilot-settings';
 import { loadFreeBatteryDrain, loadQuality, saveFreeBatteryDrain, saveQuality } from './settings';
@@ -99,8 +97,7 @@ export class Game {
   private crashTimerS = 0;
   private flightTimeS = 0;
   private isAnalogOn = true;
-  private readonly fpsMeter = new FpsMeter();
-  private readonly resolution = new ResolutionController();
+  private readonly tuning: Tuning;
   readonly debug: DebugApi;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -147,6 +144,7 @@ export class Game {
     const sensitivity = loadMouseSensitivity();
     this.input = new Input(canvas, this.bindings);
     this.input.setSensitivity(sensitivity);
+    this.tuning = new Tuning({ renderer: this.renderer, sky: this.sky, scenery: this.scenery, rig: this.rig, input: this.input });
     this.controls = new ControlsPanel(this.bindings, sensitivity, {
       onBindingsChange: (next) => {
         this.bindings = next;
@@ -182,7 +180,7 @@ export class Game {
         onPilotChange: (next) => {
           this.pilot = next;
           savePilotSettings(next);
-          this.applyPilotSettings();
+          this.tuning.applyPilot(this.pilot);
         },
         onFreeDrainChange: (isOn) => {
           this.isFreeDrainOn = isOn;
@@ -191,7 +189,7 @@ export class Game {
       },
       { quality, isFreeDrainOn: this.isFreeDrainOn, pilot: this.pilot },
     );
-    this.applyPilotSettings();
+    this.tuning.applyPilot(this.pilot);
     this.simulation = new Simulation(this.flight, this.battery, this.colliders, this.gates, this.tracker);
     this.presenter = new Presenter({
       renderer: this.renderer,
@@ -296,16 +294,8 @@ export class Game {
     this.controls.open();
   }
 
-  /** Pushes the pilot's camera, mouse and units choices to the parts that use them. */
-  private applyPilotSettings(): void {
-    this.rig.setGogglesView(this.pilot.fovDeg, this.pilot.uptiltDeg);
-    this.input.setInvertTurn(this.pilot.isTurnInverted);
-  }
-
   private applyQuality(id: QualityId, shouldSave = true): void {
-    this.resolution.reset();
-    this.renderer.setResolutionScale(1);
-    applyQualityPreset(id, this.renderer, this.sky, this.scenery);
+    this.tuning.applyQuality(id);
     if (shouldSave) saveQuality(id);
   }
 
@@ -381,22 +371,13 @@ export class Game {
     const dtS = clamp((nowMs - this.lastTimeMs) / 1000, LOOP.minDtS, LOOP.maxDtS);
     this.lastTimeMs = nowMs;
     this.clockS += dtS;
-    const fps = this.fpsMeter.tick(dtS);
-    if (fps !== null) this.onFpsSample(fps);
+    const fps = this.tuning.tick(dtS, this.phase === 'playing');
+    if (fps !== null) this.menu.setFps(fps, this.renderer.currentResolutionScale);
     if (this.phase === 'menu') this.presenter.presentMenu(dtS, this.clockS, this.director, this.flight);
     else this.updatePlaying(dtS);
     this.renderer.render(this.scene, this.rig.camera, this.clockS);
     requestAnimationFrame(this.frame);
   };
-
-  /** Once a second: show the rate in settings and, while flying, keep the picture smooth by adjusting the resolution. */
-  private onFpsSample(fps: number): void {
-    if (this.phase === 'playing') {
-      const scale = this.resolution.update(fps);
-      if (scale !== null) this.renderer.setResolutionScale(scale);
-    }
-    this.menu.setFps(fps, this.renderer.currentResolutionScale);
-  }
 
   private simulate(input: Readonly<FlightInput>, dtS: number): CrashReason | null {
     return this.simulation.step(input, dtS, this.mode.drainsBattery, (index) => this.mode.onGateCrossed(index));
