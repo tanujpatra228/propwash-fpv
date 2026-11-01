@@ -1,8 +1,8 @@
 # Feature: Controls and Key Bindings
 
-Status: Planned
+Status: In progress
 Phase: 1
-Branch: `feat/controls`
+Branch: `feat/phase-1` (milestone M2)
 Last updated: 2026-11-01
 
 ## Summary

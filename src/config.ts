@@ -13,6 +13,40 @@ export const WORLD = {
   seed: 1337,
 } as const;
 
+/** Valley layout. Changing noise, sizes or seeds changes the world: bump WORLD.version. */
+export const VALLEY = {
+  sizeM: 2600,
+  segments: 320,
+  valleyFloorRadiusM: 150,
+  mountainRingRadiusM: 460,
+  lake: { x: -40, z: 74, radiusM: 44, depthBelowShoreM: 2.2 },
+  bando: { x: 112, z: 100, innerRadiusM: 24, outerRadiusM: 42 },
+  /** Where the drone starts until the pit area exists (M3/M4). */
+  spawn: { x: 14, z: -140, yawRad: 0 },
+} as const;
+
+export const CAMERA = {
+  chase: { distanceM: 3.6, heightM: 1.15, lookAheadM: 2, smoothingPerS: 8, minAboveGroundM: 0.5, fovDeg: 70 },
+  nearM: 0.05,
+  farM: 3200,
+} as const;
+
+export const DRONE = {
+  scale: 1.35,
+  colors: { player: 0xff7a1a },
+  /** Prop spin: radians per second at zero and full throttle. */
+  propSpinRadps: { idle: 60, full: 420 },
+} as const;
+
+export const RENDER = {
+  toneMappingExposure: 0.74,
+  fogDensity: 0.0011,
+  fogColor: 0xc8b8a4,
+  sunElevationDeg: 15,
+  sunAzimuthDeg: 205,
+  shadowExtentM: 90,
+} as const;
+
 export const STORAGE_PREFIX = 'pw.';
 
 /** Stock-drone flight tuning. Units: metres, seconds, radians. */

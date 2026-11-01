@@ -1,6 +1,6 @@
 # Feature: Flight Model
 
-Status: In progress
+Status: Done
 Phase: 1
 Branch: `feat/phase-1` (milestone M2)
 Last updated: 2026-11-01
