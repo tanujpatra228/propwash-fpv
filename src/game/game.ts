@@ -3,6 +3,7 @@ import { COLLISION, GHOST, LOOP, TRACK } from '../config';
 import { MotorSound } from '../core/audio';
 import { formatLapTime } from '../core/format';
 import { FpsMeter } from '../core/fps-meter';
+import { ResolutionController } from '../core/resolution-controller';
 import { clamp } from '../core/math';
 import { GameRenderer } from '../core/renderer';
 import { Battery } from '../drone/battery';
@@ -92,6 +93,7 @@ export class Game {
   private flightTimeS = 0;
   private isAnalogOn = true;
   private readonly fpsMeter = new FpsMeter();
+  private readonly resolution = new ResolutionController();
   readonly debug: DebugApi;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -222,6 +224,8 @@ export class Game {
   }
 
   private applyQuality(id: QualityId, shouldSave = true): void {
+    this.resolution.reset();
+    this.renderer.setResolutionScale(1);
     applyQualityPreset(id, this.renderer, this.sky, this.scenery);
     if (shouldSave) saveQuality(id);
   }
@@ -302,12 +306,21 @@ export class Game {
     this.lastTimeMs = nowMs;
     this.clockS += dtS;
     const fps = this.fpsMeter.tick(dtS);
-    if (fps !== null) this.menu.setFps(fps);
+    if (fps !== null) this.onFpsSample(fps);
     if (this.phase === 'menu') this.updateMenu(dtS);
     else this.updatePlaying(dtS);
     this.renderer.render(this.scene, this.rig.camera, this.clockS);
     requestAnimationFrame(this.frame);
   };
+
+  /** Once a second: show the rate in settings and, while flying, keep the picture smooth by adjusting the resolution. */
+  private onFpsSample(fps: number): void {
+    if (this.phase === 'playing') {
+      const scale = this.resolution.update(fps);
+      if (scale !== null) this.renderer.setResolutionScale(scale);
+    }
+    this.menu.setFps(fps, this.renderer.currentResolutionScale);
+  }
 
   private updateMenu(dtS: number): void {
     this.director.update(dtS, this.clockS);

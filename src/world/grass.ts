@@ -24,7 +24,7 @@ export interface Grass {
 /** Wind-blown grass blades, concentrated along the track and around the pits. */
 export function buildGrass(scene: Scene): Grass {
   const rng = createRng(WORLD.seed + 97);
-  const blade = new PlaneGeometry(0.09, BLADE_HEIGHT_M, 1, 3).translate(0, BLADE_HEIGHT_M / 2, 0);
+  const blade = new PlaneGeometry(0.09, BLADE_HEIGHT_M, 1, 2).translate(0, BLADE_HEIGHT_M / 2, 0);
   const p = blade.attributes.position;
   if (!p) throw new Error('Grass blade has no positions');
   for (let i = 0; i < p.count; i++) p.setX(i, p.getX(i) * (1 - p.getY(i) / (BLADE_HEIGHT_M + 0.02)));
