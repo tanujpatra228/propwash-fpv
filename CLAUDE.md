@@ -19,12 +19,12 @@ Each feature gets its own file in `docs/features/`, written from the template be
 
 | Feature | Doc | Phase | Status |
 |---|---|---|---|
-| Project setup and deploy | [project-setup-and-deploy.md](docs/features/project-setup-and-deploy.md) | 1 | Planned |
+| Project setup and deploy | [project-setup-and-deploy.md](docs/features/project-setup-and-deploy.md) | 1 | In progress |
 | World and environment | [world-and-environment.md](docs/features/world-and-environment.md) | 1 | Planned |
 | Track and gates | [track-and-gates.md](docs/features/track-and-gates.md) | 1 | Planned |
-| Drone model | [drone-model.md](docs/features/drone-model.md) | 1 | Planned |
-| Flight model | [flight-model.md](docs/features/flight-model.md) | 1 | Planned |
-| Controls and key bindings | [controls-and-key-bindings.md](docs/features/controls-and-key-bindings.md) | 1 | Planned |
+| Drone model | [drone-model.md](docs/features/drone-model.md) | 1 | In progress |
+| Flight model | [flight-model.md](docs/features/flight-model.md) | 1 | Done |
+| Controls and key bindings | [controls-and-key-bindings.md](docs/features/controls-and-key-bindings.md) | 1 | In progress |
 | Cameras and FPV effects | [cameras-and-fpv-effects.md](docs/features/cameras-and-fpv-effects.md) | 1 | Planned |
 | Height indicator | [height-indicator.md](docs/features/height-indicator.md) | 1 | Planned |
 | HUD and OSD | [hud-and-osd.md](docs/features/hud-and-osd.md) | 1 | Planned |
@@ -33,7 +33,7 @@ Each feature gets its own file in `docs/features/`, written from the template be
 | Free flight | [free-flight.md](docs/features/free-flight.md) | 1 | Planned |
 | Main menu and settings | [main-menu-and-settings.md](docs/features/main-menu-and-settings.md) | 1 | Planned |
 | Motor sound | [motor-sound.md](docs/features/motor-sound.md) | 1 | Planned |
-| Battery system | [battery-system.md](docs/features/battery-system.md) | 1 | Planned |
+| Battery system | [battery-system.md](docs/features/battery-system.md) | 1 | In progress |
 | Drone parts and upgrades | [drone-parts-and-upgrades.md](docs/features/drone-parts-and-upgrades.md) | 3 | Planned |
 | Battery Challenge | [battery-challenge.md](docs/features/battery-challenge.md) | 3 | Planned |
 

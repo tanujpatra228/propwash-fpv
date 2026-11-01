@@ -1,8 +1,8 @@
 # Feature: Battery System
 
-Status: Planned
+Status: In progress
 Phase: 1
-Branch: `feat/battery`
+Branch: `feat/phase-1` (milestone M2 (pure model); game rules in M6)
 Last updated: 2026-11-01
 
 ## Summary

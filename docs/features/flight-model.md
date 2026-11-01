@@ -1,8 +1,8 @@
 # Feature: Flight Model
 
-Status: Planned
+Status: Done
 Phase: 1
-Branch: `feat/flight-model`
+Branch: `feat/phase-1` (milestone M2)
 Last updated: 2026-11-01
 
 ## Summary
@@ -28,7 +28,7 @@ All values live in `config.ts` → `FLIGHT`.
 | Climb rate (Space) | 6 m/s |
 | Descend rate (Shift) | 5 m/s |
 | Vertical response | 3 /s (vertical speed eases to the target; 0 when no key = altitude hold) |
-| Air drag | quadratic 0.0105 + linear 0.12 (horizontal), top speed ~28 m/s |
+| Air drag | quadratic 0.007 + linear 0.10 (horizontal), top speed ~28 m/s (102 km/h) |
 | Keyboard turn rate | 2.2 rad/s |
 | Mouse turn | 0.0025 rad per pixel × mouse sensitivity (0.3–3.0, default 1.0) |
 | Auto bank | 0.14 × yaw rate, max 0.45 rad, full effect from 12 m/s |
@@ -91,3 +91,5 @@ Acro mode (no self-levelling), battery sag affecting thrust, wind, prop wash (la
 ## Changelog
 
 - 2026-11-01: Created. Values tuned in the preview artifact.
+- 2026-11-01: M2: drag changed from 0.0105 / 0.12 to 0.007 / 0.10. The original values give only 23 m/s (84 km/h) with the 0.72 rad tilt limit, which fails the 95 to 110 km/h acceptance criterion. New values give 18.6 m/s after 3 s and 28.4 m/s top speed.
+- Drag is applied as `exp(-drag * dt)` per axis, so it is frame-rate independent.

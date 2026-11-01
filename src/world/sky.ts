@@ -1,0 +1,83 @@
+import {
+  Color,
+  DirectionalLight,
+  FogExp2,
+  HemisphereLight,
+  MathUtils,
+  PMREMGenerator,
+  Scene,
+  Vector3,
+  type WebGLRenderer,
+} from 'three';
+import { Sky } from 'three/addons/objects/Sky.js';
+import { RENDER } from '../config';
+
+function createSkyDome(scale: number, sunDirection: Vector3): Sky {
+  const sky = new Sky();
+  sky.scale.setScalar(scale);
+  const uniforms = sky.material.uniforms;
+  const set = (name: string, value: number): void => {
+    const uniform = uniforms[name];
+    if (uniform) uniform.value = value;
+  };
+  set('turbidity', 5.5);
+  set('rayleigh', 1.4);
+  set('mieCoefficient', 0.004);
+  set('mieDirectionalG', 0.82);
+  uniforms['sunPosition']?.value.copy(sunDirection);
+  return sky;
+}
+
+export interface SkyRig {
+  /** Moves the shadow-casting sun so shadows follow the camera focus. */
+  followFocus(position: Vector3): void;
+  setShadowExtent(extentM: number): void;
+}
+
+/** Sky dome, sky-based lighting, warm haze, one shadow-casting sun. */
+export function buildSky(scene: Scene, renderer: WebGLRenderer): SkyRig {
+  const sunDirection = new Vector3().setFromSphericalCoords(
+    1,
+    MathUtils.degToRad(90 - RENDER.sunElevationDeg),
+    MathUtils.degToRad(RENDER.sunAzimuthDeg),
+  );
+  scene.add(createSkyDome(3000, sunDirection));
+
+  const pmrem = new PMREMGenerator(renderer);
+  const envScene = new Scene();
+  envScene.add(createSkyDome(50, sunDirection));
+  scene.environment = pmrem.fromScene(envScene).texture;
+  pmrem.dispose();
+
+  scene.fog = new FogExp2(new Color(RENDER.fogColor), RENDER.fogDensity);
+
+  const sun = new DirectionalLight(0xffdcb4, 2.6);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.bias = -0.0004;
+  sun.shadow.normalBias = 0.03;
+  sun.shadow.camera.near = 1;
+  sun.shadow.camera.far = 600;
+  scene.add(sun, sun.target, new HemisphereLight(0xbcd2ff, 0x5a4a35, 0.55));
+
+  let currentExtentM = 0;
+  const rig: SkyRig = {
+    setShadowExtent(extentM: number): void {
+      if (extentM === currentExtentM) return;
+      currentExtentM = extentM;
+      const cam = sun.shadow.camera;
+      cam.left = -extentM;
+      cam.right = extentM;
+      cam.top = extentM;
+      cam.bottom = -extentM;
+      sun.shadow.normalBias = extentM < 10 ? 0.002 : 0.03;
+      cam.updateProjectionMatrix();
+    },
+    followFocus(position: Vector3): void {
+      sun.target.position.copy(position);
+      sun.position.copy(position).addScaledVector(sunDirection, 300);
+    },
+  };
+  rig.setShadowExtent(RENDER.shadowExtentM);
+  return rig;
+}
