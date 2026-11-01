@@ -206,7 +206,7 @@ Names describe what something is to the player or the game, not how it's built (
 
 ## 11. Git and deployment
 
-- **Branches:** one per feature: `feat/<name>`, `fix/<name>`, `docs/<name>`, `chore/<name>`.
+- **Branches:** one per change, always (features, bug fixes and document updates alike): `feat/<name>`, `fix/<name>`, `docs/<name>`, `chore/<name>`.
 - **Commits:** [Conventional Commits](https://www.conventionalcommits.org/) style: `feat: add height gauge`, `fix: stop NaN on zero frame time`. Small, focused commits.
 - **Merge flow:** push branch → merge into `main` → GitHub Actions deploys to Cloudflare → confirm the deploy passed → delete the branch locally and on GitHub.
 - `main` must always build and deploy.

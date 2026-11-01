@@ -142,9 +142,30 @@ M1: config, core/{math,storage,dom,format}, tooling, CI
                          └─ M8: acceptance
 ```
 
-## 5. Branch and commit plan
+## 5. Branch and merge workflow (decided)
 
-`CLAUDE.md` says one branch per feature. This session is pinned to branch `ccr-9d2107c4-1e6z4p`, so the plan assumes one working branch with one Conventional Commit per feature step (`feat: add flight model`, `test: cover battery curve`). If you want strict per-feature branches and merges to `main` after each milestone, say so and I will split them.
+Every change gets its own branch, with no exceptions: features (`feat/`), bug fixes (`fix/`), document updates (`docs/`) and tooling (`chore/`).
+
+1. Branch from an up-to-date `main`.
+2. Commit with Conventional Commits, push the branch.
+3. Open a pull request to `main` (CI runs typecheck and build only), merge it when green.
+4. The push to `main` deploys. Confirm the Actions run is green and the site updated.
+5. Only then delete the branch on GitHub and locally.
+
+Branch per milestone item (one feature doc each; large features may be split further):
+
+| M | Branches |
+|---|---|
+| M1 | `docs/phase-1-plan`, `chore/project-setup`, `feat/core-helpers` |
+| M2 | `feat/flight-model` (with `drone-stats`), `feat/battery`, `feat/controls`, `feat/drone-model`, `feat/chase-camera` |
+| M3 | `feat/colliders`, `feat/world` |
+| M4 | `feat/track-and-gates`, `feat/collisions` (with crash and respawn) |
+| M5 | `feat/cameras` (goggles and FPV pass), `feat/height-indicator`, `feat/hud` |
+| M6 | `feat/free-flight`, `feat/time-trial` (with ghost) |
+| M7 | `feat/main-menu`, `feat/motor-sound` |
+| M8 | `docs/phase-1-closeout` plus any `fix/*` found in acceptance |
+
+Branch names match the `Branch:` line in each feature doc. Unplanned work gets a new branch and a doc or changelog line.
 
 ## 6. Risks and how this plan handles them
 
@@ -165,8 +186,13 @@ M1: config, core/{math,storage,dom,format}, tooling, CI
 - `main-menu-and-settings.md` lists the quality presets but `config.ts` `QUALITY` is not defined anywhere else; define it once in M3.
 - `project-setup-and-deploy.md` does not mention Vitest. Add it in M1.
 
-## 8. Open questions (need your input)
+## 8. Decisions and open items
 
-1. **Cloudflare secrets** (blocks M1 close): can you add `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` to the repo's GitHub Actions secrets?
-2. **Preview artifact** (`plan.md` links it as the approved look): I cannot open claude.ai artifact links from this environment unless you paste the source or export the HTML. Paste or commit it somewhere, otherwise M3 "matches the preview" cannot be verified.
-3. **Branch strategy**: single working branch (default in §5) or per-feature branches?
+Resolved:
+1. Cloudflare secrets are in GitHub Actions secrets. M1 verifies them with the first deploy.
+2. Preview artifact is the look reference. Its source is a single HTML file (about 1,900 lines) using Three.js 0.160.0 with procedural terrain (`baseH`, `heightAt`), a Catmull-Rom track, procedural canvas textures, Sky plus PMREM lighting, and the FPV post pass. M3, M4 and M5 port its constants and algorithms into the module layout above rather than copying the file. The preview uses `Math.random()` for textures and placement, so the port must replace that with the seeded generator.
+3. Branch strategy: one branch per change, see §5.
+
+Open:
+- Flight bounds vs mountain ring (§7) must be decided before M6.
+- Three.js version: the preview runs 0.160.0. M1 picks the exact pin (the latest stable at install time is fine unless addons used by the preview moved; check `Sky`, `OutputPass`, `UnrealBloomPass` imports).
