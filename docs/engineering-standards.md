@@ -54,14 +54,14 @@ We only use the **Cloudflare free plan**. No paid plan, no paid add-ons, no feat
 ```
 src/
 ├─ main.ts        Entry point only: find the canvas, create Game, start it
-├─ game.ts        Game state machine, main loop, wiring of systems
 ├─ config.ts      All tunable constants and presets (single source of truth)
-├─ core/          Shared, domain-free helpers: math, noise, storage, DOM, audio, renderer
+├─ core/          Shared, domain-free helpers: math, noise, storage, DOM, format, audio, renderer
 ├─ world/         Everything static in the scene: terrain, water, sky, track, gates, scenery, textures
-├─ physics/       Collision shapes and queries
+├─ physics/       Collision shapes, queries and collision response
 ├─ drone/         Drone model, flight model, track-following AI, ghost record/playback
 ├─ input/         Action bindings and keyboard/mouse input
-└─ ui/            HUD, menus, panels (DOM only)
+├─ ui/            HUD, menus, panels (DOM only)
+└─ game/          Game state machine and main loop (game.ts), camera rig, lap tracker, modes/ (free flight, time trial)
 ```
 
 ### 3.1 Dependency direction
@@ -69,12 +69,12 @@ src/
 Imports flow one way. A layer may import from layers to its left, never to its right:
 
 ```
-core  →  physics / world / input  →  drone  →  ui  →  game  →  main
+config  →  core  →  physics / world / input  →  drone  →  ui  →  game  →  main
 ```
 
-- `core/` imports nothing from the project.
-- `ui/` never changes game state directly. It calls functions or callbacks that `game.ts` gives it.
-- `game.ts` is the only place that knows about every system.
+- `config.ts` imports only types. `core/` imports nothing from the project except `config.ts`.
+- `ui/` never changes game state directly. It calls functions or callbacks that `game/` gives it.
+- `game/game.ts` is the only place that knows about every system.
 - **No circular imports.** If two modules need each other, the shared part moves down a layer.
 
 ### 3.2 File rules

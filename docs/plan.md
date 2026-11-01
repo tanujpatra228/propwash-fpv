@@ -89,6 +89,7 @@ Golden-hour lighting, haze, clouds and grass that moves in the wind.
 | Reset to last gate | R | — |
 | Analog static on/off | G | — |
 | Motor sound on/off | M | — |
+| Pause / back to menu | P | — |
 
 Flight model ("beginner angle mode"):
 
@@ -121,14 +122,14 @@ propwash-fpv/
 ├─ src/
 │  ├─ main.ts                     Entry point: boots the game
 │  ├─ style.css                   UI styles
-│  ├─ game.ts                     Game state machine, main loop, cameras
 │  ├─ config.ts                   All tunable constants and presets
-│  ├─ core/                       Math helpers, renderer and post-processing, audio
+│  ├─ core/                       Math, storage, DOM and format helpers, renderer and post-processing, audio
 │  ├─ world/                      Terrain, water, sky, track, gates, scenery, textures
-│  ├─ physics/                    Collision shapes and queries
+│  ├─ physics/                    Collision shapes, queries and response
 │  ├─ drone/                      Drone 3D model, flight model, track-following AI, ghosts
 │  ├─ input/                      Key bindings and keyboard/mouse input
-│  └─ ui/                         HUD, menus, controls panel
+│  ├─ ui/                         HUD, menus, controls panel
+│  └─ game/                       Game state machine and loop, camera rig, lap tracker, modes
 ├─ index.html
 ├─ vite.config.ts
 ├─ tsconfig.json
