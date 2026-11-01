@@ -66,6 +66,10 @@ Choose Training. The drone sits on the pad. A panel at the top left shows "Train
 - Verified in a browser: the menu shows the Training button; starting it shows lesson 1; climbing ticks the step, saves `{"completed":1}` and starts lesson 2 after the pause. No battery drain.
 - Not yet flown by a human: lessons 2 to 6 end to end (hover timing, landing on the pad, turning, the gate lessons).
 
+## Ending training
+
+After lesson 6 a dialog offers three choices: **Back to menu** (suggested), **Try a time trial**, **Keep flying**. The mouse is released while it is open. The same dialog (`ui/choice-dialog.ts`) is used when a time-trial run ends (New run / Back to menu).
+
 ## Test cases
 
 | # | Steps | Expected result | Type |

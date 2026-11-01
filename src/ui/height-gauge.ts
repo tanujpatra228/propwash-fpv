@@ -1,6 +1,6 @@
 import { HUD } from '../config';
 import { el } from '../core/dom';
-import { formatHeight } from '../core/format';
+import { formatHeightUnits, type DisplayUnits } from '../core/format';
 import { createGaugePanel } from './gauge';
 
 export type HeightState = 'ok' | 'low' | 'danger';
@@ -26,8 +26,9 @@ export class HeightGauge {
     ]);
   }
 
-  update(heightM: number): void {
-    this.value.replaceChildren(formatHeight(heightM), el('small', { text: 'm' }));
+  update(heightM: number, units: DisplayUnits): void {
+    const { value, unit } = formatHeightUnits(heightM, units);
+    this.value.replaceChildren(value, el('small', { text: unit }));
     this.fill.style.height = `${Math.sqrt(Math.min(heightM, HUD.height.barScaleMaxM) / HUD.height.barScaleMaxM) * 100}%`;
     const state = heightState(heightM);
     this.root.classList.toggle('danger', state === 'danger');

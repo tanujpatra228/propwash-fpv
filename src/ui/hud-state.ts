@@ -4,6 +4,11 @@ import type { RacePanelState } from './race-panel';
 /** Everything the HUD shows, as plain numbers. The game builds one per frame; the HUD never reads game internals. */
 export interface HudState {
   isGoggles: boolean;
+  /** Display units for speed, height and distance. */
+  units: 'metric' | 'imperial';
+  /** The goggles camera's tilt and field of view, so the artificial horizon stays right. */
+  uptiltDeg: number;
+  fovDeg: number;
   speedMps: number;
   heightM: number;
   throttle01: number;

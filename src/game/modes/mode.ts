@@ -8,6 +8,15 @@ import type { Pose } from '../respawn';
 
 export type ModeId = 'free' | 'trial' | 'training';
 
+/** What a dialog button does. The game carries these out. */
+export type NextStep = 'menu' | 'trial' | 'restart' | 'stay';
+
+export interface NextStepChoice {
+  id: NextStep;
+  label: string;
+  isPrimary?: boolean;
+}
+
 /** What a mode may use from the game. Keeps modes free of scene, DOM and rendering. */
 export interface ModeHost {
   readonly flight: FlightModel;
@@ -22,6 +31,8 @@ export interface ModeHost {
   /** Show a centre-screen message for a few seconds. */
   flashBanner(title: string, subtitle: string, kind: 'info' | 'crash', seconds: number): void;
   hideBanner(): void;
+  /** Show a "what next?" dialog. The mouse is released while it is open; picking an option carries it out. */
+  offerNextSteps(title: string, subtitle: string, choices: readonly NextStepChoice[]): void;
 }
 
 export interface RaceHud {

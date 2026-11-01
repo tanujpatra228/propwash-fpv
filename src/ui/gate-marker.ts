@@ -1,5 +1,6 @@
 import { HUD } from '../config';
 import { el } from '../core/dom';
+import { formatDistance, type DisplayUnits } from '../core/format';
 
 /** Pushes a projected point to the screen edge when it is off-screen or behind the camera. Pure. */
 export function clampToScreenEdge(x: number, y: number, isBehind: boolean, limit: number = HUD.markerEdgeLimit): { x: number; y: number } {
@@ -26,9 +27,9 @@ export class GateMarker {
   }
 
   /** `ndcX`/`ndcY` are already edge-clamped (-1..1). */
-  update(ndcX: number, ndcY: number, distM: number, isTextFrame: boolean): void {
+  update(ndcX: number, ndcY: number, distM: number, units: DisplayUnits, isTextFrame: boolean): void {
     this.marker.style.transform = `translate(${(ndcX * 0.5 + 0.5) * window.innerWidth}px, ${(-ndcY * 0.5 + 0.5) * window.innerHeight}px)`;
-    if (isTextFrame) this.distance.textContent = `${Math.round(distM)}m`;
+    if (isTextFrame) this.distance.textContent = formatDistance(distM, units);
   }
 
   setCounter(passed: number, total: number): void {

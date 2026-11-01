@@ -1,6 +1,10 @@
 /** Display formatting. Conversions to km/h and similar happen here, nowhere else. */
 
 const MPS_TO_KMH = 3.6;
+const MPS_TO_MPH = 2.2369363;
+const M_TO_FT = 3.2808399;
+
+export type DisplayUnits = 'metric' | 'imperial';
 
 /** 45.27 -> "0:45.27" */
 export function formatLapTime(timeS: number): string {
@@ -23,8 +27,24 @@ export function formatTimer(timeS: number): string {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
+/** "84 km/h" or "52 mph". */
+export function formatSpeed(speedMps: number, units: DisplayUnits): string {
+  return units === 'imperial' ? `${Math.round(speedMps * MPS_TO_MPH)} mph` : `${Math.round(speedMps * MPS_TO_KMH)} km/h`;
+}
+
 export function formatSpeedKmh(speedMps: number): string {
-  return `${Math.round(speedMps * MPS_TO_KMH)} km/h`;
+  return formatSpeed(speedMps, 'metric');
+}
+
+/** Height in the chosen units, as text and unit label: "2.4" + "m" or "7.9" + "ft". One decimal below 10, whole numbers above. */
+export function formatHeightUnits(heightM: number, units: DisplayUnits): { value: string; unit: string } {
+  const value = units === 'imperial' ? Math.max(0, heightM) * M_TO_FT : Math.max(0, heightM);
+  return { value: value < 10 ? value.toFixed(1) : String(Math.round(value)), unit: units === 'imperial' ? 'ft' : 'm' };
+}
+
+/** A distance such as the gate marker's: "195m" or "640ft". */
+export function formatDistance(distanceM: number, units: DisplayUnits): string {
+  return units === 'imperial' ? `${Math.round(distanceM * M_TO_FT)}ft` : `${Math.round(distanceM)}m`;
 }
 
 /** One decimal below 10 m, whole metres from 10 m. */

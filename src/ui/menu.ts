@@ -1,5 +1,6 @@
 import { QUALITY } from '../config';
 import { el } from '../core/dom';
+import { PILOT_RANGES, type PilotSettings, type Units } from '../core/pilot-settings';
 
 export type QualityId = keyof typeof QUALITY;
 export const QUALITY_IDS = Object.keys(QUALITY) as QualityId[];
@@ -11,11 +12,13 @@ export interface MenuCallbacks {
   onControls(): void;
   onQualityChange(quality: QualityId): void;
   onFreeDrainChange(isOn: boolean): void;
+  onPilotChange(settings: PilotSettings): void;
 }
 
 export interface MenuSettings {
   quality: QualityId;
   isFreeDrainOn: boolean;
+  pilot: PilotSettings;
 }
 
 /** Main menu over the live AI flyby, with the settings panel. DOM only: it calls back into the game. */
@@ -27,8 +30,12 @@ export class MainMenu {
   private readonly fps = el('span', { class: 'fps', text: 'Measuring frame rate…' });
   private readonly qualityButtons = new Map<QualityId, HTMLButtonElement>();
   private readonly drainButtons = new Map<boolean, HTMLButtonElement>();
+  private readonly invertButtons = new Map<boolean, HTMLButtonElement>();
+  private readonly unitButtons = new Map<Units, HTMLButtonElement>();
+  private pilot: PilotSettings;
 
   constructor(private readonly callbacks: MenuCallbacks, initial: MenuSettings) {
+    this.pilot = { ...initial.pilot };
     const item = (title: string, subtitle: HTMLElement | string, onClick: () => void, isPrimary = false): HTMLElement => {
       const sub = typeof subtitle === 'string' ? el('small', { text: subtitle }) : subtitle;
       const button = el('button', { type: 'button', class: isPrimary ? 'primary' : undefined }, [el('b', { text: title }), sub]);
@@ -55,6 +62,7 @@ export class MainMenu {
     document.body.append(this.root, this.settings);
     this.setQuality(initial.quality);
     this.setFreeDrain(initial.isFreeDrainOn);
+    this.markPilotButtons();
   }
 
   private buildSettings(initial: MenuSettings): HTMLElement {
@@ -96,11 +104,62 @@ export class MainMenu {
         el('h2', { text: 'Graphics quality' }),
         qualitySeg,
         this.fps,
+        el('h2', { text: 'Goggles camera' }),
+        this.slider('Field of view', PILOT_RANGES.fovDeg, () => this.pilot.fovDeg, (v) => ({ ...this.pilot, fovDeg: v }), '°', 'A wider view shows more of the world and feels faster.'),
+        this.slider('Camera tilt', PILOT_RANGES.uptiltDeg, () => this.pilot.uptiltDeg, (v) => ({ ...this.pilot, uptiltDeg: v }), '°', 'Tilt up to fly fast without staring at the ground.'),
+        el('h2', { text: 'Mouse' }),
+        this.toggleSeg(this.invertButtons, [[false, 'Normal', 'Mouse right turns right.'], [true, 'Inverted', 'Mouse right turns left.']], (isOn) => ({ ...this.pilot, isTurnInverted: isOn })),
+        el('h2', { text: 'Units' }),
+        this.toggleSeg(this.unitButtons, [['metric', 'Metric', 'km/h and metres.'], ['imperial', 'Imperial', 'mph and feet.']], (units) => ({ ...this.pilot, units })),
         el('h2', { text: 'Battery drain in free flight' }),
         drainSeg,
         el('div', { class: 'settings-actions' }, [controls, done]),
       ]),
     ]);
+  }
+
+  /** A labelled range slider that reports a changed copy of the pilot settings. */
+  private slider(
+    label: string,
+    range: { min: number; max: number; step: number },
+    read: () => number,
+    next: (value: number) => PilotSettings,
+    suffix: string,
+    note: string,
+  ): HTMLElement {
+    const value = el('b', { text: `${read()}${suffix}` });
+    const input = el('input', { type: 'range', min: String(range.min), max: String(range.max), step: String(range.step), value: String(read()), 'aria-label': label });
+    input.addEventListener('input', () => {
+      this.pilot = next(Number(input.value));
+      value.textContent = `${read()}${suffix}`;
+      this.callbacks.onPilotChange(this.pilot);
+    });
+    return el('div', { class: 'range' }, [el('label', {}, [label, ' ', value]), input, el('small', { text: note })]);
+  }
+
+  /** Two buttons side by side where exactly one is selected. */
+  private toggleSeg<K extends boolean | Units>(
+    buttons: Map<K, HTMLButtonElement>,
+    options: ReadonlyArray<readonly [K, string, string]>,
+    next: (key: K) => PilotSettings,
+  ): HTMLElement {
+    const seg = el('div', { class: 'seg two' });
+    for (const [key, label, description] of options) {
+      const button = el('button', { type: 'button' }, [el('b', { text: label }), el('small', { text: description })]);
+      button.addEventListener('click', () => {
+        this.pilot = next(key);
+        this.markPilotButtons();
+        this.callbacks.onPilotChange(this.pilot);
+      });
+      buttons.set(key, button);
+      seg.append(button);
+    }
+    return seg;
+  }
+
+  private markPilotButtons(): void {
+    for (const [key, button] of this.invertButtons) button.classList.toggle('on', key === this.pilot.isTurnInverted);
+    for (const [key, button] of this.unitButtons) button.classList.toggle('on', key === this.pilot.units);
   }
 
   private setQuality(id: QualityId): void {
