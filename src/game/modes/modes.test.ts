@@ -250,6 +250,15 @@ describe('FreeFlight', () => {
     expect(banners).toContain('Fresh battery');
   });
 
+  it('does not bother swapping a nearly full battery', () => {
+    const { mode, battery, flight, banners } = setup();
+    battery.charge01 = 0.99;
+    flight.position.set(14, 0.1, 30);
+    run(mode, 3, landed);
+    expect(battery.charge01).toBe(0.99);
+    expect(banners).not.toContain('Fresh battery');
+  });
+
   it('does not swap when off the pad, moving, or airborne', () => {
     const { mode, battery, flight } = setup();
     battery.charge01 = 0.4;

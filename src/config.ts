@@ -230,7 +230,7 @@ export const GHOST = {
 
 export const FREE_FLIGHT = {
   /** Landed on the pad: below this height, within this distance of the centre, slower than this speed. */
-  swap: { maxHeightM: 0.15, maxDistanceM: 1.4, maxSpeedMps: 0.5, holdS: 2 },
+  swap: { maxHeightM: 0.15, maxDistanceM: 1.4, maxSpeedMps: 0.5, holdS: 2, /** Nothing to swap above this charge. */ skipAboveCharge01: 0.97 },
   emptyBatteryGraceS: 3,
 } as const;
 

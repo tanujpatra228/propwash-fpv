@@ -51,7 +51,7 @@ export class FreeFlight implements GameMode {
     const distanceM = Math.hypot(flight.position.x - padPose.position.x, flight.position.z - padPose.position.z);
     const isSettled =
       frame.isLanded && heightM < swap.maxHeightM + COLLISION.restOffsetM && distanceM < swap.maxDistanceM && flight.velocity.length() < swap.maxSpeedMps;
-    if (!isSettled || battery.charge01 >= 1) {
+    if (!isSettled || battery.charge01 >= swap.skipAboveCharge01) {
       this.swapHeldS = 0;
       this.hud.swapProgress01 = 0;
       return;

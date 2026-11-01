@@ -29,8 +29,8 @@ Each feature gets its own file in `docs/features/`, written from the template be
 | Height indicator | [height-indicator.md](docs/features/height-indicator.md) | 1 | In progress |
 | HUD and OSD | [hud-and-osd.md](docs/features/hud-and-osd.md) | 1 | In progress |
 | Collisions and crash | [collisions-and-crash.md](docs/features/collisions-and-crash.md) | 1 | In progress |
-| Time trial and ghost | [time-trial-and-ghost.md](docs/features/time-trial-and-ghost.md) | 1 | Planned |
-| Free flight | [free-flight.md](docs/features/free-flight.md) | 1 | Planned |
+| Time trial and ghost | [time-trial-and-ghost.md](docs/features/time-trial-and-ghost.md) | 1 | In progress |
+| Free flight | [free-flight.md](docs/features/free-flight.md) | 1 | In progress |
 | Main menu and settings | [main-menu-and-settings.md](docs/features/main-menu-and-settings.md) | 1 | Planned |
 | Motor sound | [motor-sound.md](docs/features/motor-sound.md) | 1 | Planned |
 | Battery system | [battery-system.md](docs/features/battery-system.md) | 1 | In progress |

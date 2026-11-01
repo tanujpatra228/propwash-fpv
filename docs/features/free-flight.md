@@ -1,8 +1,8 @@
 # Feature: Free Flight
 
-Status: Planned
+Status: In progress
 Phase: 1
-Branch: `feat/free-flight`
+Branch: `feat/phase-1` (milestone M6)
 Last updated: 2026-11-01
 
 ## Summary
@@ -45,6 +45,13 @@ Choose Free flight. The drone sits on the landing pad in the pit area. A short h
 - [ ] Respawn uses the last gate passed, or the pad.
 - [ ] Out-of-bounds warning appears and respawns after 3 s.
 - [ ] No lap timer anywhere on screen.
+
+## Implementation notes (M6)
+
+- `game/modes/free-flight.ts`. Pad swap: landed, within 1.4 m of the pad centre, slower than 0.5 m/s for 2 s, and only when the battery is below 97% (nothing to swap otherwise). Progress shows on the battery gauge.
+- Empty battery: the drone falls; on touching down or after 3 s it returns to the pad with a fresh battery.
+- The "battery drain in free flight" setting is stored (`pw.freeBattery.v1`, default on) and read by the mode; its toggle arrives with the settings screen in M7.
+- Flight bounds are a hard wall (see world-and-environment), not the "signal lost" idea in the first draft.
 
 ## Test cases
 
