@@ -21,3 +21,10 @@ export function loadCompletedLessons(): number {
 export function saveCompletedLessons(completed: number): void {
   saveJson(KEY, { completed: Math.max(0, Math.min(LESSONS.length, completed)) });
 }
+
+/** Menu subtitle for the Training button: where the pilot is in the lessons. */
+export function trainingMenuText(completed: number): string {
+  if (completed <= 0) return 'Learn to fly in six short lessons';
+  if (completed >= LESSONS.length) return 'All lessons done. Fly them again';
+  return `Lesson ${completed + 1} of ${LESSONS.length} · ${LESSONS[completed]?.title ?? ''}`;
+}

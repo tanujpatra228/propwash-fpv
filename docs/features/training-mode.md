@@ -60,6 +60,12 @@ Choose Training. The drone sits on the pad. A panel at the top left shows "Train
 - [ ] Crashes respawn on the pad (lessons 1 to 4) or at the last gate (5 and 6).
 - [ ] Battery never drains in training.
 
+## Implementation notes
+
+- Built in `game/modes/training-lessons.ts` (pure, 11 tests), `training.ts` (mode, 6 tests), `training-progress.ts` (storage, 3 tests) and `ui/lesson-panel.ts`.
+- Verified in a browser: the menu shows the Training button; starting it shows lesson 1; climbing ticks the step, saves `{"completed":1}` and starts lesson 2 after the pause. No battery drain.
+- Not yet flown by a human: lessons 2 to 6 end to end (hover timing, landing on the pad, turning, the gate lessons).
+
 ## Test cases
 
 | # | Steps | Expected result | Type |
