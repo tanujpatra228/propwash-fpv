@@ -15,7 +15,7 @@ The approved look and feel is the interactive preview: <https://claude.ai/artifa
 2. **Realistic enough.** Semi-realistic graphics: real lighting, shadows, materials and atmosphere, but not photoreal. Runs at 60 fps on a mid-range laptop.
 3. **Simple controls.** Keyboard and mouse only. Every key can be remapped.
 4. **Play with friends.** Async (ghost races, leaderboards) first, then live race rooms with friends.
-5. **Zero hosting cost.** Everything fits inside the Cloudflare free tier.
+5. **Zero hosting cost.** Cloudflare **free plan only**: no paid plan, no paid add-ons, nothing that needs a payment method. Every server feature must fit the free limits (see `engineering-standards.md` §2).
 
 ### Non-goals (for now)
 
@@ -122,6 +122,7 @@ propwash-fpv/
 │  ├─ main.ts                     Entry point: boots the game
 │  ├─ style.css                   UI styles
 │  ├─ game.ts                     Game state machine, main loop, cameras
+│  ├─ config.ts                   All tunable constants and presets
 │  ├─ core/                       Math helpers, renderer and post-processing, audio
 │  ├─ world/                      Terrain, water, sky, track, gates, scenery, textures
 │  ├─ physics/                    Collision shapes and queries
@@ -149,7 +150,7 @@ propwash-fpv/
 - **D1** stores pilots, best laps and ghost data (compressed path, a few KB each).
 - **Durable Object `RaceRoom`**: one per live race. Players connect over WebSocket. Clients send position updates at 10–15 Hz. The room relays them, tracks gates and finish order, and uses WebSocket hibernation to save duration.
 
-### 4.4 Free-tier budget (verify current limits before Phase 3/4)
+### 4.4 Free-plan budget (free plan only; verify current limits before Phase 3/4)
 
 - Static asset requests: free and unlimited. Max 25 MiB per file, so compress textures and models.
 - Worker requests: about 100k/day.
@@ -176,13 +177,15 @@ propwash-fpv/
 
 ### 5.3 Documents in this folder (Markdown only)
 
+The root `CLAUDE.md` indexes every document below.
+
 | File | Contents |
 |---|---|
 | `plan.md` | This plan |
-| `engineering-standards.md` | Code style, naming, folder rules, TypeScript rules, commit and branch rules, performance budgets |
+| `engineering-standards.md` | Module structure, no-duplication rules, TypeScript and Three.js rules, Cloudflare free-plan rules, git, dependencies, review checklist |
 | `dependencies.md` | Version log of every package and GitHub Action |
-| `features/<feature>.md` | One per feature: behavior, controls, edge cases, acceptance criteria |
-| `test-cases.md` | Manual and automated test cases per feature, with expected results |
+| `features/<feature>.md` | One file per game feature: behavior, controls, UI, technical design, free-plan budget, edge cases, acceptance criteria and test cases |
+| `features/_template.md` | Template every feature doc starts from |
 
 ---
 
@@ -208,7 +211,7 @@ Goal: a playable, deployed game with good-feeling flight.
 | 1.12 | Menu: Free flight, Time trial, Controls, Settings (quality), live AI flyby background | All buttons work |
 | 1.13 | Motor sound | Pitch follows throttle |
 | 1.14 | Cloudflare config + GitHub Actions deploy | Merge to main deploys automatically |
-| 1.15 | Engineering standards, feature docs, test cases | Docs committed in `docs/` |
+| 1.15 | Engineering standards, `CLAUDE.md`, one feature doc per Phase 1 feature (with test cases) | Docs committed in `docs/` |
 
 ### Phase 2 — Looks and feel
 
