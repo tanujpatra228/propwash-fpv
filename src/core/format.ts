@@ -32,3 +32,16 @@ export function formatHeight(heightM: number): string {
   const clamped = Math.max(0, heightM);
   return clamped < 10 ? clamped.toFixed(1) : String(Math.round(clamped));
 }
+
+/** Estimated time left as "≈ 1:20", or "∞" when there is no limit. */
+export function formatTimeLeft(timeS: number): string {
+  if (!Number.isFinite(timeS)) return '∞';
+  const total = Math.max(0, Math.round(timeS));
+  const minutes = Math.floor(total / 60);
+  return `≈ ${minutes}:${String(total % 60).padStart(2, '0')}`;
+}
+
+/** Charge as a whole percentage, "87%". */
+export function formatPercent(fraction01: number): string {
+  return `${Math.round(Math.max(0, Math.min(1, fraction01)) * 100)}%`;
+}

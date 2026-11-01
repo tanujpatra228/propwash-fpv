@@ -31,3 +31,15 @@ describe('terrain', () => {
     expect(heightAt(900, 900)).toBeGreaterThan(heightAt(0, 0) + 40);
   });
 });
+
+describe('terrain vs world bounds', () => {
+  it('keeps every mountain well below the ceiling', async () => {
+    const { WORLD } = await import('../config');
+    const { halfSizeM, ceilingM } = WORLD.bounds;
+    let highest = -Infinity;
+    for (let x = -halfSizeM; x <= halfSizeM; x += 20) {
+      for (let z = -halfSizeM; z <= halfSizeM; z += 20) highest = Math.max(highest, heightAt(x, z));
+    }
+    expect(highest).toBeLessThan(ceilingM - 30);
+  });
+});

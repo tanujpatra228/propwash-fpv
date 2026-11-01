@@ -11,6 +11,18 @@ export const WORLD = {
   /** Bump when noise or seeds change: it invalidates saved ghosts and best laps. */
   version: 1,
   seed: 1337,
+  /** The drone cannot leave this box. Centre is the origin; the floor is the terrain. */
+  bounds: { halfSizeM: 900, ceilingM: 300 },
+  /** The faint grid that marks the boundary. It only shows when the drone is close. */
+  boundaryGrid: {
+    spacingM: 25,
+    lineColor: 0xa8e6ff,
+    maxOpacity: 0.3,
+    /** Fully visible closer than this to the wall, gone beyond fadeEndM. */
+    fadeStartM: 25,
+    fadeEndM: 140,
+    bottomM: -30,
+  },
 } as const;
 
 /** Valley layout. Changing noise, sizes or seeds changes the world: bump WORLD.version. */
@@ -75,15 +87,60 @@ export const SCENERY = {
   treeExclusion: { bandoRadiusM: 44, padRadiusM: 22 },
   grassReachM: 34,
   grassNearPadChance: 0.06,
-  /** Collision cylinder of a tree: radius and height are multiplied by the tree scale. */
-  treeCollider: { radiusM: 0.5, heightM: 10 },
+  /**
+   * Tree collision shapes as stacked vertical cylinders: [base above the trunk's foot, height, radius] in metres at
+   * scale 1. Pines follow their three cone tiers (at about 75% of the tier's base radius); broadleaf crowns are a
+   * wide band plus a narrower, taller core. All are multiplied by the tree's scale.
+   */
+  treeColliders: {
+    pine: [
+      [0, 10.65, 0.5],
+      [2.1, 4.6, 2.0],
+      [4.85, 3.9, 1.5],
+      [7.35, 3.3, 0.95],
+    ],
+    broadleaf: [
+      [0, 4, 0.4],
+      [3.2, 3.2, 2.4],
+      [2.6, 4.4, 1.6],
+    ],
+  },
   hamlet: { x: 40, z: -30, spreadM: 38, houseCount: 8 },
 } as const;
 
 export const CAMERA = {
-  chase: { distanceM: 3.6, heightM: 1.15, lookAheadM: 2, smoothingPerS: 8, minAboveGroundM: 0.5, fovDeg: 70 },
-  nearM: 0.05,
+  chase: { distanceM: 3.6, heightM: 1.15, lookAheadM: 2, smoothingPerS: 8, minAboveGroundM: 0.5, fovDeg: 70, nearM: 0.05 },
+  goggles: { upM: 0.035, forwardM: 0.07, uptiltDeg: 25, fovDeg: 86, nearM: 0.03 },
   farM: 3200,
+} as const;
+
+/** FPV lens pass (goggles only) and its distance-based video noise. */
+export const LENS = {
+  bloom: { strength: 0.38, radius: 0.5, threshold: 0.88 },
+  goggles: { fisheye: 1, vignette: 0.85, grainAnalog: 0.05, grainClean: 0.012 },
+  flat: { fisheye: 0, vignette: 0.35, grain: 0.012 },
+  static: {
+    /** Video static rises between these distances from the pit pad. */
+    startDistanceM: 260,
+    fullDistanceM: 420,
+    maxFromDistance: 0.5,
+    inFactory: 0.12,
+    crashBase: 0.4,
+    crashPerRemainingS: 0.4,
+  },
+} as const;
+
+/** Thresholds shared by the HUD gauges and the 3D ground marker, so colours always match. */
+export const HUD = {
+  height: { lowM: 2, dangerM: 0.6, barScaleMaxM: 30 },
+  battery: { greenAbove01: 0.5, yellowAbove01: 0.2 },
+  /** Text in the HUD refreshes every Nth frame; moving elements every frame. */
+  textEveryNFrames: 3,
+  minimapEveryNFrames: 2,
+  markerEdgeLimit: 0.92,
+  /** Ground marker colours (3D lines cannot read CSS tokens). */
+  markerColors: { ok: 0xffffff, low: 0xffc94a, danger: 0xff5a6a },
+  markerDash: { dashM: 0.22, gapM: 0.16, ringInnerM: 0.26, ringOuterM: 0.34, ringLiftM: 0.04 },
 } as const;
 
 export const DRONE = {

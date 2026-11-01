@@ -245,27 +245,6 @@ input:focus-visible {
   }
 }
 
-/* ---------- temporary M2 overlay (replaced by the HUD and menu in later milestones) */
-#hint {
-  position: fixed;
-  left: 50%;
-  bottom: 20px;
-  transform: translateX(-50%);
-  padding: 10px 16px;
-  font-size: 13px;
-  color: #d3dde5;
-  pointer-events: none;
-  text-align: center;
-}
-
-#open-controls {
-  position: fixed;
-  right: 20px;
-  top: 20px;
-  padding: 9px 14px;
-  font-size: 14px;
-}
-
 /* ---------- banner (centre-screen message) */
 .banner {
   position: fixed;
@@ -290,12 +269,296 @@ input:focus-visible {
   color: var(--bad);
 }
 
-/* ---------- temporary status line (replaced by the HUD in M5) */
-#status {
+/* ---------- HUD */
+.hud {
   position: fixed;
-  left: 20px;
-  top: 20px;
-  padding: 10px 16px;
-  font: 14px/1.4 var(--osd);
+  inset: 0;
   pointer-events: none;
+  z-index: 10;
+}
+
+.hud button {
+  pointer-events: auto;
+}
+
+kbd {
+  font: 600 11px/1 var(--osd);
+  padding: 3px 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.4);
+  color: #fff;
+}
+
+/* goggles on-screen display */
+.osd {
+  position: absolute;
+  inset: 12% 26% max(13%, 150px);
+  font: 17px/1.25 var(--osd);
+  color: #fff;
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 2px #000, 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+}
+
+.osd > div {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.osd-tl { left: 0; top: 0; }
+.osd-tr { right: 0; top: 0; align-items: flex-end; }
+.osd-bl { left: 0; bottom: 0; }
+.osd-br { right: 0; bottom: 0; align-items: flex-end; }
+.osd .rec { color: #ff5a5a; }
+.osd .warn { color: var(--warn); }
+.osd-center { left: 50%; top: 50%; width: 0; height: 0; }
+
+.crosshair {
+  position: absolute;
+  left: -9px;
+  top: -9px;
+  width: 18px;
+  height: 18px;
+}
+
+.crosshair::before,
+.crosshair::after {
+  content: '';
+  position: absolute;
+  background: #fff;
+  box-shadow: 0 0 0 1px #000;
+}
+
+.crosshair::before { left: 8px; top: 2px; width: 2px; height: 14px; }
+.crosshair::after { left: 2px; top: 8px; width: 14px; height: 2px; }
+
+.horizon {
+  position: absolute;
+  left: -90px;
+  top: 0;
+  width: 180px;
+  height: 0;
+  border-top: 2px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
+}
+
+.horizon::before,
+.horizon::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  width: 40px;
+  border-top: 2px solid rgba(255, 255, 255, 0.85);
+}
+
+.horizon::before { left: -56px; }
+.horizon::after { right: -56px; }
+
+/* next-gate marker and counter */
+.gate-marker {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+}
+
+.gate-marker i {
+  position: absolute;
+  left: -14px;
+  top: -14px;
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--gate-hi);
+  transform: rotate(45deg);
+  box-shadow: 0 0 10px rgba(255, 140, 40, 0.7);
+}
+
+.gate-marker span {
+  position: absolute;
+  left: -30px;
+  top: 20px;
+  width: 60px;
+  text-align: center;
+  font: 13px/1 var(--osd);
+  color: var(--gate-hi);
+  text-shadow: 0 0 3px #000, 1px 1px 0 #000;
+}
+
+.gate-count {
+  position: absolute;
+  left: 50%;
+  top: 20px;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  font: 700 16px/1 var(--display);
+  letter-spacing: 0.12em;
+}
+
+.minimap {
+  position: absolute;
+  right: 20px;
+  bottom: 20px;
+  width: 170px;
+  height: 170px;
+  border-radius: 50%;
+  background: rgba(8, 14, 20, 0.55);
+  box-shadow: inset 0 0 0 1px var(--line), 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+/* bottom-left gauges */
+.gauges {
+  position: absolute;
+  left: 20px;
+  bottom: 20px;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.gauge {
+  padding: 12px 18px 12px 14px;
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: end;
+  gap: 4px 12px;
+  --gc: var(--ok);
+}
+
+.gauge .eyebrow {
+  grid-column: 1 / -1;
+}
+
+.hg-val {
+  font: 34px/1 var(--osd);
+  color: #fff;
+  white-space: nowrap;
+  min-width: 3ch;
+}
+
+.hg-val small {
+  font-size: 15px;
+  color: var(--muted);
+  margin-left: 3px;
+}
+
+.height-gauge .hg-bar {
+  grid-row: 2;
+  grid-column: 1;
+  width: 8px;
+  height: 56px;
+  background: rgba(255, 255, 255, 0.12);
+  position: relative;
+}
+
+.height-gauge .hg-bar i {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 0;
+  background: var(--gc);
+}
+
+.height-gauge .hg-val {
+  grid-column: 2;
+}
+
+.height-gauge.low { --gc: var(--warn); }
+.height-gauge.danger { --gc: var(--bad); }
+.height-gauge.danger .hg-val { color: var(--bad); }
+
+.battery-gauge {
+  grid-template-columns: 1fr;
+}
+
+.battery-gauge .bg-bar {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.12);
+  min-width: 96px;
+}
+
+.battery-gauge .bg-bar i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--gc);
+}
+
+.battery-gauge .bg-time {
+  font: 13px/1 var(--osd);
+  color: var(--muted);
+}
+
+.battery-gauge.warn { --gc: var(--warn); }
+.battery-gauge.bad { --gc: var(--bad); }
+.battery-gauge.bad .hg-val { color: var(--bad); }
+
+.speed-gauge {
+  grid-template-columns: 1fr;
+}
+
+/* top-right flight menu */
+.flight-bar {
+  position: absolute;
+  right: 20px;
+  top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 210px;
+}
+
+.flight-bar button {
+  border: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  background: var(--panel);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: inset 0 0 0 1px var(--line);
+  font: 600 13px/1 var(--body);
+  text-align: left;
+}
+
+.flight-bar button:hover {
+  background: var(--panel-hi);
+}
+
+.flight-bar button.hot {
+  background: var(--gate);
+  color: #1b0d02;
+  box-shadow: none;
+}
+
+.flight-bar button.hot kbd {
+  background: rgba(0, 0, 0, 0.18);
+  color: #1b0d02;
+}
+
+.controls-help {
+  position: absolute;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  max-width: min(640px, calc(100% - 640px));
+  padding: 10px 16px;
+  font-size: 13px;
+  color: #d3dde5;
+  text-align: center;
+}
+
+@media (max-width: 1100px) {
+  .controls-help { display: none; }
+}
+
+@media (max-width: 760px) {
+  .osd-tl, .osd-tr, .flight-bar, .gate-count { display: none; }
+  .minimap { width: 120px; height: 120px; }
+  .gauges { flex-wrap: wrap; max-width: calc(100% - 160px); }
 }

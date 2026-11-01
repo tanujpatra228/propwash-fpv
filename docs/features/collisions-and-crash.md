@@ -24,7 +24,7 @@ Values in `config.ts` → `COLLISION`.
 | Water (lake) | Any contact with the surface = crash ("Splashed into the lake") |
 | Obstacles | Gate frame bars, factory pillars/roof/walls/beams, containers, pit tent and table, houses, tree trunks |
 | Obstacle hit | Crash if speed > 4 m/s; otherwise push out along the surface normal and remove the velocity into the surface |
-| Tree shape | Vertical cylinder, radius 0.5 m × tree scale, from ground to 10 m × scale (core of the tree, so outer branches are forgiving) |
+| Tree shape | Stacked vertical cylinders: a trunk plus the leafy parts. Pines follow their three cone tiers (radius about 75% of each tier's base); broadleaf crowns are a wide band plus a taller core. Values in `config.ts` → `SCENERY.treeColliders`, scaled with each tree |
 | Crash time | 1.6 s, input ignored, static 0.4 → 1.0 |
 | Respawn | At the last passed gate (or the pad in free flight if none), 0.3 m above ground if needed, facing the next gate, zero velocity |
 | Manual reset | **R** respawns immediately (no crash) |
@@ -65,6 +65,10 @@ Crash reasons: "Hit the ground", "Splashed into the lake", "Hit a gate", "Hit th
 - The vertical descent rate is capped at 5 m/s by the flight model, so a pure vertical dive never crashes. Ground crashes come from flying into rising terrain at over 8 m/s.
 - Crash freezes the drone for 1.6 s, then respawns just past the last gate, facing the next. Pre-gate respawns use the pad (free flight); the time-trial start position comes with M6.
 - Verified in the browser with scripted flights (dev-only `debugSimulate`): gate frame at speed crashes ("gate"), factory roof crashes ("factory"), lake touch crashes ("water"), gentle descent lands safely.
+
+## Change log note
+
+- 2026-11-01: Foliage is solid. The first version only collided with the trunk ("outer branches are forgiving"); playtesting showed that flying through the green parts feels wrong. Registered in `world/tree-colliders.ts`.
 
 ## Test cases
 

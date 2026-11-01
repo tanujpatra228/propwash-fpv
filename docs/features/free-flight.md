@@ -19,7 +19,7 @@ Choose Free flight. The drone sits on the landing pad in the pit area. A short h
 - **Gates:** still glow; passing them in order updates the gate counter and the respawn point, but no timing.
 - **Respawn:** last passed gate, or the pad if none passed yet.
 - **Battery:** drains as normal (see battery-system). Land on the pad and hold still for 2 s to swap in a fresh battery. If it empties, the drone falls and respawns on the pad with a fresh battery. Settings can turn battery drain off for free flight.
-- **Area:** the whole valley. Above 150 m height or beyond 900 m from the centre, static rises to full and a "Signal lost, turn back" warning shows; after 3 s the drone respawns.
+- **Area:** a box 1,800 m × 1,800 m (±900 m from the centre) with a 300 m ceiling. The drone cannot leave it: it stops at the wall and keeps any speed along the wall. A faint grid fades in on the walls and ceiling when the drone is within about 140 m, so the limit is visible without spoiling the scene. Values in `config.ts` → `WORLD.bounds` and `WORLD.boundaryGrid`. (Replaces the earlier "Signal lost, respawn after 3 s" idea: players found flying past the edge into the void a bug, so the edge is now a hard wall.)
 - **Exit:** P or "Exit to menu".
 
 ## UI
