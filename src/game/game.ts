@@ -1,5 +1,5 @@
 import { Scene, Vector3 } from 'three';
-import { LOOP } from '../config';
+import { COLLISION, LOOP, TRACK } from '../config';
 import { mustGet } from '../core/dom';
 import { clamp } from '../core/math';
 import { GameRenderer } from '../core/renderer';
@@ -14,22 +14,35 @@ import {
   primaryKeyLabel,
   saveBindings,
   saveMouseSensitivity,
+  type ActionId,
   type Bindings,
 } from '../input/key-bindings';
-import { ControlsPanel } from '../ui/controls-panel';
-import { buildSky } from '../world/sky';
 import { ColliderWorld } from '../physics/colliders';
+import { resolveDrone, substepCount, type CrashReason } from '../physics/resolve';
+import { Banner } from '../ui/banner';
+import { ControlsPanel } from '../ui/controls-panel';
+import { checkGateCrossing } from '../world/gate-crossing';
+import { buildGates, type Gate } from '../world/gates';
 import { PIT_PAD } from '../world/pit-area';
 import { buildScenery, type Scenery } from '../world/scenery';
-import { buildTerrain, buildWater, groundY } from '../world/terrain';
+import { buildSky } from '../world/sky';
+import { buildTerrain, buildWater, groundY, surfaceAt } from '../world/terrain';
 import { createWorldTextures } from '../world/textures';
 import { CameraRig } from './camera-rig';
+import { CRASH_MESSAGES } from './crash-messages';
+import { LapTracker } from './lap-tracker';
+import { respawnPose, type Pose } from './respawn';
 
-const REST_OFFSET_M = 0.1;
+const STATUS_EVERY_N_FRAMES = 6;
+const RESTING_ON_GROUND_M = 0.02;
 
-const spawn = new Vector3();
+const scratchPosition = new Vector3();
+const previousPosition = new Vector3();
+const stepInput: FlightInput = { ...NO_INPUT };
+const respawn: Pose = { position: new Vector3(), yawRad: 0 };
+const padPose: Pose = { position: PIT_PAD.position.clone(), yawRad: PIT_PAD.yawRad };
 
-/** Owns the scene and the main loop. M2 sandbox: one drone, free flight, chase camera. */
+/** Owns the scene and the main loop. Sandbox until the modes arrive in M6: free flight with gates and crashes. */
 export class Game {
   private readonly renderer: GameRenderer;
   private readonly scene = new Scene();
@@ -37,16 +50,22 @@ export class Game {
   private readonly sky;
   private readonly colliders = new ColliderWorld();
   private readonly scenery: Scenery;
+  private readonly gates: Gate[];
+  private readonly tracker = new LapTracker(TRACK.gateCount);
   private readonly flight = new FlightModel();
   private readonly battery = new Battery(STOCK_STATS);
   private readonly drone = createDroneModel({ color: 0xff7a1a });
   private readonly input: Input;
   private readonly controls: ControlsPanel;
+  private readonly banner = new Banner();
   private readonly hint = mustGet('hint');
+  private readonly status = mustGet('status');
   private readonly flightInput: FlightInput = { ...NO_INPUT };
   private bindings: Bindings;
   private lastTimeMs = 0;
   private clockS = 0;
+  private frameCount = 0;
+  private crashTimerS = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new GameRenderer(canvas);
@@ -55,6 +74,7 @@ export class Game {
     buildTerrain(this.scene, textures.detail);
     buildWater(this.scene);
     this.scenery = buildScenery(this.scene, this.colliders, textures);
+    this.gates = buildGates(this.scene, this.colliders, textures);
     this.scene.add(this.drone.group);
 
     this.bindings = loadBindings();
@@ -80,19 +100,17 @@ export class Game {
       this.input.enabled = false;
       this.controls.open();
     });
-    this.input.onPress((action) => {
-      if (action === 'reset') this.resetToSpawn();
-    });
+    this.input.onPress((action) => this.onPress(action));
 
-    this.resetToSpawn();
+    this.placeAtPad();
     this.updateHint();
     this.input.enabled = true;
   }
 
   /** Dev-only helper used by browser tests to put the drone somewhere specific. */
   debugPlace(x: number, y: number, z: number, yawRad: number): void {
-    spawn.set(x, y, z);
-    this.flight.reset(spawn, yawRad);
+    scratchPosition.set(x, y, z);
+    this.flight.reset(scratchPosition, yawRad);
     this.rig.snap();
   }
 
@@ -102,19 +120,67 @@ export class Game {
     return { calls: render.calls, triangles: render.triangles, geometries: memory.geometries };
   }
 
+  /** Dev-only: advance the simulation without rendering (headless tests run too slowly in real time). */
+  debugSimulate(seconds: number, input: Partial<FlightInput>): { crashed: CrashReason | null; position: number[] } {
+    Object.assign(this.flightInput, NO_INPUT, input);
+    let crashed: CrashReason | null = null;
+    const frames = Math.round(seconds * 60);
+    for (let i = 0; i < frames && crashed === null; i++) {
+      crashed = this.simulate({ ...this.flightInput }, 1 / 60);
+      this.clockS += 1 / 60;
+    }
+    return { crashed, position: this.flight.position.toArray() };
+  }
+
+  /** Dev-only: lap and gate state for browser tests. */
+  debugState(): { nextGate: number; lastPassedGate: number; laps: number; crashTimerS: number; battery: number } {
+    return {
+      nextGate: this.tracker.nextGate,
+      lastPassedGate: this.tracker.lastPassedGate,
+      laps: this.tracker.completedLaps,
+      crashTimerS: this.crashTimerS,
+      battery: this.battery.charge01,
+    };
+  }
+
+  /** Dev-only: where gate `index` is and which way it faces. */
+  debugGate(index: number): { position: number[]; yawRad: number } | null {
+    const gate = this.gates[index];
+    if (!gate) return null;
+    return { position: gate.position.toArray(), yawRad: Math.atan2(-gate.forward.x, -gate.forward.z) };
+  }
+
   start(): void {
     requestAnimationFrame(this.frame);
   }
 
-  private resetToSpawn(): void {
-    spawn.copy(PIT_PAD.position);
-    spawn.y = groundY(spawn.x, spawn.z) + REST_OFFSET_M;
-    this.flight.reset(spawn, PIT_PAD.yawRad);
+  private onPress(action: ActionId): void {
+    if (action === 'reset' && this.crashTimerS <= 0) this.respawnAtLastGate();
+  }
+
+  private placeAtPad(): void {
+    this.flight.reset(padPose.position, padPose.yawRad);
+    this.flight.position.y = groundY(padPose.position.x, padPose.position.z) + COLLISION.restOffsetM;
     this.rig.snap();
   }
 
+  private respawnAtLastGate(): void {
+    respawnPose(this.gates, this.tracker.respawnGate, padPose, groundY, respawn);
+    if (this.tracker.respawnGate < 0) respawn.position.y = groundY(respawn.position.x, respawn.position.z) + COLLISION.restOffsetM;
+    this.flight.reset(respawn.position, respawn.yawRad);
+    this.banner.hide();
+    this.crashTimerS = 0;
+    this.rig.snap();
+  }
+
+  private startCrash(reason: CrashReason): void {
+    this.crashTimerS = COLLISION.crashDurationS;
+    this.flight.velocity.set(0, 0, 0);
+    this.banner.show('Crashed', `${CRASH_MESSAGES[reason]}. Respawning at the last gate…`, 'crash');
+  }
+
   private updateHint(): void {
-    const key = (id: Parameters<typeof primaryKeyLabel>[1]): string => primaryKeyLabel(this.bindings, id);
+    const key = (id: ActionId): string => primaryKeyLabel(this.bindings, id);
     this.hint.textContent =
       `${key('up')} up · ${key('down')} down · ${key('forward')}/${key('back')} fly · ` +
       `${key('left')}/${key('right')} slide · mouse or ${key('turnLeft')}/${key('turnRight')} turn · ` +
@@ -130,28 +196,70 @@ export class Game {
     requestAnimationFrame(this.frame);
   };
 
-  private update(dtS: number): void {
-    const input = this.input.readFlightInput(this.flightInput);
-    const effort = this.flight.step(input, STOCK_STATS, this.battery.powerFactor, dtS);
-    this.battery.step(effort, dtS);
+  /**
+   * Moves the drone one frame in small sub-steps so it can't tunnel through thin gate bars,
+   * checking collisions and gate crossings after each. Returns the crash reason, if any.
+   */
+  private simulate(input: FlightInput, dtS: number): CrashReason | null {
+    const steps = substepCount(this.flight.velocity.length(), dtS);
+    const subDtS = dtS / steps;
+    let effortSum = 0;
+    for (let i = 0; i < steps; i++) {
+      previousPosition.copy(this.flight.position);
+      stepInput.forward = input.forward;
+      stepInput.back = input.back;
+      stepInput.left = input.left;
+      stepInput.right = input.right;
+      stepInput.up = input.up;
+      stepInput.down = input.down;
+      stepInput.turnLeft = input.turnLeft;
+      stepInput.turnRight = input.turnRight;
+      stepInput.stickX = input.stickX;
+      stepInput.stickY = input.stickY;
+      stepInput.mouseYawRad = input.mouseYawRad / steps;
+      effortSum += this.flight.step(stepInput, STOCK_STATS, this.battery.powerFactor, subDtS);
 
-    // Temporary ground response; real collisions and crash rules arrive with physics/ in M4.
-    const floorY = groundY(this.flight.position.x, this.flight.position.z) + REST_OFFSET_M;
-    if (this.flight.position.y < floorY) {
-      this.flight.position.y = floorY;
-      if (this.flight.velocity.y < 0) this.flight.velocity.y = 0;
-      if (this.battery.isEmpty) {
+      const result = resolveDrone(this.flight, this.colliders, surfaceAt, subDtS);
+      if (result.crashed && result.reason) return result.reason;
+
+      const next = this.gates[this.tracker.nextGate];
+      if (next && checkGateCrossing(next, previousPosition, this.flight.position)) {
+        this.tracker.onGateCrossed(next.index, this.clockS);
+      }
+    }
+    this.battery.step(effortSum / steps, dtS);
+    return null;
+  }
+
+  private update(dtS: number): void {
+    if (this.crashTimerS > 0) {
+      this.crashTimerS -= dtS;
+      if (this.crashTimerS <= 0) this.respawnAtLastGate();
+    } else {
+      const crash = this.simulate(this.input.readFlightInput(this.flightInput), dtS);
+      if (crash) this.startCrash(crash);
+      // Temporary until the game modes (M6): an empty battery ends in a landing back on the pad.
+      const isLanded = this.flight.position.y <= groundY(this.flight.position.x, this.flight.position.z) + COLLISION.restOffsetM + RESTING_ON_GROUND_M;
+      if (this.battery.isEmpty && isLanded) {
         this.battery.refill();
-        this.resetToSpawn();
+        this.placeAtPad();
       }
     }
 
     this.drone.group.position.copy(this.flight.position);
     this.drone.group.quaternion.copy(this.flight.quaternion);
-    this.drone.spinProps(this.flight.throttle01, dtS);
+    this.drone.spinProps(this.crashTimerS > 0 ? 0 : this.flight.throttle01, dtS);
     this.scenery.update(this.clockS);
     this.sky.followFocus(this.flight.position);
     this.rig.setAspect(this.renderer.aspect);
     this.rig.update(dtS, { position: this.flight.position, yawRad: this.flight.yawRad });
+    if (++this.frameCount % STATUS_EVERY_N_FRAMES === 0) this.updateStatus();
+  }
+
+  private updateStatus(): void {
+    const gateText = this.tracker.hasStarted
+      ? `GATE ${this.tracker.nextGate === 0 ? TRACK.gateCount : this.tracker.nextGate} / ${TRACK.gateCount}`
+      : 'GATE: fly through the start gate';
+    this.status.textContent = `${gateText} · LAPS ${this.tracker.completedLaps} · BATTERY ${Math.round(this.battery.charge01 * 100)}%`;
   }
 }

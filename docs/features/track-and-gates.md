@@ -1,8 +1,8 @@
 # Feature: Track and Gates
 
-Status: Planned
+Status: In progress
 Phase: 1
-Branch: `feat/track-and-gates`
+Branch: `feat/phase-1` (milestone M3 and M4)
 Last updated: 2026-11-01
 
 ## Summary
@@ -46,6 +46,13 @@ Orange padded gates with bright LED strips stand across the valley, on legs down
 - [ ] All 12 gates face along the track, sit on the racing line, and none intersect terrain.
 - [ ] Gates with a gap under them have legs that reach the ground.
 - [ ] Gate crossing counts only the next gate, from the front, inside the opening.
+
+## Implementation notes (M4)
+
+- `world/gate-crossing.ts` (pure): `GatePlane`, `createGatePlane`, `checkGateCrossing`. The test uses the clear opening (frame thickness excluded) and the whole movement segment, so fast drones cannot skip a gate.
+- `world/gates.ts`: frames, LEDs and legs are merged into three meshes, so the 12 gates cost three draw calls. Frame bars are `gate` colliders; legs are tree-style cylinders.
+- `game/lap-tracker.ts` (pure): gate order, laps, splits against a best lap. Only the next expected gate counts, and gate 0 starts the clock.
+- Verified in the browser: flying through gate 0 sets `nextGate = 1`.
 
 ## Test cases
 

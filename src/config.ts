@@ -105,6 +105,37 @@ export const RENDER = {
 export const COLLISION = {
   /** Cell size of the tree lookup grid. */
   gridCellM: 16,
+  droneRadiusM: 0.18,
+  restOffsetM: 0.1,
+  /** Faster than this on touching the ground is a crash. */
+  groundCrashSpeedMps: 8,
+  /** Faster than this on touching an obstacle is a crash; slower is a bump. */
+  obstacleCrashSpeedMps: 4,
+  /** Fraction of horizontal speed kept per 1/60 s while sliding on the ground. */
+  groundSlideKeepPer60Hz: 0.85,
+  /** Touching the lake surface within this height is a crash. */
+  waterContactM: 0.05,
+  /** Bumped obstacles push the drone away with this much of the incoming speed. */
+  bumpRestitution: 0.3,
+  /** Largest distance moved between two collision checks. */
+  maxStepM: 0.25,
+  maxSubsteps: 8,
+  crashDurationS: 1.6,
+  respawnAheadOfGateM: 2,
+  respawnMinAboveGroundM: 0.3,
+} as const;
+
+export const GATE = {
+  widthM: 4.2,
+  heightM: 3.0,
+  frameThicknessM: 0.3,
+  ledThicknessM: 0.05,
+  legRadiusM: 0.07,
+  legExtraM: 0.4,
+  /** Gates floating less than this above the ground get no legs. */
+  minLegLengthM: 0.2,
+  bannerAboveM: 0.75,
+  bannerExtraWidthM: 1.6,
 } as const;
 
 export const STORAGE_PREFIX = 'pw.';
