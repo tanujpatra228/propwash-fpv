@@ -280,6 +280,23 @@ export const MENU = {
   fpsSampleS: 1,
 } as const;
 
+/** Training mode: how each lesson step is judged. */
+export const TRAINING = {
+  takeoffHeightM: 3,
+  hoverMinHeightM: 1.5,
+  hoverMaxSpeedMps: 3,
+  hoverForS: 5,
+  landMaxHeightM: 0.2,
+  landMaxDistanceM: 1.6,
+  landMaxSpeedMps: 0.5,
+  farFromPadM: 40,
+  /** Gates to pass in the last lesson (the start gate and the next three). */
+  courseLastGate: 3,
+  lessonCompleteShownS: 2.5,
+  /** Pause before the next lesson starts, so the banner can be read. */
+  nextLessonDelayS: 2.5,
+} as const;
+
 export const STORAGE_PREFIX = 'pw.';
 
 /** Stock-drone flight tuning. Units: metres, seconds, radians. */

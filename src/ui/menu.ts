@@ -7,6 +7,7 @@ export const QUALITY_IDS = Object.keys(QUALITY) as QualityId[];
 export interface MenuCallbacks {
   onFreeFlight(): void;
   onTimeTrial(): void;
+  onTraining(): void;
   onControls(): void;
   onQualityChange(quality: QualityId): void;
   onFreeDrainChange(isOn: boolean): void;
@@ -22,6 +23,7 @@ export class MainMenu {
   private readonly root: HTMLElement;
   private readonly settings: HTMLElement;
   private readonly trialSubtitle = el('small', { text: 'Set your first lap time' });
+  private readonly trainingSubtitle = el('small', { text: 'Learn to fly in six short lessons' });
   private readonly fps = el('span', { class: 'fps', text: 'Measuring frame rate…' });
   private readonly qualityButtons = new Map<QualityId, HTMLButtonElement>();
   private readonly drainButtons = new Map<boolean, HTMLButtonElement>();
@@ -37,6 +39,7 @@ export class MainMenu {
     const list = el('ul', { class: 'menu-list' }, [
       item('Free flight', 'Explore the valley at your own pace', callbacks.onFreeFlight, true),
       item('Time trial', this.trialSubtitle, callbacks.onTimeTrial),
+      item('Training', this.trainingSubtitle, callbacks.onTraining),
       item('Controls', 'Change keys and mouse speed', callbacks.onControls),
       item('Settings', 'Graphics quality, battery', () => this.openSettings()),
     ]);
@@ -128,6 +131,11 @@ export class MainMenu {
   /** The time-trial button subtitle: "Best lap 0:45.27" or an invitation to set one. */
   setBestLapText(text: string | null): void {
     this.trialSubtitle.textContent = text === null ? 'Set your first lap time' : `Best lap ${text}`;
+  }
+
+  /** The training button subtitle: where the pilot is in the six lessons. */
+  setTrainingText(text: string): void {
+    this.trainingSubtitle.textContent = text;
   }
 
   setFps(fps: number, renderScale = 1): void {
