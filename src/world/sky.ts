@@ -49,18 +49,19 @@ export function buildSky(scene: Scene, renderer: WebGLRenderer): SkyRig {
   const envScene = new Scene();
   envScene.add(createSkyDome(50, sunDirection));
   scene.environment = pmrem.fromScene(envScene).texture;
+  scene.environmentIntensity = RENDER.environmentIntensity;
   pmrem.dispose();
 
   scene.fog = new FogExp2(new Color(RENDER.fogColor), RENDER.fogDensity);
 
-  const sun = new DirectionalLight(0xffdcb4, 2.6);
+  const sun = new DirectionalLight(0xffdcb4, RENDER.sunIntensity);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
   sun.shadow.bias = -0.0004;
   sun.shadow.normalBias = 0.03;
   sun.shadow.camera.near = 1;
   sun.shadow.camera.far = 600;
-  const hemisphere = new HemisphereLight(0xbcd2ff, 0x5a4a35, 0.55);
+  const hemisphere = new HemisphereLight(0xbcd2ff, 0x5a4a35, RENDER.hemisphereIntensity);
   scene.add(sun, sun.target, hemisphere);
 
   let currentExtentM = 0;
