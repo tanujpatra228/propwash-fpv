@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatHeight, formatLapTime, formatSpeedKmh, formatSplit, formatTimer } from './format';
+import { formatHeight, formatPercent, formatTimeLeft, formatLapTime, formatSpeedKmh, formatSplit, formatTimer } from './format';
 
 describe('format', () => {
   it('formats lap times', () => {
@@ -26,5 +26,13 @@ describe('format', () => {
     expect(formatHeight(2.44)).toBe('2.4');
     expect(formatHeight(23.4)).toBe('23');
     expect(formatHeight(-1)).toBe('0.0');
+  });
+
+  it('formats time left and percent', () => {
+    expect(formatTimeLeft(80)).toBe('≈ 1:20');
+    expect(formatTimeLeft(Number.POSITIVE_INFINITY)).toBe('∞');
+    expect(formatTimeLeft(-5)).toBe('≈ 0:00');
+    expect(formatPercent(0.874)).toBe('87%');
+    expect(formatPercent(2)).toBe('100%');
   });
 });

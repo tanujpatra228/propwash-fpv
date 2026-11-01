@@ -1,5 +1,5 @@
 import { Scene, Vector3 } from 'three';
-import { COLLISION, LOOP, TRACK } from '../config';
+import { COLLISION, LOOP, TRACK, VALLEY } from '../config';
 import { mustGet } from '../core/dom';
 import { clamp } from '../core/math';
 import { GameRenderer } from '../core/renderer';
@@ -30,10 +30,11 @@ import { buildTerrain, buildWater, groundY, surfaceAt } from '../world/terrain';
 import { createWorldTextures } from '../world/textures';
 import { CameraRig } from './camera-rig';
 import { CRASH_MESSAGES } from './crash-messages';
+import { lensFor, staticAmount } from './fpv-static';
+import { HudBridge } from './hud-bridge';
 import { LapTracker } from './lap-tracker';
 import { respawnPose, type Pose } from './respawn';
 
-const STATUS_EVERY_N_FRAMES = 6;
 const RESTING_ON_GROUND_M = 0.02;
 
 const scratchPosition = new Vector3();
@@ -58,14 +59,14 @@ export class Game {
   private readonly input: Input;
   private readonly controls: ControlsPanel;
   private readonly banner = new Banner();
-  private readonly hint = mustGet('hint');
-  private readonly status = mustGet('status');
+  private readonly hud: HudBridge;
   private readonly flightInput: FlightInput = { ...NO_INPUT };
   private bindings: Bindings;
   private lastTimeMs = 0;
   private clockS = 0;
-  private frameCount = 0;
   private crashTimerS = 0;
+  private flightTimeS = 0;
+  private isAnalogOn = true;
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new GameRenderer(canvas);
@@ -86,7 +87,7 @@ export class Game {
         this.bindings = next;
         saveBindings(next);
         this.input.setBindings(next);
-        this.updateHint();
+        this.refreshLabels();
       },
       onSensitivityChange: (value) => {
         saveMouseSensitivity(value);
@@ -96,14 +97,19 @@ export class Game {
         this.input.enabled = true;
       },
     });
-    mustGet('open-controls').addEventListener('click', () => {
-      this.input.enabled = false;
-      this.controls.open();
+    this.hud = new HudBridge(this.scene, {
+      onCamera: () => this.toggleCamera(),
+      onStatic: () => this.toggleStatic(),
+      onReset: () => this.resetByPlayer(),
+      onControls: () => {
+        this.input.enabled = false;
+        this.controls.open();
+      },
     });
     this.input.onPress((action) => this.onPress(action));
 
     this.placeAtPad();
-    this.updateHint();
+    this.refreshLabels();
     this.input.enabled = true;
   }
 
@@ -155,7 +161,24 @@ export class Game {
   }
 
   private onPress(action: ActionId): void {
-    if (action === 'reset' && this.crashTimerS <= 0) this.respawnAtLastGate();
+    if (action === 'reset') this.resetByPlayer();
+    else if (action === 'camera') this.toggleCamera();
+    else if (action === 'static') this.toggleStatic();
+  }
+
+  /** The R key: respawn at once, but not during the crash freeze. */
+  private resetByPlayer(): void {
+    if (this.crashTimerS <= 0) this.respawnAtLastGate();
+  }
+
+  private toggleCamera(): void {
+    this.rig.toggleMode();
+    this.refreshLabels();
+  }
+
+  private toggleStatic(): void {
+    this.isAnalogOn = !this.isAnalogOn;
+    this.refreshLabels();
   }
 
   private placeAtPad(): void {
@@ -179,12 +202,21 @@ export class Game {
     this.banner.show('Crashed', `${CRASH_MESSAGES[reason]}. Respawning at the last gate…`, 'crash');
   }
 
-  private updateHint(): void {
+  /** Key hints and menu labels, rebuilt when bindings, camera or analog setting change. */
+  private refreshLabels(): void {
     const key = (id: ActionId): string => primaryKeyLabel(this.bindings, id);
-    this.hint.textContent =
+    this.hud.setHelpText(
       `${key('up')} up · ${key('down')} down · ${key('forward')}/${key('back')} fly · ` +
-      `${key('left')}/${key('right')} slide · mouse or ${key('turnLeft')}/${key('turnRight')} turn · ` +
-      `${key('reset')} reset · click the view to steer with the mouse`;
+        `${key('left')}/${key('right')} slide · mouse or ${key('turnLeft')}/${key('turnRight')} turn · ` +
+        `${key('reset')} reset · click the view to steer with the mouse`,
+    );
+    this.hud.setMenuLabels({
+      cameraLabel: this.rig.currentMode === 'goggles' ? 'goggles' : 'chase',
+      isAnalogOn: this.isAnalogOn,
+      cameraKey: key('camera'),
+      staticKey: key('static'),
+      resetKey: key('reset'),
+    });
   }
 
   private readonly frame = (nowMs: number): void => {
@@ -192,7 +224,7 @@ export class Game {
     this.lastTimeMs = nowMs;
     this.clockS += dtS;
     this.update(dtS);
-    this.renderer.render(this.scene, this.rig.camera);
+    this.renderer.render(this.scene, this.rig.camera, this.clockS);
     requestAnimationFrame(this.frame);
   };
 
@@ -246,20 +278,38 @@ export class Game {
       }
     }
 
+    const isGoggles = this.rig.currentMode === 'goggles';
+    this.drone.group.visible = !isGoggles;
     this.drone.group.position.copy(this.flight.position);
     this.drone.group.quaternion.copy(this.flight.quaternion);
     this.drone.spinProps(this.crashTimerS > 0 ? 0 : this.flight.throttle01, dtS);
+    if (this.crashTimerS <= 0) this.flightTimeS += dtS;
     this.scenery.update(this.clockS);
     this.sky.followFocus(this.flight.position);
     this.rig.setAspect(this.renderer.aspect);
-    this.rig.update(dtS, { position: this.flight.position, yawRad: this.flight.yawRad });
-    if (++this.frameCount % STATUS_EVERY_N_FRAMES === 0) this.updateStatus();
+    this.rig.update(dtS, { position: this.flight.position, yawRad: this.flight.yawRad, quaternion: this.flight.quaternion });
+    this.updateLens(isGoggles);
+    this.hud.update({
+      flight: this.flight,
+      battery: this.battery,
+      tracker: this.tracker,
+      gates: this.gates,
+      camera: this.rig.camera,
+      isGoggles,
+      flightTimeS: this.flightTimeS,
+      timeS: this.clockS,
+    });
   }
 
-  private updateStatus(): void {
-    const gateText = this.tracker.hasStarted
-      ? `GATE ${this.tracker.nextGate === 0 ? TRACK.gateCount : this.tracker.nextGate} / ${TRACK.gateCount}`
-      : 'GATE: fly through the start gate';
-    this.status.textContent = `${gateText} · LAPS ${this.tracker.completedLaps} · BATTERY ${Math.round(this.battery.charge01 * 100)}%`;
+  private updateLens(isGoggles: boolean): void {
+    const { position } = this.flight;
+    const staticValue = staticAmount({
+      isGoggles,
+      isAnalogOn: this.isAnalogOn,
+      distanceFromPadM: position.distanceTo(PIT_PAD.position),
+      isInFactory: Math.hypot(position.x - VALLEY.bando.x, position.z - VALLEY.bando.z) < TRACK.bandoZoneRadiusM,
+      crashRemainingS: Math.max(0, this.crashTimerS),
+    });
+    this.renderer.setLens(lensFor(isGoggles, this.isAnalogOn, staticValue));
   }
 }

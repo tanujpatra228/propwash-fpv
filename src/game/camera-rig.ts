@@ -1,24 +1,46 @@
-import { PerspectiveCamera, Vector3 } from 'three';
+import { PerspectiveCamera, Quaternion, Vector3, MathUtils } from 'three';
 import { CAMERA } from '../config';
 import { damp } from '../core/math';
 import { groundY } from '../world/terrain';
 
-export type CameraMode = 'chase';
+export type CameraMode = 'goggles' | 'chase';
 
 /** What the camera follows. Read-only. */
 export interface CameraTarget {
   position: Vector3;
   yawRad: number;
+  quaternion: Quaternion;
 }
 
 const wanted = new Vector3();
 const lookAt = new Vector3();
+const offset = new Vector3();
+const uptilt = new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), MathUtils.degToRad(CAMERA.goggles.uptiltDeg));
 
-/** Owns the one scene camera. Goggles and broadcast modes arrive in later milestones. */
+/** Owns the one scene camera: goggles (fixed to the drone, tilted up) or chase (smoothed, behind it). */
 export class CameraRig {
-  readonly camera = new PerspectiveCamera(CAMERA.chase.fovDeg, 1, CAMERA.nearM, CAMERA.farM);
-  mode: CameraMode = 'chase';
+  readonly camera = new PerspectiveCamera(CAMERA.goggles.fovDeg, 1, CAMERA.goggles.nearM, CAMERA.farM);
+  private mode: CameraMode = 'goggles';
   private hasPlacedCamera = false;
+
+  get currentMode(): CameraMode {
+    return this.mode;
+  }
+
+  setMode(mode: CameraMode): void {
+    if (mode === this.mode) return;
+    this.mode = mode;
+    const lens = mode === 'goggles' ? CAMERA.goggles : CAMERA.chase;
+    this.camera.fov = lens.fovDeg;
+    this.camera.near = lens.nearM;
+    this.camera.updateProjectionMatrix();
+    this.hasPlacedCamera = false;
+  }
+
+  toggleMode(): CameraMode {
+    this.setMode(this.mode === 'goggles' ? 'chase' : 'goggles');
+    return this.mode;
+  }
 
   setAspect(aspect: number): void {
     if (this.camera.aspect === aspect) return;
@@ -32,6 +54,17 @@ export class CameraRig {
   }
 
   update(dtS: number, target: CameraTarget): void {
+    if (this.mode === 'goggles') this.updateGoggles(target);
+    else this.updateChase(dtS, target);
+  }
+
+  private updateGoggles(target: CameraTarget): void {
+    offset.set(0, CAMERA.goggles.upM, -CAMERA.goggles.forwardM).applyQuaternion(target.quaternion);
+    this.camera.position.copy(target.position).add(offset);
+    this.camera.quaternion.copy(target.quaternion).multiply(uptilt);
+  }
+
+  private updateChase(dtS: number, target: CameraTarget): void {
     const { distanceM, heightM, lookAheadM, smoothingPerS, minAboveGroundM } = CAMERA.chase;
     const forwardX = -Math.sin(target.yawRad);
     const forwardZ = -Math.cos(target.yawRad);
@@ -53,11 +86,7 @@ export class CameraRig {
     }
     const minY = groundY(this.camera.position.x, this.camera.position.z) + minAboveGroundM;
     if (this.camera.position.y < minY) this.camera.position.y = minY;
-    lookAt.set(
-      target.position.x + forwardX * lookAheadM,
-      target.position.y,
-      target.position.z + forwardZ * lookAheadM,
-    );
+    lookAt.set(target.position.x + forwardX * lookAheadM, target.position.y, target.position.z + forwardZ * lookAheadM);
     this.camera.lookAt(lookAt);
   }
 }

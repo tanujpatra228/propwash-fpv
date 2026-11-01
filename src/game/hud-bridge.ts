@@ -1,0 +1,101 @@
+import { Vector3, type Camera } from 'three';
+import { COLLISION, TRACK } from '../config';
+import type { Battery } from '../drone/battery';
+import type { FlightModel } from '../drone/flight-model';
+import { clampToScreenEdge } from '../ui/gate-marker';
+import { Hud } from '../ui/hud';
+import type { HudState } from '../ui/hud-state';
+import type { FlightMenuCallbacks, FlightMenuLabels } from '../ui/flight-menu';
+import type { Gate } from '../world/gates';
+import { groundY } from '../world/terrain';
+import { GroundMarker } from './ground-marker';
+import type { LapTracker } from './lap-tracker';
+import type { Scene } from 'three';
+
+const projected = new Vector3();
+
+export interface HudFrame {
+  flight: FlightModel;
+  battery: Battery;
+  tracker: LapTracker;
+  gates: readonly Gate[];
+  camera: Camera;
+  isGoggles: boolean;
+  flightTimeS: number;
+  timeS: number;
+}
+
+/** Turns game objects into the plain HudState the UI reads, and owns the HUD and the 3D ground marker. */
+export class HudBridge {
+  private readonly hud: Hud;
+  private readonly groundMarker: GroundMarker;
+  private readonly state: HudState = {
+    isGoggles: true,
+    speedMps: 0,
+    heightM: 0,
+    throttle01: 0,
+    flightTimeS: 0,
+    voltage: 0,
+    mAhUsed: 0,
+    charge01: 1,
+    timeLeftS: 0,
+    isBatteryLow: false,
+    isBatteryEmpty: false,
+    rollRad: 0,
+    pitchRad: 0,
+    gatesPassed: 0,
+    gateCount: TRACK.gateCount,
+    nextGate: { x: 0, y: 0, distM: 0 },
+    map: { x: 0, z: 0, yawRad: 0 },
+  };
+
+  constructor(scene: Scene, callbacks: FlightMenuCallbacks) {
+    this.hud = new Hud(callbacks);
+    this.groundMarker = new GroundMarker(scene);
+  }
+
+  setHelpText(text: string): void {
+    this.hud.setHelpText(text);
+  }
+
+  setMenuLabels(labels: FlightMenuLabels): void {
+    this.hud.setMenuLabels(labels);
+  }
+
+  update(frame: HudFrame): void {
+    const { flight, battery, tracker, gates, camera } = frame;
+    const { position } = flight;
+    const groundHeightM = groundY(position.x, position.z);
+    const heightM = Math.max(0, position.y - groundHeightM - COLLISION.restOffsetM);
+    this.groundMarker.update(position, groundHeightM, heightM, !frame.isGoggles);
+
+    const s = this.state;
+    const next = gates[tracker.nextGate];
+    if (next) {
+      camera.updateMatrixWorld();
+      projected.copy(next.position).project(camera);
+      const edge = clampToScreenEdge(projected.x, projected.y, projected.z > 1);
+      s.nextGate.x = edge.x;
+      s.nextGate.y = edge.y;
+      s.nextGate.distM = position.distanceTo(next.position);
+    }
+    s.isGoggles = frame.isGoggles;
+    s.speedMps = flight.velocity.length();
+    s.heightM = heightM;
+    s.throttle01 = flight.throttle01;
+    s.flightTimeS = frame.flightTimeS;
+    s.voltage = battery.voltage;
+    s.mAhUsed = battery.mAhUsed;
+    s.charge01 = battery.charge01;
+    s.timeLeftS = battery.estimateSecondsLeft();
+    s.isBatteryLow = battery.isLow;
+    s.isBatteryEmpty = battery.isEmpty;
+    s.rollRad = flight.rollRad;
+    s.pitchRad = flight.pitchRad;
+    s.gatesPassed = tracker.hasStarted ? (tracker.nextGate === 0 ? TRACK.gateCount : tracker.nextGate) : 0;
+    s.map.x = position.x;
+    s.map.z = position.z;
+    s.map.yawRad = flight.yawRad;
+    this.hud.update(s, frame.timeS);
+  }
+}
