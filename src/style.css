@@ -1,0 +1,52 @@
+:root {
+  --ink: #0a1118;
+  --panel: rgba(11, 19, 27, 0.74);
+  --panel-hi: rgba(22, 34, 46, 0.86);
+  --line: rgba(176, 206, 230, 0.18);
+  --fg: #eaf1f6;
+  --muted: #93a6b6;
+  --gate: #ff7a1a;
+  --gate-hi: #ffb35e;
+  --sky: #5cc8ff;
+  --ok: #5fe08c;
+  --warn: #ffc94a;
+  --bad: #ff5a6a;
+  --display: 'Saira Condensed', 'Arial Narrow', Impact, sans-serif;
+  --body: Barlow, 'Segoe UI', system-ui, sans-serif;
+  --osd: 'Share Tech Mono', ui-monospace, Consolas, monospace;
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--ink);
+  color: var(--fg);
+  font-family: var(--body);
+  font-size: 15px;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+#world {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}

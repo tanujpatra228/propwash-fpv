@@ -142,30 +142,15 @@ M1: config, core/{math,storage,dom,format}, tooling, CI
                          └─ M8: acceptance
 ```
 
-## 5. Branch and merge workflow (decided)
+## 5. Branch and commit workflow (decided)
 
-Every change gets its own branch, with no exceptions: features (`feat/`), bug fixes (`fix/`), document updates (`docs/`) and tooling (`chore/`).
-
-1. Branch from an up-to-date `main`.
-2. Commit with Conventional Commits, push the branch.
-3. Open a pull request to `main` (CI runs typecheck and build only), merge it when green.
-4. The push to `main` deploys. Confirm the Actions run is green and the site updated.
-5. Only then delete the branch on GitHub and locally.
-
-Branch per milestone item (one feature doc each; large features may be split further):
-
-| M | Branches |
-|---|---|
-| M1 | `docs/phase-1-plan`, `chore/project-setup`, `feat/core-helpers` |
-| M2 | `feat/flight-model` (with `drone-stats`), `feat/battery`, `feat/controls`, `feat/drone-model`, `feat/chase-camera` |
-| M3 | `feat/colliders`, `feat/world` |
-| M4 | `feat/track-and-gates`, `feat/collisions` (with crash and respawn) |
-| M5 | `feat/cameras` (goggles and FPV pass), `feat/height-indicator`, `feat/hud` |
-| M6 | `feat/free-flight`, `feat/time-trial` (with ghost) |
-| M7 | `feat/main-menu`, `feat/motor-sound` |
-| M8 | `docs/phase-1-closeout` plus any `fix/*` found in acceptance |
-
-Branch names match the `Branch:` line in each feature doc. Unplanned work gets a new branch and a doc or changelog line.
+- **One branch for the whole phase:** `feat/phase-1`, branched from `main`.
+- **Many small commits.** Every commit message starts with its milestone: `M1: chore: add Vitest`, `M3: feat: add instanced pines`. A milestone can have as many commits as it needs.
+- Each feature doc is updated in the same commit series as its code.
+- **Periodic merges:** `feat/phase-1` is merged into `main` through a pull request at the end of each milestone (or when the owner asks) so progress shows on the live URL. Use a merge commit, not a squash, so the branch history stays shared and later merges stay clean. After each merge confirm the Actions run is green and the site updated.
+- **The phase branch is never deleted until Phase 1 is complete.** Keep working on it after each merge. Delete it (locally and on GitHub) only after the final M8 merge.
+- Work outside a phase (a bug found on live `main`, a doc-only change) gets its own `fix/<name>` or `docs/<name>` branch with the same merge and delete steps.
+- Pushes go to `feat/phase-1` at the end of each milestone (and more often when useful), so work is never only in the container.
 
 ## 6. Risks and how this plan handles them
 
@@ -191,7 +176,7 @@ Branch names match the `Branch:` line in each feature doc. Unplanned work gets a
 Resolved:
 1. Cloudflare secrets are in GitHub Actions secrets. M1 verifies them with the first deploy.
 2. Preview artifact is the look reference. Its source is a single HTML file (about 1,900 lines) using Three.js 0.160.0 with procedural terrain (`baseH`, `heightAt`), a Catmull-Rom track, procedural canvas textures, Sky plus PMREM lighting, and the FPV post pass. M3, M4 and M5 port its constants and algorithms into the module layout above rather than copying the file. The preview uses `Math.random()` for textures and placement, so the port must replace that with the seeded generator.
-3. Branch strategy: one branch per change, see §5.
+3. Branch strategy: one `feat/phase-1` branch with milestone-prefixed commits, see §5.
 
 Open:
 - Flight bounds vs mountain ring (§7) must be decided before M6.

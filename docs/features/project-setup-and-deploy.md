@@ -1,8 +1,8 @@
 # Feature: Project Setup and Deploy
 
-Status: Planned
+Status: In progress
 Phase: 1
-Branch: `chore/project-setup`
+Branch: `feat/phase-1` (milestone M1)
 Last updated: 2026-11-01
 
 ## Summary
@@ -15,7 +15,7 @@ Players open one URL (`https://propwash-fpv.<account>.workers.dev`) and the game
 
 ## Behavior and rules
 
-- **Package manager:** pnpm `10.34.5` (pinned in `package.json` `packageManager`). npm and yarn are not used.
+- **Package manager:** pnpm `10.34.9` (pinned in `package.json` `packageManager`). npm and yarn are not used.
 - **Versions:** every dependency is an exact version. `.npmrc` sets `save-exact=true` and `engine-strict=true`. Node `>=22`.
 - **Dependency log:** `docs/dependencies.md` lists every package and GitHub Action with version, purpose and date.
 - **Build scripts** (needed by `vite` and `wrangler`): `esbuild` and `workerd` are approved in `package.json` → `pnpm.onlyBuiltDependencies`. No other package may run install scripts without being added there on purpose.
@@ -25,6 +25,7 @@ Players open one URL (`https://propwash-fpv.<account>.workers.dev`) and the game
 |---|---|
 | `pnpm dev` | Vite dev server with live reload |
 | `pnpm typecheck` | `tsc --noEmit` |
+| `pnpm test` | Vitest unit tests (`src/**/*.test.ts`) |
 | `pnpm build` | Typecheck, then `vite build` into `dist/` |
 | `pnpm preview` | Serve `dist/` locally |
 | `pnpm cf:dev` | Build, then run locally on the Workers runtime (`wrangler dev`) |
@@ -37,7 +38,7 @@ Players open one URL (`https://propwash-fpv.<account>.workers.dev`) and the game
 - `wrangler.jsonc`: assets-only Worker (no script). `assets.directory: "./dist"`, `not_found_handling: "single-page-application"`, a fixed `compatibility_date`.
 - `.github/workflows/deploy.yml`:
   - Triggers: push to `main` (build + deploy), pull requests to `main` (build only), manual run.
-  - Steps: checkout → pnpm setup (version from `packageManager`) → Node 22 with pnpm cache → `pnpm install --frozen-lockfile` → `pnpm build` → `cloudflare/wrangler-action` deploy (main only).
+  - Jobs: `build` (checkout → pnpm setup from `packageManager` → Node 22 with pnpm cache → `pnpm install --frozen-lockfile` → `pnpm test` → `pnpm build`) and `deploy` (main only, after build: rebuild → `cloudflare/wrangler-action`).
   - Secrets: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` (GitHub Actions secrets).
   - All actions pinned to exact release tags and logged in `docs/dependencies.md`.
 - `index.html` loads fonts from Google Fonts and the entry `src/main.ts`.
@@ -82,3 +83,4 @@ Worker API routes, D1 and Durable Objects (Phase 4–5). Custom domain.
 ## Changelog
 
 - 2026-11-01: Created.
+- 2026-11-01: Added Vitest and `pnpm test`; pnpm pinned to 10.34.9 (latest 10.x).
