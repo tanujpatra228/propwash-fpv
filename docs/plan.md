@@ -1,7 +1,7 @@
 # Propwash FPV — Project Plan
 
 Last updated: 2026-11-01
-Status: Phase 1 in progress
+Status: Phase 1 built and deployed; awaiting player verification (see phase-1-acceptance.md)
 
 Propwash is a browser-based FPV (first-person view) drone racing game. Players fly a small racing drone through a hand-built valley, race through gates, chase their own best-lap ghost, and later race friends live over the internet. It runs in any modern desktop browser with keyboard and mouse and is hosted on the Cloudflare Workers free tier.
 

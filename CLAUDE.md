@@ -9,6 +9,7 @@ Browser FPV drone racing game. Three.js + TypeScript + Vite, deployed to the **C
 | [docs/plan.md](docs/plan.md) | Goals, game design, architecture, phases and milestones |
 | [docs/engineering-standards.md](docs/engineering-standards.md) | How we write code: modules, no duplication, TypeScript, Three.js, Cloudflare free-plan rules, git, dependencies, review checklist |
 | [docs/phase-1-implementation-plan.md](docs/phase-1-implementation-plan.md) | Phase 1 build order: milestones M1 to M8, tests per milestone, risks, open questions |
+| [docs/phase-1-acceptance.md](docs/phase-1-acceptance.md) | What is verified, how, and what is still open for Phase 1 |
 | [docs/dependencies.md](docs/dependencies.md) | Version log of every package and GitHub Action (created with the first code commit) |
 | [docs/features/](docs/features/) | One Markdown file per game feature: behavior, design, acceptance criteria, test cases |
 | [docs/features/_template.md](docs/features/_template.md) | Template for new feature docs |
