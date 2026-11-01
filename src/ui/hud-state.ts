@@ -1,3 +1,4 @@
+import type { LessonPanelState } from './lesson-panel';
 import type { RacePanelState } from './race-panel';
 
 /** Everything the HUD shows, as plain numbers. The game builds one per frame; the HUD never reads game internals. */
@@ -32,5 +33,6 @@ export interface HudState {
     race: RacePanelState | null;
     countdown: string;
     swapProgress01: number;
+    lesson: LessonPanelState | null;
   };
 }

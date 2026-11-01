@@ -3,9 +3,10 @@ import type { Battery } from '../../drone/battery';
 import type { FlightModel } from '../../drone/flight-model';
 import type { Gate } from '../../world/gates';
 import type { LapTracker } from '../lap-tracker';
+import type { LessonPanelState } from '../../ui/lesson-panel';
 import type { Pose } from '../respawn';
 
-export type ModeId = 'free' | 'trial';
+export type ModeId = 'free' | 'trial' | 'training';
 
 /** What a mode may use from the game. Keeps modes free of scene, DOM and rendering. */
 export interface ModeHost {
@@ -42,6 +43,8 @@ export interface ModeHud {
   countdown: string;
   /** 0..1 progress of a battery swap on the pad. */
   swapProgress01: number;
+  /** The training checklist, or null outside training. */
+  lesson: LessonPanelState | null;
 }
 
 /** What the game tells a mode each frame, after the physics step. */

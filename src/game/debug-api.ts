@@ -53,6 +53,8 @@ export function createDebugApi(t: DebugTarget) {
       phase: t.phase(),
       mode: t.currentMode().id,
       countdown: t.currentMode().hud.countdown,
+      lesson: t.currentMode().hud.lesson?.number ?? null,
+      lessonSteps: t.currentMode().hud.lesson?.steps.map((step) => step.isDone) ?? null,
       nextGate: t.tracker.nextGate,
       lastPassedGate: t.tracker.lastPassedGate,
       laps: t.tracker.completedLaps,

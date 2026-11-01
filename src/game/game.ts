@@ -44,11 +44,13 @@ import { LapTracker } from './lap-tracker';
 import { MenuDirector } from './menu-director';
 import { FreeFlight } from './modes/free-flight';
 import type { GameMode, ModeHost, ModeId } from './modes/mode';
+import { TrainingMode } from './modes/training';
 import { TimeTrial } from './modes/time-trial';
 import { type Pose } from './respawn';
 import { applyQualityPreset } from './quality';
 import { loadFreeBatteryDrain, loadQuality, saveFreeBatteryDrain, saveQuality } from './settings';
 import { loadBestLap } from './trial-storage';
+import { loadCompletedLessons, saveCompletedLessons, trainingMenuText } from './training-progress';
 
 const RESTING_ON_GROUND_M = 0.02;
 
@@ -120,7 +122,11 @@ export class Game {
       flashBanner: (title, subtitle, kind, seconds) => this.banner.show(title, subtitle, kind, seconds),
       hideBanner: () => this.banner.hide(),
     };
-    this.modes = { free: new FreeFlight(host, () => this.isFreeDrainOn), trial: new TimeTrial(host) };
+    this.modes = {
+      free: new FreeFlight(host, () => this.isFreeDrainOn),
+      trial: new TimeTrial(host),
+      training: new TrainingMode(host, { load: loadCompletedLessons, save: saveCompletedLessons }),
+    };
     this.mode = this.modes.free;
 
     this.bindings = loadBindings();
@@ -155,6 +161,7 @@ export class Game {
       {
         onFreeFlight: () => this.startMode('free'),
         onTimeTrial: () => this.startMode('trial'),
+        onTraining: () => this.startMode('training'),
         onControls: () => this.openControls(),
         onQualityChange: (id) => this.applyQuality(id),
         onFreeDrainChange: (isOn) => {
@@ -201,6 +208,7 @@ export class Game {
     this.rig.enterBroadcast();
     const best = loadBestLap();
     this.menu.setBestLapText(best ? formatLapTime(best.lapTimeS) : null);
+    this.menu.setTrainingText(trainingMenuText(loadCompletedLessons()));
     this.menu.setVisible(true);
   }
 

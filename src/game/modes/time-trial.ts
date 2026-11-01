@@ -16,7 +16,7 @@ export class TimeTrial implements GameMode {
   readonly id = 'trial' as const;
   readonly drainsBattery = true;
   readonly race: RaceHud = { lap: 1, lapTimeS: 0, lastLapS: null, bestLapS: null, splitDeltaS: null };
-  readonly hud: ModeHud = { modeLabel: 'Time trial', hint: HINT_RUNNING, race: this.race, countdown: '', swapProgress01: 0 };
+  readonly hud: ModeHud = { modeLabel: 'Time trial', hint: HINT_RUNNING, race: this.race, countdown: '', swapProgress01: 0, lesson: null };
   private state: State = 'countdown';
   private countdownLeftS: number = TRIAL.countdownS;
   private goShownLeftS = 0;

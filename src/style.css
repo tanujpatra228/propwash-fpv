@@ -822,3 +822,38 @@ kbd {
   color: #fff;
   will-change: transform;
 }
+
+.lesson-panel {
+  position: absolute;
+  left: 20px;
+  top: 20px;
+  width: 280px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.lesson-panel b {
+  font: 700 22px/1 var(--display);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.lesson-panel ol {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  color: #d3dde5;
+}
+
+.lesson-panel li.done {
+  color: var(--ok);
+}
+
+.lesson-panel li.done::marker {
+  content: '✓ ';
+}

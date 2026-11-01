@@ -10,7 +10,7 @@ const HINT = 'Fly anywhere. Click the view to steer with the mouse. Land on the 
 export class FreeFlight implements GameMode {
   readonly id = 'free' as const;
   readonly isInputLocked = false;
-  readonly hud: ModeHud = { modeLabel: 'Free flight', hint: HINT, race: null, countdown: '', swapProgress01: 0 };
+  readonly hud: ModeHud = { modeLabel: 'Free flight', hint: HINT, race: null, countdown: '', swapProgress01: 0, lesson: null };
   private swapHeldS = 0;
   private emptyForS = 0;
 
