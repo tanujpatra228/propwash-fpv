@@ -39,6 +39,10 @@ export class Hud {
     document.body.append(this.root);
   }
 
+  setVisible(isVisible: boolean): void {
+    this.root.hidden = !isVisible;
+  }
+
   setHelpText(text: string): void {
     this.helpBar.setText(text);
   }

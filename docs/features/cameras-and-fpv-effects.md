@@ -67,6 +67,7 @@ Values in `config.ts` → `CAMERA`.
 ## Implementation notes (M5)
 
 - `core/renderer.ts` runs the chain render, bloom, tone-map, FPV lens. The lens shader (`core/fpv-shader.ts`) takes plain numbers (fisheye, vignette, grain, static); the game computes them (`game/fpv-static.ts`, pure and tested).
+- Bloom is off by default (`LENS.bloom.isEnabled`). The first look had bloom on and everything glowed, and facing the sun gave a white-out (average brightness 180 with bloom vs 93 without). Look values are in `RENDER` and `LENS` in `config.ts`.
 - Goggles camera is rigidly attached to the drone (no smoothing), tilted up 25 degrees; the drone model is hidden in this view.
 - Verified in a headless browser: fisheye, vignette, chromatic fringing and grain show in goggles; chase view shows a light vignette only.
 - The broadcast camera for the menu is built with the menu in M7.

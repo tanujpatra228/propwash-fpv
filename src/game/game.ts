@@ -1,5 +1,7 @@
 import { Quaternion, Scene, Vector3 } from 'three';
-import { COLLISION, GHOST, LOOP, TRACK, VALLEY } from '../config';
+import { COLLISION, GHOST, LOOP, QUALITY, TRACK, VALLEY } from '../config';
+import { MotorSound } from '../core/audio';
+import { formatLapTime } from '../core/format';
 import { clamp } from '../core/math';
 import { GameRenderer } from '../core/renderer';
 import { Battery } from '../drone/battery';
@@ -21,8 +23,9 @@ import { ColliderWorld } from '../physics/colliders';
 import { resolveDrone, substepCount, type CrashReason } from '../physics/resolve';
 import { Banner } from '../ui/banner';
 import { ControlsPanel } from '../ui/controls-panel';
-import { checkGateCrossing } from '../world/gate-crossing';
+import { MainMenu, type QualityId } from '../ui/menu';
 import { buildBoundary, type Boundary } from '../world/boundary';
+import { checkGateCrossing } from '../world/gate-crossing';
 import { buildGates, type Gate } from '../world/gates';
 import { PIT_PAD } from '../world/pit-area';
 import { buildScenery, type Scenery } from '../world/scenery';
@@ -31,17 +34,19 @@ import { buildTerrain, buildWater, groundY, surfaceAt } from '../world/terrain';
 import { createWorldTextures } from '../world/textures';
 import { CameraRig } from './camera-rig';
 import { CRASH_MESSAGES } from './crash-messages';
+import { createDebugApi, type DebugApi } from './debug-api';
 import { lensFor, staticAmount } from './fpv-static';
 import { HudBridge } from './hud-bridge';
 import { LapTracker } from './lap-tracker';
+import { MenuDirector } from './menu-director';
 import { FreeFlight } from './modes/free-flight';
 import type { GameMode, ModeHost, ModeId } from './modes/mode';
 import { TimeTrial } from './modes/time-trial';
-import { respawnPose, type Pose } from './respawn';
-import { loadFreeBatteryDrain } from './settings';
+import { type Pose } from './respawn';
+import { loadFreeBatteryDrain, loadQuality, saveFreeBatteryDrain, saveQuality } from './settings';
+import { loadBestLap } from './trial-storage';
 
 const RESTING_ON_GROUND_M = 0.02;
-const OTHER_MODE_LABEL: Record<ModeId, string> = { free: 'time trial', trial: 'free flight' };
 
 const previousPosition = new Vector3();
 const stepInput: FlightInput = { ...NO_INPUT };
@@ -50,7 +55,7 @@ const ghostPosition = new Vector3();
 const ghostQuaternion = new Quaternion();
 const padPose: Pose = { position: PIT_PAD.position.clone(), yawRad: PIT_PAD.yawRad };
 
-/** Owns the scene and the main loop. The mode (free flight or time trial) decides the rules. */
+/** Owns the scene and the main loop. In the menu an AI flyby plays; in a mode the pilot flies and the mode sets the rules. */
 export class Game {
   private readonly renderer: GameRenderer;
   private readonly scene = new Scene();
@@ -65,19 +70,27 @@ export class Game {
   private readonly battery = new Battery(STOCK_STATS);
   private readonly drone = createDroneModel({ color: 0xff7a1a });
   private readonly ghostDrone = createDroneModel({ color: GHOST.color, ghost: true });
+  private readonly director: MenuDirector;
   private readonly input: Input;
   private readonly controls: ControlsPanel;
   private readonly banner = new Banner();
   private readonly hud: HudBridge;
+  private readonly menu: MainMenu;
+  private readonly sound = new MotorSound();
   private readonly modes: Record<ModeId, GameMode>;
   private mode: GameMode;
+  private phase: 'menu' | 'playing' = 'menu';
   private readonly flightInput: FlightInput = { ...NO_INPUT };
   private bindings: Bindings;
+  private isFreeDrainOn = loadFreeBatteryDrain();
   private lastTimeMs = 0;
   private clockS = 0;
   private crashTimerS = 0;
   private flightTimeS = 0;
   private isAnalogOn = true;
+  private fpsAccumulatorS = 0;
+  private fpsFrames = 0;
+  readonly debug: DebugApi;
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new GameRenderer(canvas);
@@ -90,6 +103,7 @@ export class Game {
     this.boundary = buildBoundary(this.scene);
     this.scene.add(this.drone.group, this.ghostDrone.group);
     this.ghostDrone.group.visible = false;
+    this.director = new MenuDirector(this.scene);
 
     const host: ModeHost = {
       flight: this.flight,
@@ -102,7 +116,7 @@ export class Game {
       flashBanner: (title, subtitle, kind, seconds) => this.banner.show(title, subtitle, kind, seconds),
       hideBanner: () => this.banner.hide(),
     };
-    this.modes = { free: new FreeFlight(host, loadFreeBatteryDrain), trial: new TimeTrial(host) };
+    this.modes = { free: new FreeFlight(host, () => this.isFreeDrainOn), trial: new TimeTrial(host) };
     this.mode = this.modes.free;
 
     this.bindings = loadBindings();
@@ -121,41 +135,107 @@ export class Game {
         this.input.setSensitivity(value);
       },
       onClose: () => {
-        this.input.enabled = true;
+        this.input.enabled = this.phase === 'playing';
       },
     });
     this.hud = new HudBridge(this.scene, {
       onCamera: () => this.toggleCamera(),
       onStatic: () => this.toggleStatic(),
       onReset: () => this.pressReset(),
-      onMode: () => this.setMode(this.mode.id === 'free' ? 'trial' : 'free'),
-      onControls: () => {
-        this.input.enabled = false;
-        this.controls.open();
-      },
+      onSound: () => this.toggleSound(),
+      onControls: () => this.openControls(),
+      onExit: () => this.returnToMenu(),
     });
+    const quality = loadQuality();
+    this.menu = new MainMenu(
+      {
+        onFreeFlight: () => this.startMode('free'),
+        onTimeTrial: () => this.startMode('trial'),
+        onControls: () => this.openControls(),
+        onQualityChange: (id) => this.applyQuality(id),
+        onFreeDrainChange: (isOn) => {
+          this.isFreeDrainOn = isOn;
+          saveFreeBatteryDrain(isOn);
+        },
+      },
+      { quality, isFreeDrainOn: this.isFreeDrainOn },
+    );
+    this.applyQuality(quality, false);
     this.input.onPress((action) => this.onPress(action));
-
-    this.setMode('free');
-    this.input.enabled = true;
+    this.debug = createDebugApi({
+      renderer: this.renderer,
+      sky: this.sky,
+      tracker: this.tracker,
+      battery: this.battery,
+      gates: this.gates,
+      currentMode: () => this.mode,
+      phase: () => this.phase,
+      placeDrone: (pose) => this.placeDrone(pose),
+      startMode: (id) => this.startMode(id),
+      returnToMenu: () => this.returnToMenu(),
+      simulate: (input, dtS) => this.simulate(input, dtS),
+      tickMode: (dtS) => this.mode.update(dtS, { isLanded: this.isLanded() }),
+    });
+    this.returnToMenu();
   }
 
   start(): void {
     requestAnimationFrame(this.frame);
   }
 
-  private setMode(id: ModeId): void {
+  // ---- phases ----
+
+  private returnToMenu(): void {
+    this.phase = 'menu';
+    this.input.enabled = false; // also releases the mouse
+    this.crashTimerS = 0;
+    this.banner.hide();
+    this.hud.setVisible(false);
+    this.drone.group.visible = false;
+    this.ghostDrone.group.visible = false;
+    this.director.setActive(true);
+    this.rig.enterBroadcast();
+    const best = loadBestLap();
+    this.menu.setBestLapText(best ? formatLapTime(best.lapTimeS) : null);
+    this.menu.setVisible(true);
+  }
+
+  private startMode(id: ModeId): void {
+    this.phase = 'playing';
+    this.menu.setVisible(false);
+    this.director.setActive(false);
+    this.rig.leaveBroadcast();
+    this.hud.setVisible(true);
     this.mode = this.modes[id];
     this.crashTimerS = 0;
     this.flightTimeS = 0;
     this.mode.start();
     this.refreshLabels();
+    this.input.enabled = true;
   }
 
+  private openControls(): void {
+    this.input.enabled = false;
+    this.controls.open();
+  }
+
+  private applyQuality(id: QualityId, shouldSave = true): void {
+    const preset = QUALITY[id];
+    this.renderer.setPixelRatioCap(preset.pixelRatio);
+    this.sky.setShadowQuality(preset.shadowMapPx);
+    this.scenery.grass.mesh.visible = preset.hasGrass;
+    if (shouldSave) saveQuality(id);
+  }
+
+  // ---- input actions ----
+
   private onPress(action: ActionId): void {
+    if (this.phase !== 'playing') return;
     if (action === 'reset') this.pressReset();
     else if (action === 'camera') this.toggleCamera();
     else if (action === 'static') this.toggleStatic();
+    else if (action === 'sound') this.toggleSound();
+    else if (action === 'pause') this.returnToMenu();
   }
 
   /** The reset key: the mode may use it (restart a finished run); otherwise respawn at once, but not during the crash freeze. */
@@ -171,6 +251,11 @@ export class Game {
 
   private toggleStatic(): void {
     this.isAnalogOn = !this.isAnalogOn;
+    this.refreshLabels();
+  }
+
+  private toggleSound(): void {
+    this.sound.toggle();
     this.refreshLabels();
   }
 
@@ -195,32 +280,59 @@ export class Game {
     this.banner.show('Crashed', `${CRASH_MESSAGES[reason]}. Respawning at the last gate…`, 'crash');
   }
 
-  /** Key hints and menu labels, rebuilt when bindings, camera, mode or analog setting change. */
+  /** Key hints and menu labels, rebuilt when bindings, camera, sound or analog setting change. */
   private refreshLabels(): void {
     const key = (id: ActionId): string => primaryKeyLabel(this.bindings, id);
     this.hud.setHelpText(
       `${key('up')} up · ${key('down')} down · ${key('forward')}/${key('back')} fly · ` +
         `${key('left')}/${key('right')} slide · mouse or ${key('turnLeft')}/${key('turnRight')} turn · ` +
-        `${key('reset')} reset · click the view to steer with the mouse`,
+        `${key('reset')} reset · ${key('pause')} menu`,
     );
     this.hud.setMenuLabels({
-      cameraLabel: this.rig.currentMode === 'goggles' ? 'goggles' : 'chase',
+      cameraLabel: this.rig.currentMode === 'chase' ? 'chase' : 'goggles',
       isAnalogOn: this.isAnalogOn,
       cameraKey: key('camera'),
       staticKey: key('static'),
       resetKey: key('reset'),
-      otherModeLabel: OTHER_MODE_LABEL[this.mode.id],
+      soundLabel: this.sound.available ? `Motor sound: ${this.sound.enabled ? 'on' : 'off'}` : 'Motor sound: unavailable',
+      soundKey: key('sound'),
+      exitKey: key('pause'),
     });
   }
+
+  // ---- the loop ----
 
   private readonly frame = (nowMs: number): void => {
     const dtS = clamp((nowMs - this.lastTimeMs) / 1000, LOOP.minDtS, LOOP.maxDtS);
     this.lastTimeMs = nowMs;
     this.clockS += dtS;
-    this.update(dtS);
+    this.trackFps(dtS);
+    if (this.phase === 'menu') this.updateMenu(dtS);
+    else this.updatePlaying(dtS);
     this.renderer.render(this.scene, this.rig.camera, this.clockS);
     requestAnimationFrame(this.frame);
   };
+
+  private trackFps(dtS: number): void {
+    this.fpsAccumulatorS += dtS;
+    this.fpsFrames++;
+    if (this.fpsAccumulatorS < 1) return;
+    this.menu.setFps(this.fpsFrames / this.fpsAccumulatorS);
+    this.fpsAccumulatorS = 0;
+    this.fpsFrames = 0;
+  }
+
+  private updateMenu(dtS: number): void {
+    this.director.update(dtS, this.clockS);
+    this.rig.setBroadcastShot(this.director.cameraPosition, this.director.cameraLookAt);
+    this.rig.setAspect(this.renderer.aspect);
+    this.rig.update(dtS, { position: this.flight.position, yawRad: 0, quaternion: this.flight.quaternion });
+    this.scenery.update(this.clockS);
+    this.sky.followFocus(this.director.cameraLookAt);
+    this.boundary.update(this.director.cameraPosition);
+    this.renderer.setLens(lensFor(false, false, 0));
+    this.sound.update(0, 0, false, false);
+  }
 
   /**
    * Moves the drone one frame in small sub-steps so it can't tunnel through thin gate bars,
@@ -252,7 +364,7 @@ export class Game {
     return position.y <= groundY(position.x, position.z) + COLLISION.restOffsetM + RESTING_ON_GROUND_M;
   }
 
-  private update(dtS: number): void {
+  private updatePlaying(dtS: number): void {
     this.banner.update(dtS);
     if (this.crashTimerS > 0) {
       this.crashTimerS -= dtS;
@@ -278,6 +390,7 @@ export class Game {
     this.rig.setAspect(this.renderer.aspect);
     this.rig.update(dtS, { position: this.flight.position, yawRad: this.flight.yawRad, quaternion: this.flight.quaternion });
     this.updateLens(isGoggles);
+    this.sound.update(this.flight.throttle01, this.flight.velocity.length(), this.crashTimerS <= 0, this.battery.isEmpty);
     this.hud.update({
       flight: this.flight,
       battery: this.battery,
@@ -310,55 +423,5 @@ export class Game {
       crashRemainingS: Math.max(0, this.crashTimerS),
     });
     this.renderer.setLens(lensFor(isGoggles, this.isAnalogOn, staticValue));
-  }
-
-  // ---- Dev-only helpers for browser tests (the entry point only exposes them in dev builds). ----
-
-  debugPlace(x: number, y: number, z: number, yawRad: number): void {
-    this.placeDrone({ position: new Vector3(x, y, z), yawRad });
-  }
-
-  debugRenderInfo(): { calls: number; triangles: number; geometries: number } {
-    const { render, memory } = this.renderer.webgl.info;
-    return { calls: render.calls, triangles: render.triangles, geometries: memory.geometries };
-  }
-
-  debugLook(look: Parameters<GameRenderer['debugLook']>[0] & Parameters<ReturnType<typeof buildSky>['debugLight']>[0]): void {
-    this.renderer.debugLook(look);
-    this.sky.debugLight(look);
-  }
-
-  debugSetMode(id: ModeId): void {
-    this.setMode(id);
-  }
-
-  /** Advances the simulation without rendering (headless browsers render too slowly to fly in real time). */
-  debugSimulate(seconds: number, input: Partial<FlightInput>): { crashed: CrashReason | null; position: number[] } {
-    const pilot: FlightInput = { ...NO_INPUT, ...input };
-    let crashed: CrashReason | null = null;
-    for (let i = 0; i < Math.round(seconds * 60) && crashed === null; i++) {
-      crashed = this.simulate(this.mode.isInputLocked ? NO_INPUT : pilot, 1 / 60);
-      this.mode.update(1 / 60, { isLanded: this.isLanded() });
-      this.clockS += 1 / 60;
-    }
-    return { crashed, position: this.flight.position.toArray() };
-  }
-
-  debugState(): { mode: ModeId; countdown: string; nextGate: number; lastPassedGate: number; laps: number; battery: number; best: number | null } {
-    return {
-      mode: this.mode.id,
-      countdown: this.mode.hud.countdown,
-      nextGate: this.tracker.nextGate,
-      lastPassedGate: this.tracker.lastPassedGate,
-      laps: this.tracker.completedLaps,
-      battery: this.battery.charge01,
-      best: this.tracker.best?.lapTimeS ?? null,
-    };
-  }
-
-  debugGate(index: number): { position: number[]; yawRad: number } | null {
-    const gate = this.gates[index];
-    if (!gate) return null;
-    return { position: gate.position.toArray(), yawRad: Math.atan2(-gate.forward.x, -gate.forward.z) };
   }
 }

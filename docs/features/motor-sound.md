@@ -1,8 +1,8 @@
 # Feature: Motor Sound
 
-Status: Planned
+Status: In progress
 Phase: 1
-Branch: `feat/motor-sound`
+Branch: `feat/phase-1` (milestone M7)
 Last updated: 2026-11-01
 
 ## Summary
@@ -46,6 +46,12 @@ Values in `config.ts` → `AUDIO`.
 - [ ] Pitch rises with throttle; wind rises with speed.
 - [ ] Silent in menus.
 - [ ] No errors where audio is blocked.
+
+## Implementation notes (M7)
+
+- `core/audio.ts`: `motorTone` (pure, tested) and `MotorSound` (Web Audio, nodes created once on first enable). Off by default; a saved "on" turns on at the first click of a later session. Wind noise is deterministic (no `Math.random`).
+- The flight menu has a "Motor sound" button next to the M key. If Web Audio is blocked it reads "unavailable" and the game carries on.
+- Not verified: how it actually sounds. Headless browsers have no audio output, so the tone values come straight from the preview; please listen and tell me what to change.
 
 ## Test cases
 

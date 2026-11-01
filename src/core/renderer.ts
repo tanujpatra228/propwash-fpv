@@ -13,6 +13,7 @@ export class GameRenderer {
   private readonly renderPass: RenderPass;
   private readonly fpvPass = createFpvPass();
   private readonly bloomPass: UnrealBloomPass;
+  private pixelRatioCap = 1;
   private readonly lens: LensSettings = { fisheye: 0, vignette: 0.35, grain: 0.012, staticAmount: 0 };
 
   constructor(private readonly canvas: HTMLCanvasElement) {
@@ -68,8 +69,14 @@ export class GameRenderer {
     this.composer.render();
   }
 
+  /** Graphics quality: the sharpest pixel ratio to render at (capped by the screen's own). */
+  setPixelRatioCap(cap: number): void {
+    this.pixelRatioCap = cap;
+    this.resize();
+  }
+
   readonly resize = (): void => {
-    const ratio = Math.min(window.devicePixelRatio, 1);
+    const ratio = Math.min(window.devicePixelRatio, this.pixelRatioCap);
     this.webgl.setPixelRatio(ratio);
     this.webgl.setSize(window.innerWidth, window.innerHeight, false);
     this.composer.setPixelRatio(ratio);

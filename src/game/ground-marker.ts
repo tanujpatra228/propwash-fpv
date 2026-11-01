@@ -51,6 +51,10 @@ export class GroundMarker {
     scene.add(this.group);
   }
 
+  hide(): void {
+    this.group.visible = false;
+  }
+
   /** Updates in place (no allocation). `heightM` is height above the surface below the drone. */
   update(dronePosition: Vector3, groundYM: number, heightM: number, isVisible: boolean): void {
     this.group.visible = isVisible;
