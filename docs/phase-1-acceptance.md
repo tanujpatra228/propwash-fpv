@@ -18,7 +18,7 @@ An honest record of what has been checked and how, so nothing is ticked that has
 | Height indicator | Gauge colours, ground line and ring (browser) | None known |
 | HUD and OSD | OSD, gauges, gate marker, minimap, race panel, countdown, flight menu (browser) | Layout below 1100 px wide (the OSD overlaps the race panel under about 1000 px) |
 | Collisions and crash | Ground, water, bump vs crash, gate frame, factory, trees (foliage included), roofs (unit, browser, player) | Container-gap flying and tree crashes beyond what the player tried |
-| Time trial and ghost | Countdown with locked input, full lap, best lap saved (4 KB) and restored after reload, splits, empty-battery end, restart (unit and browser) | **A human flying real laps; the ghost replaying in sync on screen; the "Best lap" tag above the ghost (not built)** |
+| Time trial and ghost | Countdown with locked input, full lap, best lap saved (4 KB) and restored after reload, splits, empty-battery end, restart (unit and browser) | **A human flying real laps; the ghost replaying in sync on screen** |
 | Free flight | Pad swap, empty battery, respawn rules (unit); mode tag and swap progress (browser) | None known |
 | Main menu and settings | Menu, settings, Free flight, P, Time trial, Exit, saved quality and drain (browser) | Frame-rate readout on a real GPU |
 | Motor sound | Tone mapping from throttle and speed (unit) | **How it sounds. Nobody has listened yet.** |
@@ -31,7 +31,7 @@ An honest record of what has been checked and how, so nothing is ticked that has
 - A speed gauge was added next to the height and battery gauges.
 - The world boundary is a hard wall with a faint grid, not a "signal lost" respawn.
 - `game/game.ts` is 408 lines (target 300, split at 400); the dev-only test hooks already live in `debug-api.ts`.
-- Not built: the "Best lap" tag above the ghost.
+- The "Best lap" tag above the ghost is built (`ui/ghost-tag.ts`).
 
 ## What the player should check next
 

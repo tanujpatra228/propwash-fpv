@@ -68,7 +68,7 @@ Choose Time trial. The drone hovers behind the start gate. 3, 2, 1, GO. The cloc
 - Saved under `pw.trial.valley-sprint.w<WORLD.version>.v1`. Corrupt or wrong-shaped data is treated as no best lap.
 - A finished run (battery empty) shows a summary banner; the reset key starts a new run with a fresh battery.
 - Verified in the browser: countdown 3, 2, GO with input locked, a full lap through all 12 gates and back to gate 0 completes and saves, and the best lap survives a reload.
-- Not done in M6: the "Best lap" tag above the ghost.
+- The "Best lap" tag above the ghost (`ui/ghost-tag.ts`) is a small label projected from the ghost's position; it hides when the ghost is off-screen or behind the camera.
 
 ## Test cases
 

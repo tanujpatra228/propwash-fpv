@@ -23,6 +23,8 @@ export interface HudState {
   nextGate: { x: number; y: number; distM: number };
   /** Drone on the minimap: world X, Z and heading (rotation about Y). */
   map: { x: number; z: number; yawRad: number };
+  /** The best-lap ghost on screen (NDC), when it is shown and visible. */
+  ghost: { isVisible: boolean; x: number; y: number };
   mode: {
     label: string;
     hint: string;

@@ -370,7 +370,7 @@ export class Game {
     this.drone.group.position.copy(this.flight.position);
     this.drone.group.quaternion.copy(this.flight.quaternion);
     this.drone.spinProps(this.crashTimerS > 0 ? 0 : this.flight.throttle01, dtS);
-    this.updateGhost(dtS);
+    const isGhostShown = this.updateGhost(dtS);
     this.scenery.update(this.clockS);
     this.boundary.update(this.flight.position);
     this.sky.followFocus(this.flight.position);
@@ -384,6 +384,7 @@ export class Game {
       tracker: this.tracker,
       gates: this.gates,
       mode: this.mode,
+      ghostPosition: isGhostShown ? ghostPosition : null,
       camera: this.rig.camera,
       isGoggles,
       flightTimeS: this.flightTimeS,
@@ -391,13 +392,14 @@ export class Game {
     });
   }
 
-  private updateGhost(dtS: number): void {
+  private updateGhost(dtS: number): boolean {
     const isShown = this.mode.ghostPose(ghostPosition, ghostQuaternion);
     this.ghostDrone.group.visible = isShown;
-    if (!isShown) return;
+    if (!isShown) return false;
     this.ghostDrone.group.position.copy(ghostPosition);
     this.ghostDrone.group.quaternion.copy(ghostQuaternion);
     this.ghostDrone.spinProps(0.5, dtS);
+    return true;
   }
 
   private updateLens(isGoggles: boolean): void {
