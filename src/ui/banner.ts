@@ -15,14 +15,25 @@ export class Banner {
     document.body.append(this.root);
   }
 
-  show(title: string, subtitle: string, kind: BannerKind = 'info'): void {
+  private remainingS = Infinity;
+
+  /** Shows a message. With `seconds` it hides itself; without, it stays until `hide`. */
+  show(title: string, subtitle: string, kind: BannerKind = 'info', seconds = Infinity): void {
     this.title.textContent = title;
     this.subtitle.textContent = subtitle;
     this.root.classList.toggle('crash', kind === 'crash');
     this.root.hidden = false;
+    this.remainingS = seconds;
   }
 
   hide(): void {
     this.root.hidden = true;
+    this.remainingS = Infinity;
+  }
+
+  update(dtS: number): void {
+    if (this.root.hidden || this.remainingS === Infinity) return;
+    this.remainingS -= dtS;
+    if (this.remainingS <= 0) this.hide();
   }
 }

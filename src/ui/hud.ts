@@ -1,13 +1,16 @@
 import { HUD } from '../config';
 import { el } from '../core/dom';
 import { BatteryGauge } from './battery-gauge';
+import { Countdown } from './countdown';
 import { FlightMenu, type FlightMenuCallbacks, type FlightMenuLabels } from './flight-menu';
 import { GateMarker } from './gate-marker';
 import { HeightGauge } from './height-gauge';
 import { HelpBar } from './help-bar';
 import type { HudState } from './hud-state';
 import { Minimap } from './minimap';
+import { ModeTag } from './mode-tag';
 import { Osd } from './osd';
+import { RacePanel } from './race-panel';
 import { SpeedGauge } from './speed-gauge';
 
 /** Composes every on-screen element. Reads a plain HudState; never touches game internals. */
@@ -17,6 +20,9 @@ export class Hud {
   private readonly osd = new Osd(this.root);
   private readonly gateMarker = new GateMarker(this.root);
   private readonly minimap = new Minimap(this.root);
+  private readonly racePanel = new RacePanel(this.root);
+  private readonly modeTag = new ModeTag(this.root);
+  private readonly countdown = new Countdown(this.root);
   private readonly height: HeightGauge;
   private readonly speed: SpeedGauge;
   private readonly battery: BatteryGauge;
@@ -46,11 +52,15 @@ export class Hud {
     const isTextFrame = this.frameCount % HUD.textEveryNFrames === 0;
     this.osd.setVisible(state.isGoggles);
     this.osd.update(state, timeS, isTextFrame);
+    this.racePanel.setVisible(state.mode.race !== null);
+    if (state.mode.race) this.racePanel.update(state.mode.race, isTextFrame);
+    this.modeTag.update(state.mode.race === null, state.mode.label, state.mode.hint);
+    this.countdown.update(state.mode.countdown);
     this.gateMarker.update(state.nextGate.x, state.nextGate.y, state.nextGate.distM, isTextFrame);
     if (isTextFrame) {
       this.gateMarker.setCounter(state.gatesPassed, state.gateCount);
       this.height.update(state.heightM);
-      this.battery.update(state.charge01, state.timeLeftS);
+      this.battery.update(state.charge01, state.timeLeftS, state.mode.swapProgress01);
       this.speed.update(state.speedMps);
     }
     if (this.frameCount % HUD.minimapEveryNFrames === 0) this.minimap.update(state);

@@ -28,10 +28,10 @@ function createSkyDome(scale: number, sunDirection: Vector3): Sky {
     const uniform = uniforms[name];
     if (uniform) uniform.value = value;
   };
-  set('turbidity', 5.5);
-  set('rayleigh', 1.4);
-  set('mieCoefficient', 0.003);
-  set('mieDirectionalG', 0.85);
+  set('turbidity', RENDER.sky.turbidity);
+  set('rayleigh', RENDER.sky.rayleigh);
+  set('mieCoefficient', RENDER.sky.mieCoefficient);
+  set('mieDirectionalG', RENDER.sky.mieDirectionalG);
   uniforms['sunPosition']?.value.copy(sunDirection);
   return sky;
 }

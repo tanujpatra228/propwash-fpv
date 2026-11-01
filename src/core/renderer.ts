@@ -30,6 +30,7 @@ export class GameRenderer {
       LENS.bloom.radius,
       LENS.bloom.threshold,
     );
+    this.bloomPass.enabled = LENS.bloom.isEnabled;
     this.composer.addPass(this.renderPass);
     this.composer.addPass(this.bloomPass);
     this.composer.addPass(new OutputPass());

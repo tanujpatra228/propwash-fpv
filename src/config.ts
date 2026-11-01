@@ -116,8 +116,11 @@ export const CAMERA = {
 
 /** FPV lens pass (goggles only) and its distance-based video noise. */
 export const LENS = {
-  /** Threshold is in linear light above plain white, so only emissive LEDs and the sun's glare bloom, not ordinary bright surfaces. */
-  bloom: { strength: 0.3, radius: 0.4, threshold: 1.6 },
+  /**
+   * Off by default: measured in M5, bloom turned a view toward the sun into a white-out (average brightness 180 vs 93)
+   * and costs GPU time. The gate LEDs still read well from their emissive colour alone. High quality may turn it on later.
+   */
+  bloom: { isEnabled: false, strength: 0.3, radius: 0.4, threshold: 1.6 },
   goggles: { fisheye: 1, vignette: 0.85, grainAnalog: 0.05, grainClean: 0.012 },
   flat: { fisheye: 0, vignette: 0.35, grain: 0.012 },
   static: {
@@ -157,6 +160,8 @@ export const RENDER = {
   sunIntensity: 1.7,
   hemisphereIntensity: 0.4,
   environmentIntensity: 0.6,
+  /** Golden-hour haze. Lower turbidity and mie keep the sky clear when you face the sun. */
+  sky: { turbidity: 3.5, rayleigh: 1.4, mieCoefficient: 0.0015, mieDirectionalG: 0.85 },
   fogDensity: 0.0011,
   fogColor: 0xc8b8a4,
   sunElevationDeg: 15,

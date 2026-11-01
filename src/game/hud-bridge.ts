@@ -7,6 +7,7 @@ import { Hud } from '../ui/hud';
 import type { HudState } from '../ui/hud-state';
 import type { FlightMenuCallbacks, FlightMenuLabels } from '../ui/flight-menu';
 import type { Gate } from '../world/gates';
+import type { GameMode } from './modes/mode';
 import { groundY } from '../world/terrain';
 import { GroundMarker } from './ground-marker';
 import type { LapTracker } from './lap-tracker';
@@ -19,6 +20,7 @@ export interface HudFrame {
   battery: Battery;
   tracker: LapTracker;
   gates: readonly Gate[];
+  mode: GameMode;
   camera: Camera;
   isGoggles: boolean;
   flightTimeS: number;
@@ -47,6 +49,7 @@ export class HudBridge {
     gateCount: TRACK.gateCount,
     nextGate: { x: 0, y: 0, distM: 0 },
     map: { x: 0, z: 0, yawRad: 0 },
+    mode: { label: '', hint: '', race: null, countdown: '', swapProgress01: 0 },
   };
 
   constructor(scene: Scene, callbacks: FlightMenuCallbacks) {
@@ -96,6 +99,11 @@ export class HudBridge {
     s.map.x = position.x;
     s.map.z = position.z;
     s.map.yawRad = flight.yawRad;
+    s.mode.label = frame.mode.hud.modeLabel;
+    s.mode.hint = frame.mode.hud.hint;
+    s.mode.race = frame.mode.hud.race;
+    s.mode.countdown = frame.mode.hud.countdown;
+    s.mode.swapProgress01 = frame.mode.hud.swapProgress01;
     this.hud.update(s, frame.timeS);
   }
 }
