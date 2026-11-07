@@ -11,6 +11,7 @@ import {
   type RoomPhase,
   type RosterEntry,
   type ServerMessage,
+  type StandingEntry,
 } from './room-protocol';
 
 export interface RoomSnapshot {
@@ -293,7 +294,7 @@ export class Room {
     pilot.lastGateAtMs = nowMs;
     if (index === 0) this.crossStartLine(pilot, nowMs);
     if (pilot.gatesPassed >= this.laps * GATES_PER_LAP + 1) this.finishPilot(pilot, nowMs, step);
-    step.out.push({ to: EVERYONE, message: { t: 'standings', order: this.standings() } });
+    step.out.push({ to: EVERYONE, message: { t: 'standings', rows: this.standingRows() } });
     this.finishIfDone(step);
     return step;
   }
@@ -324,6 +325,13 @@ export class Room {
         return a.dNextM - b.dNextM;
       })
       .map((p) => p.id);
+  }
+
+  standingRows(): StandingEntry[] {
+    return this.standings().flatMap((id) => {
+      const p = this.pilots.get(id);
+      return p ? [{ id, gates: p.gatesPassed }] : [];
+    });
   }
 
   /** Time-driven changes: the countdown ending, the grace period after the first finish, the hard stop. */

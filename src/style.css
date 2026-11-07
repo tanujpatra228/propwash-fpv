@@ -880,6 +880,7 @@ kbd {
 .cd-sub {
   margin: 0;
   color: var(--muted);
+  white-space: pre-line;
 }
 
 .cd-buttons {
@@ -1021,3 +1022,36 @@ kbd {
 .lb-note {
   margin: 0;
 }
+
+/* ---------- live race standings */
+.standings-panel {
+  position: absolute;
+  left: 20px;
+  top: 178px;
+  width: 230px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.st-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.st-list li {
+  display: grid;
+  grid-template-columns: 34px 1fr auto;
+  gap: 8px;
+  align-items: baseline;
+  font: 15px/1.2 var(--osd);
+}
+
+.st-list li.me { color: var(--gate-hi); }
+.st-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st-list small { color: var(--muted); }

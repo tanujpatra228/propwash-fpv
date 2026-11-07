@@ -11,6 +11,7 @@ import { HelpBar } from './help-bar';
 import type { HudState } from './hud-state';
 import { Minimap } from './minimap';
 import { ModeTag } from './mode-tag';
+import { StandingsPanel } from './standings-panel';
 import { Osd } from './osd';
 import { RacePanel } from './race-panel';
 import { SpeedGauge } from './speed-gauge';
@@ -24,6 +25,7 @@ export class Hud {
   private readonly minimap = new Minimap(this.root);
   private readonly racePanel = new RacePanel(this.root);
   private readonly modeTag = new ModeTag(this.root);
+  private readonly standings = new StandingsPanel(this.root);
   private readonly lessonPanel = new LessonPanel(this.root);
   private readonly countdown = new Countdown(this.root);
   private readonly ghostTag = new GhostTag(this.root);
@@ -64,6 +66,7 @@ export class Hud {
     if (state.mode.race) this.racePanel.update(state.mode.race, isTextFrame);
     this.modeTag.update(state.mode.race === null && state.mode.lesson === null, state.mode.label, state.mode.hint);
     this.lessonPanel.update(state.mode.lesson);
+    this.standings.update(state.mode.standings);
     this.countdown.update(state.mode.countdown);
     this.ghostTag.update(state.ghost.isVisible, state.ghost.x, state.ghost.y);
     this.gateMarker.update(state.nextGate.x, state.nextGate.y, state.nextGate.distM, state.units, isTextFrame);

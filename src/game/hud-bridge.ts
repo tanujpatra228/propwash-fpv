@@ -60,7 +60,7 @@ export class HudBridge {
     nextGate: { x: 0, y: 0, distM: 0 },
     map: { x: 0, z: 0, yawRad: 0 },
     ghost: { isVisible: false, x: 0, y: 0 },
-    mode: { label: '', hint: '', race: null, countdown: '', swapProgress01: 0, lesson: null },
+    mode: { label: '', hint: '', race: null, countdown: '', swapProgress01: 0, lesson: null, standings: null },
   };
 
   constructor(scene: Scene, callbacks: FlightMenuCallbacks) {
@@ -125,6 +125,7 @@ export class HudBridge {
     s.mode.countdown = frame.mode.hud.countdown;
     s.mode.swapProgress01 = frame.mode.hud.swapProgress01;
     s.mode.lesson = frame.mode.hud.lesson;
+    s.mode.standings = frame.mode.hud.standings;
     this.hud.update(s, frame.timeS);
   }
 

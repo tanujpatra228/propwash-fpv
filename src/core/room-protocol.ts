@@ -34,6 +34,12 @@ export interface RosterEntry {
   isConnected: boolean;
 }
 
+/** One pilot in the race order: gates passed in order, counting the start line each time. */
+export interface StandingEntry {
+  id: string;
+  gates: number;
+}
+
 export interface ResultRow {
   id: string;
   name: string;
@@ -50,7 +56,7 @@ export type ServerMessage =
   | { t: 'go' }
   | { t: 'chat'; from: string; text: string }
   | ({ t: 'pose'; id: string } & PoseFields)
-  | { t: 'standings'; order: string[] }
+  | { t: 'standings'; rows: StandingEntry[] }
   | { t: 'finish'; id: string; place: number; timeS: number }
   | { t: 'results'; rows: ResultRow[] }
   | { t: 'error'; message: string };
