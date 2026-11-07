@@ -321,6 +321,43 @@ export const ONLINE = {
   requestTimeoutMs: 6000,
 } as const;
 
+/** Live race rooms. Every limit here also protects the Cloudflare free-plan budget (see docs/features/live-race-rooms.md). */
+export const ROOMS = {
+  /** No 0/O or 1/I/L, so a code read aloud or typed from a screenshot is not ambiguous. */
+  codeAlphabet: 'ABCDEFGHJKMNPQRSTUVWXYZ23456789',
+  codeLength: 5,
+  maxPilots: 8,
+  minPilotsToStart: 2,
+  defaultLaps: 3,
+  minLaps: 1,
+  maxLaps: 5,
+  countdownMs: 3000,
+  /** Pose updates during a race; also the Durable Object budget driver (incoming messages bill 20:1). */
+  poseHz: 10,
+  maxFrameBytes: 512,
+  maxMessagesPerSecond: 20,
+  /** A connection sending this many bad frames in a row is closed. */
+  badFramesBeforeClose: 10,
+  chatMaxChars: 120,
+  chatMinGapMs: 1000,
+  /** Gates are 40+ m apart at 28 m/s at most, so faster than this is a fake report. */
+  minGateGapMs: 1000,
+  graceAfterFirstFinishMs: 60_000,
+  raceHardStopMs: 900_000,
+  /** An empty or finished room is forgotten after this long. */
+  roomIdleExpiryMs: 3_600_000,
+  /** Remote drones are drawn this far in the past so 10 Hz updates look smooth. */
+  interpolationDelayMs: 100,
+  maxExtrapolationMs: 250,
+  /** A remote drone with no update for this long fades out. */
+  silentFadeMs: 5000,
+  /** Largest believable pose values: quantised units are 1 cm and 0.01 rad. */
+  poseLimitCm: 200_000,
+  poseAngleLimit: 700,
+  startSlotSpacingM: 4,
+  startRowSpacingM: 6,
+} as const;
+
 export const STORAGE_PREFIX = 'pw.';
 
 /** Stock-drone flight tuning. Units: metres, seconds, radians. */
