@@ -38,7 +38,7 @@ Each feature gets its own file in `docs/features/`, written from the template be
 | Pilot settings | [pilot-settings.md](docs/features/pilot-settings.md) | 2 | In progress |
 | Training mode | [training-mode.md](docs/features/training-mode.md) | 2 | In progress |
 | Online ghosts and leaderboard | [online-ghosts-and-leaderboard.md](docs/features/online-ghosts-and-leaderboard.md) | 4 | In progress |
-| Live race rooms | [live-race-rooms.md](docs/features/live-race-rooms.md) | 5 | Planned |
+| Live race rooms | [live-race-rooms.md](docs/features/live-race-rooms.md) | 5 | In progress |
 | Drone parts and upgrades | [drone-parts-and-upgrades.md](docs/features/drone-parts-and-upgrades.md) | 3 | Planned |
 | Battery Challenge | [battery-challenge.md](docs/features/battery-challenge.md) | 3 | Planned |
 

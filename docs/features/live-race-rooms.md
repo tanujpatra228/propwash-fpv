@@ -1,6 +1,6 @@
 # Feature: Live Race Rooms
 
-Status: Planned
+Status: In progress
 Phase: 5
 Branch: `feat/phase-5`
 Last updated: 2026-11-07
@@ -20,7 +20,7 @@ Up to 8 friends race the Valley Sprint together, live. One person creates a room
 
 ## Behavior and rules
 
-- **Room:** 5 characters from `ABCDEFGHJKLMNPQRSTUVWXYZ23456789` (no look-alikes). Max **8 pilots**. The creator is the **host**; if the host leaves, the longest-present pilot becomes host.
+- **Room:** 5 characters from `ABCDEFGHJKMNPQRSTUVWXYZ23456789` (no 0/O, 1/I/L look-alikes). Max **8 pilots**. The creator is the **host**; if the host leaves, the longest-present pilot becomes host.
 - **Phases:** `lobby` → `countdown` (3 s) → `racing` → `results` → back to `lobby` on rematch.
 - **Start rules:** host only; 2 to 8 pilots connected; every non-host pilot ready. Joining during `countdown` or `racing` is refused ("Race in progress").
 - **Same valley:** a room has a `worldVersion`; a client on a different version is refused with a clear message.
@@ -34,7 +34,7 @@ Up to 8 friends race the Valley Sprint together, live. One person creates a room
 
 ## Protocol (WebSocket, JSON text frames)
 
-Connect to `GET /api/rooms/:code/ws?name=<name>&pid=<pilotId>&world=<worldVersion>` (upgrade). `POST /api/rooms` returns `{ code }` for a fresh unused code.
+Connect to `GET /api/rooms/:code/ws?name=<name>&world=<worldVersion>` (upgrade). The pilot's saved leaderboard id is never sent: inside a room each connection gets a random short id. `POST /api/rooms` returns `{ code }` for a fresh unused code.
 
 | From | Message | Purpose |
 |---|---|---|
@@ -42,14 +42,16 @@ Connect to `GET /api/rooms/:code/ws?name=<name>&pid=<pilotId>&world=<worldVersio
 | client | `{ t: 'laps', laps }` | Host sets the lap count (lobby) |
 | client | `{ t: 'start' }` | Host starts the race (lobby) |
 | client | `{ t: 'chat', text }` | Chat message |
-| client | `{ t: 'pose', n, x, y, z, yaw, pitch, roll, gate, lap, dNext }` | Position at 10 Hz during the race. `n` is a counter; angles in 0.01 rad, positions in 0.01 m (integers). |
+| client | `{ t: 'pose', x, y, z, yaw, pitch, roll, dNextM }` | Position at 10 Hz during countdown and race. Positions in cm, angles in 0.01 rad (integers); `dNextM` is the distance to the next gate, a tie-break for standings. |
 | client | `{ t: 'gate', index }` | The drone passed this gate (in order) |
 | client | `{ t: 'rematch' }` | Host returns everyone to the lobby from results |
-| server | `{ t: 'welcome', you, room }` | Your id and the full room state |
-| server | `{ t: 'room', ... }` | Roster, phase, laps, host; sent on every change |
+| server | `{ t: 'welcome', you, code }` | Your id in this room |
+| server | `{ t: 'room', phase, hostId, laps, pilots }` | Roster and phase, sent on every change |
 | server | `{ t: 'chat', from, text }` | Chat relay |
 | server | `{ t: 'countdown', startsInMs }` | Race is starting; clients start their own 3 s countdown from this |
-| server | `{ t: 'poses', serverMs, list }` | Everyone's latest pose, 10 Hz, only while racing |
+| server | `{ t: 'pose', id, ... }` | One pilot's pose, relayed at once to everyone else (outgoing messages are free, so there is no batching timer or alarm) |
+| server | `{ t: 'standings', order }` | Pilot ids in race order, sent on every verified gate |
+| server | `{ t: 'go' }` | The countdown ended |
 | server | `{ t: 'finish', id, place, timeS }` | Someone finished |
 | server | `{ t: 'results', rows }` | Final order and times |
 | server | `{ t: 'error', message }` | Human-readable refusal |

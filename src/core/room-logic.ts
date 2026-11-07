@@ -13,6 +13,18 @@ import {
   type ServerMessage,
 } from './room-protocol';
 
+export interface RoomSnapshot {
+  code: string;
+  worldVersion: number;
+  phase: RoomPhase;
+  hostId: string;
+  laps: number;
+  raceStartMs: number;
+  firstFinishMs: number;
+  finishedCount: number;
+  pilots: Pilot[];
+}
+
 export const EVERYONE = '*';
 
 export interface Outgoing {
@@ -29,7 +41,7 @@ export interface Step {
   close: string[];
 }
 
-interface Pilot {
+export interface Pilot {
   id: string;
   name: string;
   isReady: boolean;
@@ -67,6 +79,27 @@ export class Room {
 
   constructor(code: string, private readonly worldVersion: number) {
     this.code = code;
+  }
+
+  /** Everything needed to rebuild the room after the server's memory was dropped (hibernation). */
+  snapshot(): RoomSnapshot {
+    return {
+      code: this.code, worldVersion: this.worldVersion, phase: this.phase, hostId: this.hostId, laps: this.laps,
+      raceStartMs: this.raceStartMs, firstFinishMs: this.firstFinishMs, finishedCount: this.finishedCount,
+      pilots: [...this.pilots.values()],
+    };
+  }
+
+  static restore(snapshot: RoomSnapshot): Room {
+    const room = new Room(snapshot.code, snapshot.worldVersion);
+    room.phase = snapshot.phase;
+    room.hostId = snapshot.hostId;
+    room.laps = snapshot.laps;
+    room.raceStartMs = snapshot.raceStartMs;
+    room.firstFinishMs = snapshot.firstFinishMs;
+    room.finishedCount = snapshot.finishedCount;
+    for (const p of snapshot.pilots) room.pilots.set(p.id, { ...p });
+    return room;
   }
 
   getPhase(): RoomPhase {

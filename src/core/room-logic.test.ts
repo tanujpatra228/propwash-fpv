@@ -221,3 +221,14 @@ describe('abuse', () => {
     expect(lobby(['aa']).receive('ghost', '{"t":"start"}', 1).out).toEqual([]);
   });
 });
+
+describe('snapshot', () => {
+  it('survives a round trip through JSON mid-race', () => {
+    const { room, t0 } = raceOf(['host', 'guest']);
+    send(room, 'host', { t: 'gate', index: 0 }, t0 + 2000);
+    const copy = Room.restore(JSON.parse(JSON.stringify(room.snapshot())));
+    expect(copy.getPhase()).toBe('racing');
+    expect(copy.standings()).toEqual(room.standings());
+    expect(kinds(send(copy, 'host', { t: 'gate', index: 1 }, t0 + 4000))).toContain('standings');
+  });
+});
