@@ -150,6 +150,7 @@ export class LobbyScreen {
   }
 
   showRoom(view: LobbyView): void {
+    if (this.message.textContent === 'Connecting…') this.setMessage('');
     this.entry.hidden = true;
     this.room.hidden = false;
     this.root.hidden = false;
