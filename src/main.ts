@@ -11,7 +11,9 @@ async function boot(): Promise<void> {
   const game = new Game(mustGet<HTMLCanvasElement>('world'));
   game.start();
   const ghostId = new URLSearchParams(window.location.search).get('ghost');
+  const roomCode = new URLSearchParams(window.location.search).get('room');
   if (ghostId) game.startFromLink(ghostId);
+  else if (roomCode) game.startFromRoomLink(roomCode);
   if (import.meta.env.DEV) (window as unknown as { __game: Game['debug'] }).__game = game.debug;
 }
 

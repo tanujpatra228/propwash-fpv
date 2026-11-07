@@ -1055,3 +1055,55 @@ kbd {
 .st-list li.me { color: var(--gate-hi); }
 .st-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .st-list small { color: var(--muted); }
+
+/* ---------- live race lobby */
+.lobby-panel {
+  width: min(420px, calc(100vw - 32px));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.lobby-entry, .lobby-room { display: flex; flex-direction: column; gap: 12px; }
+.lobby-entry[hidden], .lobby-room[hidden] { display: none; }
+.lobby-join { display: flex; gap: 8px; }
+.lobby-join .name-input { flex: 1; text-transform: uppercase; letter-spacing: 0.2em; }
+.lobby-message:empty { display: none; }
+
+.lobby-code {
+  font: italic 800 48px/1 var(--display);
+  letter-spacing: 0.18em;
+}
+
+.lobby-pilots {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lobby-pilots li {
+  display: grid;
+  grid-template-columns: 14px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  font: 16px/1.2 var(--body);
+}
+
+.lobby-pilots li.me { color: var(--gate-hi); }
+.lobby-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+.lobby-laps { display: flex; align-items: center; gap: 12px; }
+.laps-seg { display: flex; gap: 4px; }
+.laps-seg button.on { background: var(--gate); color: #111; }
+
+.lobby-chat {
+  max-height: 110px;
+  overflow-y: auto;
+  font: 14px/1.35 var(--body);
+  color: var(--muted);
+}
+
+.lobby-chat p { margin: 0; overflow-wrap: anywhere; }
+.lobby-chat b { color: var(--fg); }

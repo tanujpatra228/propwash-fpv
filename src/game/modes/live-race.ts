@@ -10,6 +10,8 @@ import type { GameMode, ModeFrame, ModeHost, ModeHud, RaceHud } from './mode';
 /** What the live race needs from the room connection. The real one is the room client; tests use a fake. */
 export interface LiveSession {
   readonly myId: string;
+  /** Starting-grid slot, 0 to 7. */
+  readonly mySlot: number;
   readonly isHost: boolean;
   readonly totalLaps: number;
   readonly roster: readonly RosterEntry[];
@@ -45,7 +47,6 @@ export class LiveRace implements GameMode {
   constructor(
     private readonly host: ModeHost,
     private readonly session: LiveSession,
-    private readonly slot: number,
   ) {}
 
   get isInputLocked(): boolean {
@@ -75,7 +76,7 @@ export class LiveRace implements GameMode {
 
   private startPose(): Pose {
     const gate = this.host.gates[0];
-    return gate ? gridPose(gate, this.slot, { position: new Vector3(), yawRad: 0 }) : this.host.padPose;
+    return gate ? gridPose(gate, this.session.mySlot, { position: new Vector3(), yawRad: 0 }) : this.host.padPose;
   }
 
   /** The server restarted the countdown clock (for example a late `countdown` message). */
