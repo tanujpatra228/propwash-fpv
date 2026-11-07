@@ -354,8 +354,15 @@ export const ROOMS = {
   /** Largest believable pose values: quantised units are 1 cm and 0.01 rad. */
   poseLimitCm: 200_000,
   poseAngleLimit: 700,
-  startSlotSpacingM: 4,
-  startRowSpacingM: 6,
+  /** Grid: two columns, rows behind the start gate. Gate opening is 4.2 m wide, so columns stay inside it. */
+  gridColumnOffsetM: 1.2,
+  gridFirstRowBehindM: 4,
+  gridRowSpacingM: 3.5,
+  /** One colour per grid slot, so pilots can be told apart. */
+  droneColors: [0xff7a1a, 0x2ec4ff, 0x7dff5a, 0xff4fa3, 0xffe14a, 0xb07cff, 0x4affd8, 0xff5a4a],
+  pingIntervalMs: 5000,
+  connectTimeoutMs: 8000,
+  nameTagHeightM: 0.9,
 } as const;
 
 export const STORAGE_PREFIX = 'pw.';
