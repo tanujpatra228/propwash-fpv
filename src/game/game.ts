@@ -41,7 +41,9 @@ import { createDebugApi, type DebugApi } from './debug-api';
 import { HudBridge } from './hud-bridge';
 import { LapTracker } from './lap-tracker';
 import { MenuDirector } from './menu-director';
+import { LiveController } from './live-controller';
 import { FreeFlight } from './modes/free-flight';
+import { LiveRace } from './modes/live-race';
 import type { GameMode, ModeHost, ModeId, NextStep } from './modes/mode';
 import { TrainingMode } from './modes/training';
 import { TimeTrial } from './modes/time-trial';
@@ -85,6 +87,7 @@ export class Game {
   private readonly presenter: Presenter;
   private readonly trial: TimeTrial;
   private readonly online: OnlineUi;
+  private readonly live: LiveController;
   private readonly modes: Record<ModeId, GameMode>;
   private mode: GameMode;
   private phase: 'menu' | 'playing' = 'menu';
@@ -127,7 +130,18 @@ export class Game {
       reportBestLap: (lap) => this.online.reportBestLap(lap),
     };
     this.trial = new TimeTrial(host);
+    this.live = new LiveController({
+      scene: this.scene,
+      pauseInput: () => void (this.input.enabled = false),
+      resumeInput: () => void (this.input.enabled = this.phase === 'playing' && !this.nextSteps.isOpen),
+      startRace: () => this.startMode('live'),
+      returnToLobby: () => this.returnToMenu(true),
+      notify: (title, subtitle) => this.banner.show(title, subtitle, 'info', 3),
+    });
+    const liveRace = new LiveRace(host, this.live);
+    this.live.attachMode(liveRace);
     this.modes = {
+      live: liveRace,
       free: new FreeFlight(host, () => this.isFreeDrainOn),
       trial: this.trial,
       training: new TrainingMode(host, { load: loadCompletedLessons, save: saveCompletedLessons }),
@@ -175,6 +189,7 @@ export class Game {
         onTimeTrial: () => this.startTimeTrial(),
         onLeaderboard: () => void this.online.openLeaderboard(),
         onTraining: () => this.startMode('training'),
+        onRaceFriends: () => void this.live.open(),
         onControls: () => this.openControls(),
         onQualityChange: (id) => this.applyQuality(id),
         onPilotChange: (next) => {
@@ -227,10 +242,12 @@ export class Game {
 
   // ---- phases ----
 
-  private returnToMenu(): void {
+  /** Back to the menu scene. Leaves the live-race room too, unless `keepRoom` (returning to its lobby). */
+  private returnToMenu(keepRoom = false): void {
     this.nextSteps.hide();
     this.phase = 'menu';
     this.input.enabled = false; // also releases the mouse
+    if (!keepRoom) this.live.leave();
     this.crashTimerS = 0;
     this.banner.hide();
     this.hud.setVisible(false);
@@ -260,6 +277,11 @@ export class Game {
   /** For `?ghost=<id>` links: start racing that ghost, or stay on the menu if it is gone. */
   startFromLink(id: string): void {
     void this.online.raceFromLink(id);
+  }
+
+  /** For `?room=<code>` links: join that live race room. */
+  startFromRoomLink(code: string): void {
+    void this.live.open(code);
   }
 
   private startMode(id: ModeId): void {
@@ -400,6 +422,7 @@ export class Game {
       if (crash) this.startCrash(crash);
     }
     this.mode.update(dtS, { isLanded: this.isLanded() });
+    if (this.mode.id === 'live') this.live.update(performance.now(), dtS);
     if (this.crashTimerS <= 0 && !this.mode.isInputLocked) this.flightTimeS += dtS;
 
     this.presenter.present({

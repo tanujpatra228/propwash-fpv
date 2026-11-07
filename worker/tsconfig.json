@@ -12,5 +12,5 @@
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true
   },
-  "include": ["src", "../src/config.ts", "../src/core/pilot-name.ts", "../src/core/ghost-codec.ts", "../src/core/lap-validation.ts"]
+  "include": ["src", "../src/config.ts", "../src/core/pilot-name.ts", "../src/core/ghost-codec.ts", "../src/core/lap-validation.ts", "../src/core/room-logic.ts", "../src/core/room-protocol.ts"]
 }

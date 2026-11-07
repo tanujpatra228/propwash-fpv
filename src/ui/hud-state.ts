@@ -1,3 +1,4 @@
+import type { StandingRow } from './standings-panel';
 import type { LessonPanelState } from './lesson-panel';
 import type { RacePanelState } from './race-panel';
 
@@ -39,5 +40,7 @@ export interface HudState {
     countdown: string;
     swapProgress01: number;
     lesson: LessonPanelState | null;
+    /** Live race order, or null outside a live race. */
+    standings: readonly StandingRow[] | null;
   };
 }

@@ -9,6 +9,7 @@ export interface MenuCallbacks {
   onFreeFlight(): void;
   onTimeTrial(): void;
   onTraining(): void;
+  onRaceFriends(): void;
   onLeaderboard(): void;
   onControls(): void;
   onQualityChange(quality: QualityId): void;
@@ -48,6 +49,7 @@ export class MainMenu {
       item('Free flight', 'Explore the valley at your own pace', callbacks.onFreeFlight, true),
       item('Time trial', this.trialSubtitle, callbacks.onTimeTrial),
       item('Training', this.trainingSubtitle, callbacks.onTraining),
+      item('Race friends', 'Live race with up to 7 others', callbacks.onRaceFriends),
       item('Leaderboard', 'Fastest laps. Race a friend\'s ghost', callbacks.onLeaderboard),
       item('Controls', 'Change keys and mouse speed', callbacks.onControls),
       item('Settings', 'Graphics quality, battery', () => this.openSettings()),

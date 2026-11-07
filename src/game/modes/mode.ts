@@ -5,9 +5,10 @@ import type { Gate } from '../../world/gates';
 import type { LapTracker } from '../lap-tracker';
 import type { GhostData } from '../../core/ghost-codec';
 import type { LessonPanelState } from '../../ui/lesson-panel';
+import type { StandingRow } from '../../ui/standings-panel';
 import type { Pose } from '../respawn';
 
-export type ModeId = 'free' | 'trial' | 'training';
+export type ModeId = 'free' | 'trial' | 'training' | 'live';
 
 /** What a dialog button does. The game carries these out. */
 export type NextStep = 'menu' | 'trial' | 'restart' | 'stay';
@@ -59,6 +60,8 @@ export interface ModeHud {
   swapProgress01: number;
   /** The training checklist, or null outside training. */
   lesson: LessonPanelState | null;
+  /** Live race order, or null outside a live race. */
+  standings: readonly StandingRow[] | null;
   /** Name shown above the ghost: "Best lap", or the pilot being raced. */
   ghostLabel: string;
 }

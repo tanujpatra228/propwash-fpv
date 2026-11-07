@@ -17,7 +17,7 @@ export class TimeTrial implements GameMode {
   readonly id = 'trial' as const;
   readonly drainsBattery = true;
   readonly race: RaceHud = { lap: 1, lapTimeS: 0, lastLapS: null, bestLapS: null, splitDeltaS: null };
-  readonly hud: ModeHud = { modeLabel: 'Time trial', hint: HINT_RUNNING, race: this.race, countdown: '', swapProgress01: 0, lesson: null, ghostLabel: 'Best lap' };
+  readonly hud: ModeHud = { modeLabel: 'Time trial', hint: HINT_RUNNING, race: this.race, countdown: '', swapProgress01: 0, lesson: null, standings: null, ghostLabel: 'Best lap' };
 
   /** Race another pilot's ghost on the next `start` (null to race your own best lap). */
   setOpponent(opponent: RemoteGhost | null): void {
