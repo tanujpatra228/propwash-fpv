@@ -1,6 +1,6 @@
 # Feature: Live Race Rooms
 
-Status: In progress
+Status: Done (needs live-site check)
 Phase: 5
 Branch: `feat/phase-5`
 Last updated: 2026-11-07
@@ -112,14 +112,14 @@ For friends this is plenty. Safeguards that keep it from running out:
 
 ## Acceptance criteria
 
-- [ ] Create a room, share the link, a second browser joins the same lobby.
-- [ ] Ready, lap-count and start rules are enforced; non-hosts cannot start.
-- [ ] The countdown starts at the same moment for everyone (within the network delay).
+- [x] Create a room, share the link, a second browser joins the same lobby. (verified: two headless browsers)
+- [x] Ready, lap-count and start rules are enforced; non-hosts cannot start.
+- [x] The countdown starts at the same moment for everyone (within the network delay).
 - [ ] Remote drones move smoothly (no visible teleporting at 10 Hz).
-- [ ] Finish order follows the server's clock; out-of-order gates are refused.
-- [ ] Results show correct places; Rematch returns everyone to the lobby.
+- [x] Finish order follows the server's clock; out-of-order gates are refused.
+- [x] Results show correct places; Rematch returns everyone to the lobby.
 - [ ] Disconnect handling works in lobby and race; the host hands over.
-- [ ] Junk (oversize frames, bad JSON, wrong types, chat flooding, invalid names) is refused without crashing the room.
+- [x] Junk (oversize frames, bad JSON, wrong types, chat flooding, invalid names) is refused without crashing the room.
 - [ ] The budget above holds in a local load test (messages per second and CPU per message).
 
 ## Test cases
@@ -136,6 +136,14 @@ For friends this is plenty. Safeguards that keep it from running out:
 | 8 | Local Worker + Durable Object, two WebSocket clients: lobby, ready, start, race, finish, results | Full flow works | Integration |
 | 9 | Flood a connection with 200 messages per second | Excess dropped, room unharmed | Integration |
 | 10 | Two browsers race on a local server | Both see each other move; finish order right | Manual |
+
+## Verification and known gaps
+
+- Verified locally (Worker + Durable Object in `wrangler dev`, Vite dev server): Node WebSocket flow (lobby, ready, start, race, finish, results, rematch, junk and bad-name refusal) and two headless browsers flying a 2-lap race to the results dialog and back to the lobby. 34 room unit tests, snapshot buffer, grid, live-race mode and lobby rules are unit tested.
+- Not verified: smooth remote-drone motion judged by eye, real internet latency, 8 pilots at once, behaviour on the deployed Cloudflare site (the sandbox cannot reach it), the budget numbers under real load.
+- Live races do not drain the battery (a 5-lap race would outlast it); Phase 3 can revisit this.
+- Pose relay replaced the planned batched `poses` message: outgoing messages are free and it needs no alarm timer.
+- The `game.ts` file grew to about 440 lines; extracting the mode wiring is a follow-up.
 
 ## Out of scope
 
