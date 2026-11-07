@@ -291,17 +291,20 @@ export class Room {
     if (nowMs - pilot.lastGateAtMs < ROOMS.minGateGapMs) return step;
     pilot.gatesPassed++;
     pilot.lastGateAtMs = nowMs;
-    if (pilot.gatesPassed % GATES_PER_LAP === 0) this.completeLap(pilot, nowMs);
-    if (pilot.gatesPassed >= this.laps * GATES_PER_LAP) this.finishPilot(pilot, nowMs, step);
+    if (index === 0) this.crossStartLine(pilot, nowMs);
+    if (pilot.gatesPassed >= this.laps * GATES_PER_LAP + 1) this.finishPilot(pilot, nowMs, step);
     step.out.push({ to: EVERYONE, message: { t: 'standings', order: this.standings() } });
     this.finishIfDone(step);
     return step;
   }
 
-  private completeLap(pilot: Pilot, nowMs: number): void {
-    const lapS = (nowMs - pilot.lapStartedAtMs) / 1000;
+  /** Gate 0 is the start/finish line: the first crossing starts lap 1, each later one completes a lap. */
+  private crossStartLine(pilot: Pilot, nowMs: number): void {
+    if (pilot.gatesPassed > 1) {
+      const lapS = (nowMs - pilot.lapStartedAtMs) / 1000;
+      if (pilot.bestLapS === 0 || lapS < pilot.bestLapS) pilot.bestLapS = lapS;
+    }
     pilot.lapStartedAtMs = nowMs;
-    if (pilot.bestLapS === 0 || lapS < pilot.bestLapS) pilot.bestLapS = lapS;
   }
 
   private finishPilot(pilot: Pilot, nowMs: number, step: Step): void {

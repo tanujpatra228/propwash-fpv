@@ -21,10 +21,10 @@ function raceOf(names: string[], laps = 1): { room: Room; t0: number } {
   return { room, t0: 1000 + ROOMS.countdownMs };
 }
 
-/** Flies a pilot through all gates, 2 s apart, starting one gap after `from`. Returns the time of the last gate. */
+/** Flies a pilot through the start line, every gate and back over the line for each lap, 2 s apart. Returns the last gate's time. */
 function fly(room: Room, id: string, from: number, laps = 1): number {
   let t = from;
-  for (let i = 0; i < laps * GATES; i++) {
+  for (let i = 0; i < laps * GATES + 1; i++) {
     t += 2000;
     send(room, id, { t: 'gate', index: i % GATES }, t);
   }
@@ -124,7 +124,7 @@ describe('racing', () => {
     fly(room, 'guest', t0, 2);
     const step: Step = { out: [], close: [] };
     let t = t0 + 300;
-    for (let i = 0; i < 2 * GATES; i++) {
+    for (let i = 0; i < 2 * GATES + 1; i++) {
       t += 2500;
       step.out.push(...send(room, 'host', { t: 'gate', index: i % GATES }, t).out);
     }

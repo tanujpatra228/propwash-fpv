@@ -25,7 +25,7 @@ Up to 8 friends race the Valley Sprint together, live. One person creates a room
 - **Start rules:** host only; 2 to 8 pilots connected; every non-host pilot ready. Joining during `countdown` or `racing` is refused ("Race in progress").
 - **Same valley:** a room has a `worldVersion`; a client on a different version is refused with a clear message.
 - **Starting grid:** 8 slots in two rows behind the start gate, slot = join order. Drones hover during the countdown; input is locked until GO (as in time trial).
-- **Laps and gates:** each pilot's game runs its own physics and `LapTracker` and reports each gate crossing. The server checks gates arrive **in order** and not faster than 1 s apart, and decides the **finish order by the server's clock** when it receives the last gate of the last lap. Pilots cannot claim a finish they did not reach in order.
+- **Laps and gates:** each pilot's game runs its own physics and `LapTracker` and reports each gate crossing. The server checks gates arrive **in order** and not faster than 1 s apart, and decides the **finish order by the server's clock** when it receives the final crossing of the start/finish line (gate 0 starts lap 1 and ends each lap, as in time trial). Pilots cannot claim a finish they did not reach in order.
 - **Crashes** respawn at the last gate as usual; the race clock keeps running.
 - **Disconnects:** during a race a dropped pilot's drone fades out after 5 s and they count as DNF (did not finish). In the lobby they just leave the list. A pilot who refreshes can rejoin the lobby, not a running race.
 - **Chat:** plain text, up to 120 characters, one message per second per pilot, control and invisible characters removed. Shown with `textContent`, never HTML.
