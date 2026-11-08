@@ -10,6 +10,7 @@ export interface MenuCallbacks {
   onTimeTrial(): void;
   onTraining(): void;
   onRaceFriends(): void;
+  onHangar(): void;
   onLeaderboard(): void;
   onControls(): void;
   onQualityChange(quality: QualityId): void;
@@ -28,6 +29,7 @@ export class MainMenu {
   private readonly root: HTMLElement;
   private readonly settings: HTMLElement;
   private readonly trialSubtitle = el('small', { text: 'Set your first lap time' });
+  private readonly hangarSubtitle = el('small', { text: 'Propellers and batteries' });
   private readonly trainingSubtitle = el('small', { text: 'Learn to fly in six short lessons' });
   private readonly fps = el('span', { class: 'fps', text: 'Measuring frame rate…' });
   private readonly qualityButtons = new Map<QualityId, HTMLButtonElement>();
@@ -49,6 +51,7 @@ export class MainMenu {
       item('Free flight', 'Explore the valley at your own pace', callbacks.onFreeFlight, true),
       item('Time trial', this.trialSubtitle, callbacks.onTimeTrial),
       item('Training', this.trainingSubtitle, callbacks.onTraining),
+      item('Hangar', this.hangarSubtitle, callbacks.onHangar),
       item('Race friends', 'Live race with up to 7 others', callbacks.onRaceFriends),
       item('Leaderboard', 'Fastest laps. Race a friend\'s ghost', callbacks.onLeaderboard),
       item('Controls', 'Change keys and mouse speed', callbacks.onControls),
@@ -197,6 +200,10 @@ export class MainMenu {
   }
 
   /** The training button subtitle: where the pilot is in the six lessons. */
+  setHangarText(text: string): void {
+    this.hangarSubtitle.textContent = text;
+  }
+
   setTrainingText(text: string): void {
     this.trainingSubtitle.textContent = text;
   }

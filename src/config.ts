@@ -388,6 +388,8 @@ export const PARTS = {
   upgrade: { propDrainCutPerLevel: 0.05, propWobbleCutPerLevel: 0.2, batteryCapacityGainPerLevel: 0.1 },
   upgradePrice: { 2: 150, 3: 400 },
   credits: { perLap: 10, personalBest: 50, perChallengeStar: 100 },
+  /** Steady effort (0 to 1) used to compare flight times in the Hangar: about racing pace. */
+  racingEffort01: 0.6,
   stockProp: 'allround',
   stockBattery: 'standard',
 } as const;

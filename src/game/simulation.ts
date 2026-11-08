@@ -1,5 +1,5 @@
 import { Vector3 } from 'three';
-import { STOCK_STATS } from '../drone/drone-stats';
+import type { DroneStats } from '../drone/drone-stats';
 import type { Battery } from '../drone/battery';
 import { NO_INPUT, type FlightInput, type FlightModel } from '../drone/flight-model';
 import { clampToWorld } from '../physics/bounds';
@@ -21,6 +21,8 @@ export class Simulation {
     private readonly colliders: ColliderWorld,
     private readonly gates: readonly Gate[],
     private readonly tracker: LapTracker,
+    /** The stats in force right now (they depend on the mode and the equipped parts). */
+    private readonly stats: () => DroneStats,
   ) {}
 
   /**
@@ -35,7 +37,7 @@ export class Simulation {
       previousPosition.copy(this.flight.position);
       Object.assign(stepInput, input);
       stepInput.mouseYawRad = input.mouseYawRad / steps;
-      effortSum += this.flight.step(stepInput, STOCK_STATS, this.battery.powerFactor, subDtS);
+      effortSum += this.flight.step(stepInput, this.stats(), this.battery.powerFactor, subDtS);
 
       clampToWorld(this.flight);
       const result = resolveDrone(this.flight, this.colliders, surfaceAt, subDtS);

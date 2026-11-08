@@ -20,6 +20,7 @@ export class FreeFlight implements GameMode {
     private readonly isDrainOn: () => boolean,
   ) {}
 
+  readonly usesSetup = true;
   get drainsBattery(): boolean {
     return this.isDrainOn();
   }

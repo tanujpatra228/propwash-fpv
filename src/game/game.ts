@@ -7,7 +7,8 @@ import { clamp } from '../core/math';
 import { GameRenderer } from '../core/renderer';
 import { Battery } from '../drone/battery';
 import { createDroneModel } from '../drone/drone-model';
-import { STOCK_STATS } from '../drone/drone-stats';
+import { STOCK_STATS, type DroneStats } from '../drone/drone-stats';
+import { buildStats } from '../drone/parts';
 import { FlightModel, NO_INPUT, type FlightInput } from '../drone/flight-model';
 import { Input } from '../input/input';
 import {
@@ -52,6 +53,9 @@ import { Tuning } from './tuning';
 import { OnlineUi } from './online-ui';
 import { loadPilotSettings, savePilotSettings, type PilotSettings } from '../core/pilot-settings';
 import { loadFreeBatteryDrain, loadQuality, saveFreeBatteryDrain, saveQuality } from './settings';
+import { Hangar } from '../ui/hangar';
+import { setupName } from '../drone/parts';
+import { loadProgress } from './progress';
 import { loadBestLap } from './trial-storage';
 import { loadCompletedLessons, saveCompletedLessons, trainingMenuText } from './training-progress';
 
@@ -73,6 +77,9 @@ export class Game {
   private readonly tracker = new LapTracker(TRACK.gateCount);
   private readonly flight = new FlightModel();
   private readonly battery = new Battery(STOCK_STATS);
+  private readonly progress = loadProgress().progress;
+  /** The stats in force: the equipped parts in modes that use them, the stock drone otherwise. */
+  private stats: DroneStats = STOCK_STATS;
   private readonly drone = createDroneModel({ color: 0xff7a1a });
   private readonly ghostDrone = createDroneModel({ color: GHOST.color, ghost: true });
   private readonly director: MenuDirector;
@@ -88,6 +95,7 @@ export class Game {
   private readonly trial: TimeTrial;
   private readonly online: OnlineUi;
   private readonly live: LiveController;
+  private readonly hangar: Hangar;
   private readonly modes: Record<ModeId, GameMode>;
   private mode: GameMode;
   private phase: 'menu' | 'playing' = 'menu';
@@ -127,6 +135,7 @@ export class Game {
       flashBanner: (title, subtitle, kind, seconds) => this.banner.show(title, subtitle, kind, seconds),
       hideBanner: () => this.banner.hide(),
       offerNextSteps: (title, subtitle, choices) => this.offerNextSteps(title, subtitle, choices),
+      earn: (reason, times) => this.progress.earn(reason, times),
       reportBestLap: (lap) => this.online.reportBestLap(lap),
     };
     this.trial = new TimeTrial(host);
@@ -154,6 +163,7 @@ export class Game {
       raceGhost: (ghost) => this.raceGhost(ghost),
     });
 
+    this.hangar = new Hangar(this.progress, () => this.refreshMenuText());
     this.bindings = loadBindings();
     const sensitivity = loadMouseSensitivity();
     this.input = new Input(canvas, this.bindings);
@@ -190,6 +200,7 @@ export class Game {
         onLeaderboard: () => void this.online.openLeaderboard(),
         onTraining: () => this.startMode('training'),
         onRaceFriends: () => void this.live.open(),
+        onHangar: () => this.hangar.open(),
         onControls: () => this.openControls(),
         onQualityChange: (id) => this.applyQuality(id),
         onPilotChange: (next) => {
@@ -205,7 +216,7 @@ export class Game {
       { quality, isFreeDrainOn: this.isFreeDrainOn, pilot: this.pilot },
     );
     this.tuning.applyPilot(this.pilot);
-    this.simulation = new Simulation(this.flight, this.battery, this.colliders, this.gates, this.tracker);
+    this.simulation = new Simulation(this.flight, this.battery, this.colliders, this.gates, this.tracker, () => this.stats);
     this.presenter = new Presenter({
       renderer: this.renderer,
       rig: this.rig,
@@ -257,7 +268,7 @@ export class Game {
     this.rig.enterBroadcast();
     const best = loadBestLap();
     this.menu.setBestLapText(best ? formatLapTime(best.lapTimeS) : null);
-    this.menu.setTrainingText(trainingMenuText(loadCompletedLessons()));
+    this.refreshMenuText();
     this.menu.setVisible(true);
     this.online.flush();
   }
@@ -291,6 +302,8 @@ export class Game {
     this.rig.leaveBroadcast();
     this.hud.setVisible(true);
     this.mode = this.modes[id];
+    this.stats = this.mode.usesSetup ? buildStats(this.progress.setup) : STOCK_STATS;
+    this.battery.configure(this.stats);
     this.crashTimerS = 0;
     this.flightTimeS = 0;
     this.mode.start();
@@ -309,6 +322,11 @@ export class Game {
         this.input.enabled = true;
       } else this.input.enabled = true;
     });
+  }
+
+  private refreshMenuText(): void {
+    this.menu.setHangarText(`${setupName(this.progress.setup)} · ${this.progress.credits} credits`);
+    this.menu.setTrainingText(trainingMenuText(loadCompletedLessons()));
   }
 
   private openControls(): void {
