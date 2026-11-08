@@ -1,4 +1,4 @@
-import { GHOST, ONLINE, TRACK, WORLD } from '../config';
+import { GHOST, isTrackId, ONLINE, TRACK, TRACK_DEFS, type TrackId } from '../config';
 import { decodeGhost, GHOST_CHANNELS, type GhostData } from './ghost-codec';
 import { checkPilotName } from './pilot-name';
 
@@ -6,6 +6,8 @@ import { checkPilotName } from './pilot-name';
 export interface LapSubmission {
   pilotId: string;
   name: string;
+  /** The track the lap was flown on. Old clients omit it, which means the valley. */
+  track: TrackId;
   worldVersion: number;
   lapTimeS: number;
   splitsS: number[];
@@ -25,9 +27,13 @@ const isNumber = (v: unknown): v is number => typeof v === 'number' && Number.is
  * Cheap on purpose (the free plan allows about 10 ms of CPU per request): no 3D maths, one pass over the ghost.
  * Pure, so the game, the server and the tests all use the same rules.
  */
-export function validateLapSubmission(body: unknown, currentWorldVersion: number = WORLD.version): LapCheck {
+export function validateLapSubmission(body: unknown): LapCheck {
   if (typeof body !== 'object' || body === null) return fail('Bad request.');
   const b = body as Record<string, unknown>;
+  const trackValue = b['track'] ?? 'valley';
+  if (!isTrackId(trackValue)) return fail('Unknown track.');
+  const track = TRACK_DEFS[trackValue];
+  const currentWorldVersion: number = track.worldVersion;
 
   const pilotId = b['pilotId'];
   if (typeof pilotId !== 'string' || pilotId.length < ONLINE.pilotIdMinLength || pilotId.length > ONLINE.pilotIdMaxLength || !PILOT_ID.test(pilotId)) {
@@ -36,7 +42,7 @@ export function validateLapSubmission(body: unknown, currentWorldVersion: number
   const name = checkPilotName(b['name']);
   if (!name.ok) return fail(name.reason);
 
-  if (b['worldVersion'] !== currentWorldVersion) return fail('This lap was set in a different version of the valley.');
+  if (b['worldVersion'] !== currentWorldVersion) return fail('This lap was set in a different version of the track.');
   const lapTimeS = b['lapTimeS'];
   if (!isNumber(lapTimeS) || lapTimeS < ONLINE.minLapS || lapTimeS > ONLINE.maxLapS) return fail('That lap time is not possible.');
 
@@ -60,22 +66,22 @@ export function validateLapSubmission(body: unknown, currentWorldVersion: number
   }
 
   const { samples, sampleCount } = decoded;
-  const [startX = 0, startZ = 0] = TRACK.points[0] ?? [0, 0];
+  const [startX, startZ] = track.start;
   if (Math.hypot((samples[0] ?? 0) - startX, (samples[2] ?? 0) - startZ) > ONLINE.startRadiusM) return fail('The ghost does not start at the start gate.');
 
   const maxStepM = ONLINE.maxGhostSpeedMps / GHOST.hz;
-  const limit = WORLD.bounds.halfSizeM + SLACK_M;
+  const limit = track.halfSizeM + SLACK_M;
   for (let i = 0; i < sampleCount; i++) {
     const at = i * GHOST_CHANNELS;
     const x = samples[at] ?? Infinity;
     const y = samples[at + 1] ?? Infinity;
     const z = samples[at + 2] ?? Infinity;
-    if (Math.abs(x) > limit || Math.abs(z) > limit || y < -50 || y > WORLD.bounds.ceilingM + SLACK_M) return fail('The ghost leaves the valley.');
+    if (Math.abs(x) > limit || Math.abs(z) > limit || y < -50 || y > track.ceilingM + SLACK_M) return fail('The ghost leaves the track.');
     if (i > 0) {
       const previous = at - GHOST_CHANNELS;
       const step = Math.hypot(x - (samples[previous] ?? 0), y - (samples[previous + 1] ?? 0), z - (samples[previous + 2] ?? 0));
       if (step > maxStepM) return fail('The ghost jumps too fast.');
     }
   }
-  return { ok: true, lap: { pilotId, name: name.name, worldVersion: currentWorldVersion, lapTimeS, splitsS: splits as number[], ghost: { hz: GHOST.hz, data } } };
+  return { ok: true, lap: { pilotId, name: name.name, track: trackValue, worldVersion: currentWorldVersion, lapTimeS, splitsS: splits as number[], ghost: { hz: GHOST.hz, data } } };
 }

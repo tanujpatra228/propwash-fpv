@@ -1,4 +1,4 @@
-import { ONLINE } from '../config';
+import { ACTIVE_TRACK_ID, isTrackId, ONLINE, type TrackId } from '../config';
 import type { GhostData } from '../core/ghost-codec';
 import type { LapSubmission } from '../core/lap-validation';
 
@@ -10,6 +10,8 @@ export interface BoardRow {
 }
 
 export interface RemoteGhost {
+  /** The track the lap was flown on. */
+  track: TrackId;
   name: string;
   lapTimeS: number;
   splitsS: number[];
@@ -32,7 +34,7 @@ function isBoardRow(v: unknown): v is BoardRow {
 }
 
 function isRemoteGhost(v: unknown): v is RemoteGhost {
-  if (!isRecord(v) || typeof v['name'] !== 'string' || !isNumber(v['lapTimeS']) || !Array.isArray(v['splitsS'])) return false;
+  if (!isRecord(v) || !isTrackId(v['track']) || typeof v['name'] !== 'string' || !isNumber(v['lapTimeS']) || !Array.isArray(v['splitsS'])) return false;
   const ghost = v['ghost'];
   return isRecord(ghost) && isNumber(ghost['hz']) && typeof ghost['data'] === 'string';
 }
@@ -81,7 +83,7 @@ export class ApiClient {
 
   /** The fastest laps, or null when the server cannot be reached. */
   async leaderboard(limit: number = ONLINE.leaderboardDefaultLimit): Promise<BoardRow[] | null> {
-    const response = await this.request(`/api/leaderboard?limit=${limit}`);
+    const response = await this.request(`/api/leaderboard?limit=${limit}&track=${ACTIVE_TRACK_ID}`);
     if (!response?.ok) return null;
     const body = await this.readJson(response);
     return Array.isArray(body) && body.every(isBoardRow) ? body : null;

@@ -2,7 +2,7 @@
  * Browser side of a live-race room: one WebSocket, typed messages in and out, and a ping so the lobby can show latency.
  * Never throws: failures arrive as `onClose` with a message safe to show the player.
  */
-import { ROOMS, WORLD } from '../config';
+import { ACTIVE_TRACK_ID, ROOMS, WORLD } from '../config';
 import { encode, type ClientMessage, type ServerMessage } from '../core/room-protocol';
 
 export interface RoomClientHandlers {
@@ -44,7 +44,7 @@ export class RoomClient {
 
   connect(code: string, name: string): void {
     const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const query = new URLSearchParams({ name, world: String(WORLD.version) });
+    const query = new URLSearchParams({ name, world: String(WORLD.version), track: ACTIVE_TRACK_ID });
     try {
       this.socket = new WebSocket(`${scheme}://${window.location.host}/api/rooms/${code}/ws?${query.toString()}`);
     } catch {

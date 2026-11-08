@@ -8,7 +8,7 @@ import {
   type Scene,
   type Texture,
 } from 'three';
-import { VALLEY } from '../config';
+import { ACTIVE_TRACK_ID, VALLEY } from '../config';
 import { fbm, smoothstep } from '../core/math';
 
 const { lake, bando } = VALLEY;
@@ -29,6 +29,7 @@ export const BANDO_FLOOR_Y = baseHeight(bando.x, bando.z);
 
 /** Terrain height at a point (the lake bed is below the water). Deterministic. */
 export function heightAt(x: number, z: number): number {
+  if (ACTIVE_TRACK_ID === 'city') return 0; // the city is flat
   let h = baseHeight(x, z);
   const lakeDistance = Math.hypot(x - lake.x, z - lake.z);
   if (lakeDistance < lake.radiusM * 1.7) {
@@ -45,6 +46,7 @@ export function heightAt(x: number, z: number): number {
 
 /** What the drone would touch first: terrain, or the lake surface over the lake. */
 export function groundY(x: number, z: number): number {
+  if (ACTIVE_TRACK_ID === 'city') return 0;
   const h = heightAt(x, z);
   return Math.hypot(x - lake.x, z - lake.z) < lake.radiusM ? Math.max(h, LAKE_SURFACE_Y) : h;
 }
@@ -58,6 +60,11 @@ export interface Surface {
 
 /** Like groundY, but also says whether the surface is water. Writes into `out` (no allocation). */
 export function surfaceAt(x: number, z: number, out: Surface): Surface {
+  if (ACTIVE_TRACK_ID === 'city') {
+    out.isWater = false;
+    out.y = 0;
+    return out;
+  }
   const h = heightAt(x, z);
   const isOverLake = Math.hypot(x - lake.x, z - lake.z) < lake.radiusM;
   out.isWater = isOverLake && h < LAKE_SURFACE_Y;

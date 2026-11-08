@@ -232,3 +232,13 @@ describe('snapshot', () => {
     expect(kinds(send(copy, 'host', { t: 'gate', index: 1 }, t0 + 4000))).toContain('standings');
   });
 });
+
+describe('tracks', () => {
+  it('tells a pilot on another track to switch, and an out-of-date one to reload', () => {
+    const room = new Room('ABCDE', 1); // the valley
+    const city = room.join('a', 'Arjun', 101, 0).out.find((o) => o.message.t === 'error')?.message;
+    expect(city?.t === 'error' && city.message).toMatch(/Valley Sprint.*Switch track/);
+    const stale = room.join('b', 'Bea', 999, 0).out.find((o) => o.message.t === 'error')?.message;
+    expect(stale?.t === 'error' && stale.message).toMatch(/out of date/);
+  });
+});

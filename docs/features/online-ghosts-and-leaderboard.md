@@ -143,3 +143,5 @@ Accounts, passwords, verified identities, anti-cheat beyond the checks above, Sp
 ## Changelog
 
 - 2026-11-01: Created.
+
+- 2026-11-08: Per track (Phase 6): submissions carry a `track`, the leaderboard takes `?track=`, ghost responses name their track, laps are separated by each track's world version (no migration).

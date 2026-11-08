@@ -9,4 +9,5 @@ export const CRASH_MESSAGES: Readonly<Record<CrashReason, string>> = {
   container: 'Hit a container',
   building: 'Hit a building',
   tree: 'Hit a tree',
+  vehicle: 'Hit a vehicle',
 };

@@ -1,5 +1,5 @@
 /** Scoring and saved records for Battery Challenge. Pure logic plus one saved record. */
-import { CHALLENGES } from '../config';
+import { ACTIVE_TRACK_ID, CHALLENGES } from '../config';
 import { loadJson, saveJson } from '../core/storage';
 import type { PropId } from '../drone/parts';
 
@@ -46,7 +46,8 @@ export interface ChallengeRecord {
 
 export type Records = Record<string, ChallengeRecord>;
 
-const KEY = 'challenges.v1';
+/** Records are kept per track: par times and laps mean different things on each. */
+const KEY = ACTIVE_TRACK_ID === 'valley' ? 'challenges.v1' : `challenges.${ACTIVE_TRACK_ID}.v1`;
 
 function isRecord(value: unknown): value is ChallengeRecord {
   if (typeof value !== 'object' || value === null) return false;

@@ -1,3 +1,5 @@
+import { ACTIVE_TRACK_ID } from '../config';
+import { switchTrack } from '../core/track-switch';
 import { ApiClient, type RemoteGhost } from '../net/api-client';
 import { askPilotName } from '../ui/name-prompt';
 import { LeaderboardScreen } from '../ui/leaderboard-screen';
@@ -67,6 +69,11 @@ export class OnlineUi {
     if (!ghost) {
       this.screen.showMessage('That lap is no longer available. Open the leaderboard again.');
       this.screen.show();
+      return false;
+    }
+    if (ghost.track !== ACTIVE_TRACK_ID) {
+      // A link to a lap from the other track: reload into that track (the ?ghost= link is kept, so it carries on there).
+      switchTrack(ghost.track);
       return false;
     }
     this.host.raceGhost(ghost);

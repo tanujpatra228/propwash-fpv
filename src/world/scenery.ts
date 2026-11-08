@@ -3,7 +3,7 @@ import type { ColliderWorld } from '../physics/colliders';
 import { buildClouds } from './clouds';
 import { ContainerBatch } from './containers';
 import { buildFactory } from './factory';
-import { buildGrass, type Grass } from './grass';
+import { buildGrass } from './grass';
 import { buildHamlet } from './houses';
 import { PIT_PAD, buildPitArea } from './pit-area';
 import { Exclusions } from './scatter';
@@ -13,7 +13,8 @@ import { buildVegetation } from './vegetation';
 const PIT_EXCLUSION_RADIUS_M = 22;
 
 export interface Scenery {
-  grass: Grass;
+  /** Turns optional small detail (grass) on or off for the graphics preset. */
+  setDetail(isOn: boolean): void;
   /** Advance wind and other ambient motion. */
   update(timeS: number): void;
 }
@@ -31,7 +32,7 @@ export function buildScenery(scene: Scene, colliders: ColliderWorld, textures: W
   const grass = buildGrass(scene);
   buildClouds(scene, textures);
   return {
-    grass,
+    setDetail: (isOn) => grass.setVisible(isOn),
     update(timeS: number): void {
       grass.update(timeS);
     },

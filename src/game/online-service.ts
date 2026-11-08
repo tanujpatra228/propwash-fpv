@@ -1,4 +1,4 @@
-import { WORLD } from '../config';
+import { ACTIVE_TRACK_ID, TRACK_DEFS } from '../config';
 import type { GhostData } from '../core/ghost-codec';
 import type { ApiClient, BoardRow, RemoteGhost } from '../net/api-client';
 import { clearPendingLap, loadPendingLap, MAX_ATTEMPTS, savePendingLap } from '../net/pending-lap';
@@ -35,7 +35,7 @@ export class OnlineService {
 
   /** A new personal best: queue it and try to send it now. */
   async reportBestLap(lap: NewBestLap): Promise<UploadNotice> {
-    savePendingLap({ ...lap, attempts: 0 });
+    savePendingLap({ ...lap, track: ACTIVE_TRACK_ID, attempts: 0 });
     return this.flush();
   }
 
@@ -51,7 +51,8 @@ export class OnlineService {
       const outcome = await this.deps.api.submitLap({
         pilotId: getPilotId(),
         name,
-        worldVersion: WORLD.version,
+        track: pending.track,
+        worldVersion: TRACK_DEFS[pending.track].worldVersion,
         lapTimeS: pending.lapTimeS,
         splitsS: pending.splitsS,
         ghost: pending.ghost,

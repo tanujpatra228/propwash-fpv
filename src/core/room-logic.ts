@@ -2,7 +2,7 @@
  * The live-race room state machine. Pure: no sockets, no timers, no clock of its own. The server feeds it
  * connections, text frames and the current time; it returns who should be sent what and who to disconnect.
  */
-import { ROOMS, TRACK } from '../config';
+import { ROOMS, TRACK, TRACK_DEFS, TRACK_IDS } from '../config';
 import { checkPilotName } from './pilot-name';
 import {
   parseClientMessage,
@@ -143,9 +143,17 @@ export class Room {
     return { out: [{ to: id, message: { t: 'error', message } }], close: [id] };
   }
 
+  /** Says why a client cannot join: it is on another track, or its game is out of date. */
+  private versionMessage(clientVersion: number): string {
+    const roomTrack = TRACK_IDS.find((t) => TRACK_DEFS[t].worldVersion === this.worldVersion);
+    const clientKnown = TRACK_IDS.some((t) => TRACK_DEFS[t].worldVersion === clientVersion);
+    if (roomTrack && clientKnown) return `This room races on ${TRACK_DEFS[roomTrack].name}. Switch track in the menu and join again.`;
+    return 'Your game version is out of date. Reload the page.';
+  }
+
   /** A pilot connects. A refusal also closes the connection. */
   join(id: string, rawName: unknown, worldVersion: number, nowMs: number): Step {
-    if (worldVersion !== this.worldVersion) return this.refuse(id, 'Your game version is out of date. Reload the page.');
+    if (worldVersion !== this.worldVersion) return this.refuse(id, this.versionMessage(worldVersion));
     const name = checkPilotName(rawName);
     if (!name.ok) return this.refuse(id, name.reason);
     const existing = this.pilots.get(id);

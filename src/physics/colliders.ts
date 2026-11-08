@@ -2,7 +2,12 @@ import { Matrix4, Vector3, type Mesh } from 'three';
 import { COLLISION } from '../config';
 
 /** What was hit. The game layer maps each kind to a crash reason. */
-export type ColliderKind = 'gate' | 'factory' | 'container' | 'building' | 'tree';
+export type ColliderKind = 'gate' | 'factory' | 'container' | 'building' | 'tree' | 'vehicle';
+
+/** A box that moves (a car, a bus). Call `place` each frame it moves. */
+export interface DynamicBox {
+  place(x: number, y: number, z: number, yawRad: number): void;
+}
 
 export interface CollisionHit {
   kind: ColliderKind;
@@ -59,6 +64,26 @@ export class ColliderWorld {
       center,
       boundingRadiusM: scaled.length(),
     });
+  }
+
+  /** Adds a box that can be moved with `place` (rotation about Y only). `y` is the centre height. */
+  addDynamicBox(halfExtents: Vector3, kind: ColliderKind): DynamicBox {
+    const box: BoxCollider = {
+      kind,
+      worldMatrix: new Matrix4(),
+      inverseWorld: new Matrix4(),
+      halfExtents: halfExtents.clone(),
+      center: new Vector3(),
+      boundingRadiusM: halfExtents.length(),
+    };
+    this.boxes.push(box);
+    return {
+      place(x: number, y: number, z: number, yawRad: number): void {
+        box.worldMatrix.makeRotationY(yawRad).setPosition(x, y, z);
+        box.inverseWorld.copy(box.worldMatrix).invert();
+        box.center.set(x, y, z);
+      },
+    };
   }
 
   /** Adds a mesh with a box-like geometry, using its bounding box. Call after the mesh is placed in the scene. */
