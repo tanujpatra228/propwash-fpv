@@ -1,6 +1,7 @@
-import type { ChoiceDialog } from '../ui/choice-dialog';
-import { CHALLENGE_LIST, lockReason, type ChallengeDef, type Records } from './challenge-results';
+import { ChoiceDialog } from '../ui/choice-dialog';
+import { CHALLENGE_LIST, loadRecords, lockReason, type ChallengeDef, type Records } from './challenge-results';
 import type { DroneSetup } from '../drone/parts';
+import type { BatteryChallenge } from './modes/battery-challenge';
 
 const BACK = 'back';
 const stars = (n: number): string => '★'.repeat(n) + '☆'.repeat(3 - n);
@@ -31,4 +32,27 @@ export function showChallengePicker(
     if (reason) showChallengePicker(dialog, records, setup, onStart, onBack, reason);
     else onStart(def);
   });
+}
+
+/** The "Battery Challenge" menu entry: shows the list and starts the chosen challenge in the challenge mode. */
+export class ChallengeMenu {
+  private readonly dialog = new ChoiceDialog<string>();
+
+  constructor(
+    private readonly challenge: BatteryChallenge,
+    private readonly parts: { setup(): Readonly<DroneSetup>; start(): void; onBack(): void },
+  ) {}
+
+  open(): void {
+    showChallengePicker(
+      this.dialog,
+      loadRecords(),
+      this.parts.setup(),
+      (def) => {
+        this.challenge.setChallenge(def);
+        this.parts.start();
+      },
+      () => this.parts.onBack(),
+    );
+  }
 }

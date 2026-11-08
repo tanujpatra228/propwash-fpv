@@ -43,7 +43,7 @@ Measured with a software renderer (whole frame including shadow and post passes,
 - Drag constants changed so top speed meets the acceptance criterion (see flight-model).
 - A speed gauge was added next to the height and battery gauges.
 - The world boundary is a hard wall with a faint grid, not a "signal lost" respawn.
-- `game/game.ts` is 419 lines after Phase 4 (it was 407; `tuning.ts` was split out to keep it close to the limit) (down from 463 after moving simulation, presentation and labels into `simulation.ts`, `presenter.ts` and `ui/menu-labels.ts`) (target 300, split at 400).
+- `game/game.ts` is 398 lines (target 300, split at 400). It had grown to 479 after Phases 3 and 5; the flight session (crash, respawn, stepping), world setup, mode creation and the challenge menu now live in `flight-session.ts`, `world-setup.ts`, `modes-setup.ts` and `challenge-ui.ts`.
 - The "Best lap" tag above the ghost is built (`ui/ghost-tag.ts`).
 
 ## What the player should check next

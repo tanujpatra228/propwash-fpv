@@ -8,7 +8,10 @@ import type { HudOther } from '../ui/hud-state';
 import { ROOMS } from '../config';
 import { Hud } from '../ui/hud';
 import type { HudState } from '../ui/hud-state';
-import type { FlightMenuCallbacks, FlightMenuLabels } from '../ui/flight-menu';
+import type { FlightMenuCallbacks } from '../ui/flight-menu';
+import { helpText } from '../ui/help-text';
+import { buildFlightMenuLabels } from '../ui/menu-labels';
+import type { Bindings } from '../input/key-bindings';
 import type { Gate } from '../world/gates';
 import type { GameMode } from './modes/mode';
 import type { PilotSettings } from '../core/pilot-settings';
@@ -85,12 +88,10 @@ export class HudBridge {
     if (!isVisible) this.groundMarker.hide();
   }
 
-  setHelpText(text: string): void {
-    this.hud.setHelpText(text);
-  }
-
-  setMenuLabels(labels: FlightMenuLabels): void {
-    this.hud.setMenuLabels(labels);
+  /** Key hints and flight-menu labels, rebuilt when bindings, camera, sound or analog setting change. */
+  setControlsInfo(bindings: Bindings, state: Parameters<typeof buildFlightMenuLabels>[1]): void {
+    this.hud.setHelpText(helpText(bindings));
+    this.hud.setMenuLabels(buildFlightMenuLabels(bindings, state));
   }
 
   update(frame: HudFrame): void {
