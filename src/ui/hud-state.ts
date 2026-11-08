@@ -2,6 +2,21 @@ import type { StandingRow } from './standings-panel';
 import type { LessonPanelState } from './lesson-panel';
 import type { RacePanelState } from './race-panel';
 
+/** Another pilot, ready to draw: world position for the minimap, clamped screen position for the pin. */
+export interface HudOther {
+  name: string;
+  /** 0xRRGGBB. */
+  color: number;
+  x: number;
+  z: number;
+  /** Normalised device coordinates, pushed to the screen edge when off-screen. */
+  ndcX: number;
+  ndcY: number;
+  distM: number;
+  /** True when the pilot is in front of the camera and inside the screen. */
+  isOnScreen: boolean;
+}
+
 /** Everything the HUD shows, as plain numbers. The game builds one per frame; the HUD never reads game internals. */
 export interface HudState {
   isGoggles: boolean;
@@ -30,6 +45,8 @@ export interface HudState {
   nextGate: { x: number; y: number; distM: number };
   /** Drone on the minimap: world X, Z and heading (rotation about Y). */
   map: { x: number; z: number; yawRad: number };
+  /** Other pilots in a live race (empty otherwise). */
+  others: HudOther[];
   /** The best-lap ghost on screen (NDC), when it is shown and visible. */
   ghost: { isVisible: boolean; x: number; y: number };
   mode: {

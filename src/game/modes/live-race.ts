@@ -5,7 +5,7 @@ import type { PoseFields, ResultRow, RosterEntry, StandingEntry } from '../../co
 import { ordinal, type StandingRow } from '../../ui/standings-panel';
 import { gridPose } from '../grid';
 import { respawnPose, type Pose } from '../respawn';
-import type { GameMode, ModeFrame, ModeHost, ModeHud, RaceHud } from './mode';
+import type { GameMode, ModeFrame, ModeHost, ModeHud, PilotMarker, RaceHud } from './mode';
 
 /** What the live race needs from the room connection. The real one is the room client; tests use a fake. */
 export interface LiveSession {
@@ -17,6 +17,8 @@ export interface LiveSession {
   readonly roster: readonly RosterEntry[];
   /** Race order as last reported by the server, with each pilot's gates passed. */
   readonly order: readonly StandingEntry[];
+  /** The other pilots' drones as drawn right now. */
+  readonly others: readonly PilotMarker[];
   sendGate(index: number): void;
   sendPose(pose: PoseFields & { dNextM: number }): void;
   requestRematch(): void;
@@ -35,7 +37,7 @@ export class LiveRace implements GameMode {
   readonly usesSetup = false;
   readonly drainsBattery = false;
   readonly race: RaceHud = { lap: 1, lapTimeS: 0, lastLapS: null, bestLapS: null, splitDeltaS: null };
-  readonly hud: ModeHud = { modeLabel: 'Live race', hint: HINT, race: this.race, countdown: '', swapProgress01: 0, lesson: null, standings: [], ghostLabel: '' };
+  readonly hud: ModeHud = { modeLabel: 'Live race', hint: HINT, race: this.race, countdown: '', swapProgress01: 0, lesson: null, standings: [], others: [], ghostLabel: '' };
   private state: State = 'countdown';
   private countdownLeftS: number = ROOMS.countdownMs / 1000;
   private goShownLeftS = 0;
@@ -150,6 +152,7 @@ export class LiveRace implements GameMode {
   }
 
   private refreshHud(): void {
+    this.hud.others = this.session.others;
     const names = new Map(this.session.roster.map((p) => [p.id, p.name]));
     const lapOf = Math.min(this.session.totalLaps, this.host.tracker.completedLaps + 1);
     this.race.lap = lapOf;

@@ -458,8 +458,8 @@ export class Game {
       const crash = this.simulate(this.mode.isInputLocked ? NO_INPUT : pilot, dtS);
       if (crash) this.startCrash(crash);
     }
-    this.mode.update(dtS, { isLanded: this.isLanded() });
     if (this.mode.id === 'live') this.live.update(performance.now(), dtS);
+    this.mode.update(dtS, { isLanded: this.isLanded() });
     if (this.crashTimerS <= 0 && !this.mode.isInputLocked) this.flightTimeS += dtS;
 
     this.presenter.present({

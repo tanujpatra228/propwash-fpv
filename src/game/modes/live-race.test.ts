@@ -12,7 +12,7 @@ const roster: RosterEntry[] = [
 function setup(isHost = true) {
   const sent = { gates: [] as number[], poses: [] as number[][], rematches: 0 };
   const session: LiveSession = {
-    myId: 'me', mySlot: 1, isHost, totalLaps: 2, roster, order: [{ id: 'bea', gates: 14 }, { id: 'me', gates: 3 }],
+    myId: 'me', mySlot: 1, isHost, totalLaps: 2, roster, others: [], order: [{ id: 'bea', gates: 14 }, { id: 'me', gates: 3 }],
     sendGate: (i) => void sent.gates.push(i),
     sendPose: (p) => void sent.poses.push([p.x, p.y, p.z, p.dNextM]),
     requestRematch: () => void sent.rematches++,

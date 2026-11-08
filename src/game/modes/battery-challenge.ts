@@ -31,7 +31,7 @@ export class BatteryChallenge implements GameMode {
   readonly drainsBattery = true;
   readonly usesSetup = true;
   readonly race: RaceHud = { lap: 1, lapTimeS: 0, lastLapS: null, bestLapS: null, splitDeltaS: null };
-  readonly hud: ModeHud = { modeLabel: 'Battery Challenge', hint: '', race: this.race, countdown: '', swapProgress01: 0, lesson: null, standings: null, ghostLabel: '' };
+  readonly hud: ModeHud = { modeLabel: 'Battery Challenge', hint: '', race: this.race, countdown: '', swapProgress01: 0, lesson: null, standings: null, others: [], ghostLabel: '' };
   private def: ChallengeDef = findChallenge('three') as ChallengeDef;
   private state: State = 'countdown';
   private countdownLeftS: number = CHALLENGES.countdownS;

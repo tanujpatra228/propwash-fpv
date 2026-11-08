@@ -21,7 +21,7 @@ export class TrainingMode implements GameMode {
   readonly isInputLocked = false;
   readonly usesSetup = false;
   readonly drainsBattery = false;
-  readonly hud: ModeHud = { modeLabel: 'Training', hint: '', race: null, countdown: '', swapProgress01: 0, lesson: null, standings: null, ghostLabel: 'Best lap' };
+  readonly hud: ModeHud = { modeLabel: 'Training', hint: '', race: null, countdown: '', swapProgress01: 0, lesson: null, standings: null, others: [], ghostLabel: 'Best lap' };
   private lessonIndex = 0;
   private runner: LessonRunner = new LessonRunner(LESSONS[0]!);
   private nextLessonInS = 0;

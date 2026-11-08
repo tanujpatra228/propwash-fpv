@@ -362,7 +362,6 @@ export const ROOMS = {
   droneColors: [0xff7a1a, 0x2ec4ff, 0x7dff5a, 0xff4fa3, 0xffe14a, 0xb07cff, 0x4affd8, 0xff5a4a],
   pingIntervalMs: 5000,
   connectTimeoutMs: 8000,
-  nameTagHeightM: 0.9,
 } as const;
 
 /**
