@@ -1,6 +1,6 @@
 # Feature: Battery Challenge
 
-Status: Planned
+Status: In progress (built, needs playtest)
 Phase: 3
 Branch: `feat/battery-challenge`
 Last updated: 2026-11-01
@@ -62,6 +62,12 @@ Pick a challenge, for example "Three on a pack: finish 3 laps before your batter
 | 2 | Battery hits 0 on lap 3 of 3 | Fail | Unit |
 | 3 | Complete "Three on a pack" twice | Credits only the first time per star | Manual |
 | 4 | Open "Heavy sprint" without the Hauler | Locked with hint | Manual |
+
+## Implementation notes (Phase 3 build)
+
+- Built: four challenges with stars, credits, saved records (`pw.challenges.v1`), locks with a hint, Endurance score. The challenge list is a dialog from the menu.
+- Not built: the "battery needed" projection on the gauge, a per-challenge best result shown beyond stars and Endurance score.
+- Par times and the Heavy sprint requirement are first guesses and need a playtest.
 
 ## Out of scope
 

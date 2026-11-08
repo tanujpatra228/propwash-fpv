@@ -19,6 +19,7 @@ const frameSnapshot: LessonFrame = { dtS: 0, heightM: 0, speedMps: 0, distanceFr
 export class TrainingMode implements GameMode {
   readonly id = 'training' as const;
   readonly isInputLocked = false;
+  readonly usesSetup = false;
   readonly drainsBattery = false;
   readonly hud: ModeHud = { modeLabel: 'Training', hint: '', race: null, countdown: '', swapProgress01: 0, lesson: null, standings: null, ghostLabel: 'Best lap' };
   private lessonIndex = 0;

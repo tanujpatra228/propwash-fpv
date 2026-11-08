@@ -32,6 +32,7 @@ const rad100 = (r: number): number => Math.round(r * 100);
 /** A race against friends. The server decides who finished where; this mode flies, reports gates and shows the order. */
 export class LiveRace implements GameMode {
   readonly id = 'live' as const;
+  readonly usesSetup = false;
   readonly drainsBattery = false;
   readonly race: RaceHud = { lap: 1, lapTimeS: 0, lastLapS: null, bestLapS: null, splitDeltaS: null };
   readonly hud: ModeHud = { modeLabel: 'Live race', hint: HINT, race: this.race, countdown: '', swapProgress01: 0, lesson: null, standings: [], ghostLabel: '' };
@@ -167,6 +168,7 @@ export class LiveRace implements GameMode {
     if (!event) return;
     this.session.sendGate(index);
     if (event.type === 'lap') {
+      this.host.earn('lap');
       this.race.lastLapS = event.lapTimeS;
       this.race.bestLapS = Math.min(this.race.bestLapS ?? Infinity, event.lapTimeS);
     }

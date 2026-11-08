@@ -8,7 +8,7 @@ import type { LessonPanelState } from '../../ui/lesson-panel';
 import type { StandingRow } from '../../ui/standings-panel';
 import type { Pose } from '../respawn';
 
-export type ModeId = 'free' | 'trial' | 'training' | 'live';
+export type ModeId = 'free' | 'trial' | 'training' | 'live' | 'challenge';
 
 /** What a dialog button does. The game carries these out. */
 export type NextStep = 'menu' | 'trial' | 'restart' | 'stay';
@@ -35,6 +35,8 @@ export interface ModeHost {
   hideBanner(): void;
   /** Show a "what next?" dialog. The mouse is released while it is open; picking an option carries it out. */
   offerNextSteps(title: string, subtitle: string, choices: readonly NextStepChoice[]): void;
+  /** Pay credits for something the pilot did. */
+  earn(reason: 'lap' | 'personalBest' | 'star', times?: number): number;
   /** A new personal best lap was set (for uploading). */
   reportBestLap(lap: { lapTimeS: number; splitsS: number[]; ghost: GhostData }): void;
 }
@@ -78,6 +80,8 @@ export interface GameMode {
   readonly isInputLocked: boolean;
   /** False when the battery should not drain (free flight with drain turned off). */
   readonly drainsBattery: boolean;
+  /** True when the pilot's Hangar setup applies. Time trial, training and live races always use the stock drone (the Spec class). */
+  readonly usesSetup: boolean;
   /** Where the best-lap ghost is now, or false when there is none to show. */
   ghostPose(outPosition: Vector3, outQuaternion: Quaternion): boolean;
   start(): void;

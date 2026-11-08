@@ -365,6 +365,53 @@ export const ROOMS = {
   nameTagHeightM: 0.9,
 } as const;
 
+/**
+ * Drone parts (Phase 3). Factors multiply the stock drone: 1 is unchanged. See docs/features/drone-parts-and-upgrades.md.
+ * Prices are credits. Upgrade levels run 1 to 3.
+ */
+export const PARTS = {
+  dryWeightG: 457,
+  maxLevel: 3,
+  propellers: {
+    swift: { label: 'Swift', blades: 2, topSpeed: 1.1, grip: 0.75, lift: 0.9, drain: 0.8, wobble: 0.6, price: 300, blurb: 'Fastest and most efficient, but loose and twitchy' },
+    allround: { label: 'Allround', blades: 3, topSpeed: 1, grip: 1, lift: 1, drain: 1, wobble: 0, price: 0, blurb: 'Balanced. The stock set' },
+    grip: { label: 'Grip', blades: 4, topSpeed: 0.95, grip: 1.15, lift: 1.1, drain: 1.15, wobble: 0, price: 300, blurb: 'Sharper, steadier turns and stronger climbs' },
+    hauler: { label: 'Hauler', blades: 5, topSpeed: 0.88, grip: 1.3, lift: 1.2, drain: 1.3, wobble: 0, price: 600, blurb: 'Smoothest and strongest, but thirsty' },
+  },
+  batteries: {
+    light: { label: 'Light 1100', cells: 4, capacityMah: 1100, weightG: 140, topSpeed: 1, lift: 1, drain: 1, price: 200, blurb: 'Lighter and quicker to accelerate, short flights' },
+    standard: { label: 'Standard 1500', cells: 4, capacityMah: 1500, weightG: 185, topSpeed: 1, lift: 1, drain: 1, price: 0, blurb: 'Balanced. The stock pack' },
+    long: { label: 'Long 1800', cells: 4, capacityMah: 1800, weightG: 215, topSpeed: 1, lift: 1, drain: 1, price: 400, blurb: 'Heavier, long flights' },
+    punch: { label: 'Punch 1300 6S', cells: 6, capacityMah: 1300, weightG: 220, topSpeed: 1.12, lift: 1.1, drain: 1.25, price: 900, blurb: 'More voltage: faster and punchier, hungry' },
+  },
+  /** Per level above 1. */
+  upgrade: { propDrainCutPerLevel: 0.05, propWobbleCutPerLevel: 0.2, batteryCapacityGainPerLevel: 0.1 },
+  upgradePrice: { 2: 150, 3: 400 },
+  credits: { perLap: 10, personalBest: 50, perChallengeStar: 100 },
+  /** Steady effort (0 to 1) used to compare flight times in the Hangar: about racing pace. */
+  racingEffort01: 0.6,
+  stockProp: 'allround',
+  stockBattery: 'standard',
+} as const;
+
+/**
+ * Battery Challenge: finish the laps before the one battery runs out. `laps: null` is Endurance (as many as you can).
+ * Par times are first guesses until playtested. See docs/features/battery-challenge.md.
+ */
+export const CHALLENGES = {
+  list: [
+    { id: 'three', name: 'Three on a pack', blurb: 'Finish 3 laps before the battery dies.', laps: 3, parS: 150, requiredProp: null },
+    { id: 'five', name: 'Five on a pack', blurb: 'Finish 5 laps. You will need an efficient setup.', laps: 5, parS: 250, requiredProp: null },
+    { id: 'heavy', name: 'Heavy sprint', blurb: 'Finish 2 laps on Hauler 5-blade props.', laps: 2, parS: 85, requiredProp: 'hauler' },
+    { id: 'endurance', name: 'Endurance', blurb: 'As many laps as one battery allows.', laps: null, parS: null, requiredProp: null },
+  ],
+  /** Two stars need at least this much charge left at the finish. */
+  twoStarCharge01: 0.15,
+  countdownS: 3,
+  /** The run ends this long after the battery empties if the drone has not landed. */
+  emptyBatteryGraceS: 3,
+} as const;
+
 export const STORAGE_PREFIX = 'pw.';
 
 /** Stock-drone flight tuning. Units: metres, seconds, radians. */

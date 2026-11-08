@@ -27,9 +27,9 @@ export class Battery {
   currentA = 0;
   voltage: number;
   private averageCurrentA: number = BATTERY.hoverCurrentA;
-  private readonly cells: number;
-  private readonly capacityMah: number;
-  private readonly drainFactor: number;
+  private cells: number;
+  private capacityMah: number;
+  private drainFactor: number;
 
   constructor(stats: Pick<DroneStats, 'cells' | 'capacityMah' | 'drainFactor'>) {
     this.cells = stats.cells;
@@ -70,6 +70,14 @@ export class Battery {
     this.voltage = this.restingVoltage() - this.currentA * resistance;
   }
 
+  /** Swaps in a different pack (a new setup). Charges it fully. */
+  configure(stats: Pick<DroneStats, 'cells' | 'capacityMah' | 'drainFactor'>): void {
+    this.cells = stats.cells;
+    this.capacityMah = stats.capacityMah;
+    this.drainFactor = stats.drainFactor;
+    this.refill();
+  }
+
   refill(): void {
     this.charge01 = 1;
     this.mAhUsed = 0;
@@ -87,4 +95,9 @@ export class Battery {
   private restingVoltage(): number {
     return this.cells * cellVoltageAt(this.charge01);
   }
+}
+
+/** Flight time in seconds at a steady racing effort, for comparing setups in the Hangar. */
+export function estimateRacingSeconds(stats: Pick<DroneStats, 'capacityMah' | 'drainFactor'>, effort01: number): number {
+  return (stats.capacityMah / 1000 / currentForEffort(effort01, stats.drainFactor)) * 3600;
 }

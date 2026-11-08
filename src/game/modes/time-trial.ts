@@ -15,6 +15,7 @@ const HINT_RUNNING = 'Fly all 12 gates in order. Crash or reset and you restart 
 /** One battery per run: fly laps against the clock and your best-lap ghost. */
 export class TimeTrial implements GameMode {
   readonly id = 'trial' as const;
+  readonly usesSetup = false;
   readonly drainsBattery = true;
   readonly race: RaceHud = { lap: 1, lapTimeS: 0, lastLapS: null, bestLapS: null, splitDeltaS: null };
   readonly hud: ModeHud = { modeLabel: 'Time trial', hint: HINT_RUNNING, race: this.race, countdown: '', swapProgress01: 0, lesson: null, standings: null, ghostLabel: 'Best lap' };
@@ -151,6 +152,7 @@ export class TimeTrial implements GameMode {
       return;
     }
     // A lap just finished.
+    this.host.earn('lap');
     this.race.lastLapS = event.lapTimeS;
     this.race.lap = this.host.tracker.completedLaps + 1;
     const ghostData = this.recorder?.finish() ?? null;
@@ -166,6 +168,7 @@ export class TimeTrial implements GameMode {
       this.hud.ghostLabel = 'Best lap';
     }
     if (isOwnBest) {
+      this.host.earn('personalBest');
       this.saved = { lapTimeS: event.lapTimeS, splitsS: event.splitsS, ghost: ghostData };
       const isSaved = saveBestLap(this.saved);
       this.host.reportBestLap({ lapTimeS: event.lapTimeS, splitsS: event.splitsS, ghost: ghostData });
