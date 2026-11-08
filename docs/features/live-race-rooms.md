@@ -137,6 +137,12 @@ For friends this is plenty. Safeguards that keep it from running out:
 | 9 | Flood a connection with 200 messages per second | Excess dropped, room unharmed | Integration |
 | 10 | Two browsers race on a local server | Both see each other move; finish order right | Manual |
 
+## Player indicators
+
+- **On screen:** each other pilot has a pin in their grid-slot colour with their name and distance (in your units). Pilots out of view or behind you stick to the screen edge and dim. The old 3D name sprite was removed so a pilot is never labelled twice.
+- **Minimap:** every other pilot is a dot in the same colour, drawn under your own orange arrow.
+- Pilots appear once their first pose arrives and vanish after 5 s of silence.
+
 ## Verification and known gaps
 
 - Verified locally (Worker + Durable Object in `wrangler dev`, Vite dev server): Node WebSocket flow (lobby, ready, start, race, finish, results, rematch, junk and bad-name refusal) and two headless browsers flying a 2-lap race to the results dialog and back to the lobby. 34 room unit tests, snapshot buffer, grid, live-race mode and lobby rules are unit tested.
