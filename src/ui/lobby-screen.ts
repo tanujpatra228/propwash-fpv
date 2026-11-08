@@ -23,12 +23,15 @@ export interface LobbyView {
 }
 
 /** Whether the host may start now, and if not, why. Shared with tests. */
-export function startStatus(view: Pick<LobbyView, 'myId' | 'hostId' | 'pilots'>): { canStart: boolean; hint: string } {
+export function startStatus(view: Pick<LobbyView, 'myId' | 'hostId' | 'pilots'>): { canStart: boolean; hint: string; label: string } {
   const here = view.pilots.filter((p) => p.isConnected);
-  if (view.myId !== view.hostId) return { canStart: false, hint: 'Waiting for the host to start.' };
-  if (here.length < ROOMS.minPilotsToStart) return { canStart: false, hint: 'Share the link: you need at least one more pilot.' };
-  if (here.some((p) => p.id !== view.hostId && !p.isReady)) return { canStart: false, hint: 'Waiting for everyone to be ready.' };
-  return { canStart: true, hint: 'Everyone is ready.' };
+  // The host is always counted as ready.
+  const ready = here.filter((p) => p.id === view.hostId || p.isReady).length;
+  const count = `${ready}/${here.length} ready`;
+  if (view.myId !== view.hostId) return { canStart: false, hint: 'Waiting for the host to start.', label: `Start race · ${count}` };
+  if (here.length < ROOMS.minPilotsToStart) return { canStart: false, hint: 'Share the link: you need at least one more pilot.', label: `Start race · ${here.length}/${ROOMS.minPilotsToStart} pilots` };
+  if (ready < here.length) return { canStart: false, hint: 'Waiting for everyone to be ready.', label: `Start race · ${count}` };
+  return { canStart: true, hint: 'Everyone is ready.', label: `Start race · ${count}` };
 }
 
 /** The "Race friends" screens: create or join, then the lobby. DOM only; the controller feeds it state. */
@@ -163,6 +166,7 @@ export class LobbyScreen {
     const status = startStatus(view);
     this.startButton.hidden = !isHost;
     this.startButton.disabled = !status.canStart;
+    this.startButton.textContent = status.label;
     this.startHint.textContent = status.hint;
     this.lapButtons.forEach((button, i) => {
       button.classList.toggle('on', i + ROOMS.minLaps === view.laps);
