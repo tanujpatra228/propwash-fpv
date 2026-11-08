@@ -1,6 +1,6 @@
 # Feature: City Track ("Downtown Dash")
 
-Status: Planned
+Status: In progress (built, needs playtest)
 Phase: 6
 Branch: `feat/phase-6`
 Last updated: 2026-11-08
@@ -125,6 +125,22 @@ The valley's code reads its world from module-level singletons (terrain height, 
 | 6 | Switch track in the menu | Page reloads into the other world, choice kept | Manual |
 | 7 | Fly into a bus | Crash with the vehicle message | Manual |
 | 8 | Race a friend on the city in a live room | Both in the city, results correct | Manual |
+
+## Implementation notes (what was built)
+
+- **Track selector:** menu entry "Track"; switching saves the choice and reloads. `?track=city` in a link overrides the saved choice for that visit. Invite links for rooms include the track.
+- **World:** seeded plan with 4 by 4 blocks of 4 lots, 6 portal buildings (two form the route's tunnel through a whole block), a skybridge between two 78 m towers, a plaza and a park with a pond and 46 solid trees. All buildings are merged into one mesh (one draw call); colliders come from the same boxes.
+- **Track:** 12 gates placed by hand along a 1.37 km line (anchors in `config.ts`), minimum corner radius about 14 m. A test checks the line never touches a building (1.2 m margin) and stays in the world.
+- **Traffic:** about 280 vehicles in 3 instanced types. Each axis of avenues moves exactly one block per 18 s green and waits; stopped vehicles never rest in a junction (tested). Each vehicle has a moving collider (`vehicle` crash).
+- **Life:** 42 birds (park flock circling, tower flock weaving), 6 delivery quadcopters on the avenues, 160 pedestrians on the sidewalk rings. None is solid. The lowest graphics preset hides birds and pedestrians.
+- **Online, per track:** laps carry their `track`; the server validates against that track's start, bounds and world version, keeps separate rows and leaderboards (the world version differs per track, so no migration was needed), and a ghost response names its track so a link from the other track reloads into it. Live rooms take the track of the pilot who opens them; others are told to switch. Best laps and challenge records are stored per track.
+- **Budget:** unchanged. No new assets, no new tables, no extra Worker requests beyond Phase 4 and 5.
+
+### Not built yet / not verified
+
+- Not built: street lights and signs, traffic lights drawn at junctions, minimap markers for traffic, a rooftop gate, window frames with LEDs on the portals, per-track Training lessons (Training uses the current track unchanged).
+- Not verified: a human flying a full lap (the 55 to 70 s target comes from the line length), frame rate on the user's GPU, how the colours and fog look at different times, and portal width feel (8 by 5 m).
+- Known rough edges: the facade texture is one tile, so buildings repeat; ground and horizon colours need tuning; the minimap does not show the buildings' heights.
 
 ## Out of scope
 
