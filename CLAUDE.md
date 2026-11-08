@@ -40,6 +40,7 @@ Each feature gets its own file in `docs/features/`, written from the template be
 | Online ghosts and leaderboard | [online-ghosts-and-leaderboard.md](docs/features/online-ghosts-and-leaderboard.md) | 4 | In progress |
 | Live race rooms | [live-race-rooms.md](docs/features/live-race-rooms.md) | 5 | Done (needs live-site check) |
 | Drone parts and upgrades | [drone-parts-and-upgrades.md](docs/features/drone-parts-and-upgrades.md) | 3 | In progress (built, needs playtest) |
+| City track | [city-track.md](docs/features/city-track.md) | 6 | Planned |
 | Battery Challenge | [battery-challenge.md](docs/features/battery-challenge.md) | 3 | In progress (built, needs playtest) |
 
 ## Working rules (summary; details in the standards)
