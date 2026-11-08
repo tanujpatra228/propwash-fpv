@@ -139,8 +139,8 @@ For friends this is plenty. Safeguards that keep it from running out:
 
 ## Player indicators
 
-- **On screen:** each other pilot has a pin in their grid-slot colour with their name and distance (in your units). Pilots out of view or behind you stick to the screen edge and dim. The old 3D name sprite was removed so a pilot is never labelled twice.
-- **Minimap:** every other pilot is a dot in the same colour, drawn under your own orange arrow.
+- **On screen:** a name tag floats above each other pilot's drone: the name in clear white capitals with the distance in small text underneath. Tags fade from full opacity within 60 m down to 40% at 400 m, so far pilots are quieter. There are no dots, colours or edge-stuck markers, so a full lobby of 8 stays clean.
+- **Out of view:** a pilot behind you or off-screen has no tag. Find them on the **minimap**, where every other pilot is a dot in their slot colour under your own arrow.
 - Pilots appear once their first pose arrives and vanish after 5 s of silence.
 
 ## Verification and known gaps

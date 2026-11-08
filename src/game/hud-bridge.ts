@@ -18,6 +18,12 @@ import type { LapTracker } from './lap-tracker';
 import type { Scene } from 'three';
 
 const projected = new Vector3();
+
+/** Full opacity up close, easing down to `tagFarOpacity` far away. Pure. */
+export function tagOpacity(distM: number): number {
+  const t = Math.min(1, Math.max(0, (distM - ROOMS.tagNearM) / (ROOMS.tagFarM - ROOMS.tagNearM)));
+  return 1 - t * (1 - ROOMS.tagFarOpacity);
+}
 /** The label floats this far above the ghost drone. */
 const GHOST_TAG_ABOVE_M = 0.6;
 
@@ -67,7 +73,7 @@ export class HudBridge {
   };
 
   /** One reusable record per possible pilot, so a live race allocates nothing per frame. */
-  private readonly otherPool: HudOther[] = Array.from({ length: ROOMS.maxPilots }, () => ({ name: '', color: 0, x: 0, z: 0, ndcX: 0, ndcY: 0, distM: 0, isOnScreen: false }));
+  private readonly otherPool: HudOther[] = Array.from({ length: ROOMS.maxPilots }, () => ({ name: '', color: 0, x: 0, z: 0, ndcX: 0, ndcY: 0, distM: 0, isOnScreen: false, opacity01: 1 }));
 
   constructor(scene: Scene, callbacks: FlightMenuCallbacks) {
     this.hud = new Hud(callbacks);
@@ -147,18 +153,18 @@ export class HudBridge {
       const m = markers[i];
       const out = this.otherPool[i];
       if (!m || !out) continue;
-      projected.set(m.x, m.y, m.z).project(frame.camera);
-      const behind = projected.z > 1;
-      const edge = clampToScreenEdge(projected.x, projected.y, behind);
+      // The tag sits a little above the drone. Pilots out of view get no tag; the minimap shows where they are.
+      projected.set(m.x, m.y + ROOMS.tagAboveM, m.z).project(frame.camera);
+      const { position } = frame.flight;
       out.name = m.name;
       out.color = m.color;
       out.x = m.x;
       out.z = m.z;
-      out.ndcX = edge.x;
-      out.ndcY = edge.y;
-      const { position } = frame.flight;
+      out.ndcX = projected.x;
+      out.ndcY = projected.y;
       out.distM = Math.hypot(m.x - position.x, m.y - position.y, m.z - position.z);
       out.isOnScreen = isOnScreen(projected.x, projected.y, projected.z);
+      out.opacity01 = tagOpacity(out.distM);
       list.push(out);
     }
   }

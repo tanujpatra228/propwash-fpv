@@ -9,12 +9,14 @@ export interface HudOther {
   color: number;
   x: number;
   z: number;
-  /** Normalised device coordinates, pushed to the screen edge when off-screen. */
+  /** Normalised device coordinates of the tag, a little above the drone. */
   ndcX: number;
   ndcY: number;
   distM: number;
-  /** True when the pilot is in front of the camera and inside the screen. */
+  /** True when the pilot is in front of the camera and inside the screen: only then is a name tag drawn. */
   isOnScreen: boolean;
+  /** 1 when close, fading with distance so far pilots are quieter. */
+  opacity01: number;
 }
 
 /** Everything the HUD shows, as plain numbers. The game builds one per frame; the HUD never reads game internals. */
