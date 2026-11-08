@@ -131,7 +131,8 @@ Phase 3 is local only (no server). Phase 4 sync:
 - Built: part catalog and `buildStats` (`src/drone/parts.ts`, tuning in `config.ts` `PARTS`), `Progress` (credits, buy, upgrade, equip, saved in `pw.progress.v1`), the Hangar screen, credits for laps and personal bests.
 - **Class rule, simplified:** the equipped setup applies in **Free flight and Battery Challenge only**. Time trial, training and live races always use the stock drone (the Spec class), so best laps, leaderboards and ghosts stay comparable and nothing in Phase 4 or 5 needed to change. Open-class time trial, setup-tagged ghosts and a host-picked class are not built.
 - Dry weight is 457 g so the stock all-up weight matches the flight model's 0.642 kg.
-- Not built: 3D prop and battery meshes that change with the setup (the drone model still draws 3 blades), drag-to-spin stand, syncing progress to D1.
+- Visuals: the drone model draws 2 to 5 blades (more blades are narrower) and a battery whose size and label colour match the pack, in flight and in the Hangar. The Hangar shows a slowly turning 3D drone for the part you select. The WebGL context for it is created the first time the Hangar opens.
+- Not built: drag-to-spin stand, per-level visual changes, syncing progress to D1.
 - Not verified: how each prop feels in the air (needs a human), balance of prices and credit income.
 
 ## Out of scope

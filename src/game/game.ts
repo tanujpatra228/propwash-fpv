@@ -8,7 +8,7 @@ import { GameRenderer } from '../core/renderer';
 import { Battery } from '../drone/battery';
 import { createDroneModel } from '../drone/drone-model';
 import { STOCK_STATS, type DroneStats } from '../drone/drone-stats';
-import { buildStats } from '../drone/parts';
+import { buildStats, droneLook, STOCK_SETUP } from '../drone/parts';
 import { FlightModel, NO_INPUT, type FlightInput } from '../drone/flight-model';
 import { Input } from '../input/input';
 import {
@@ -312,6 +312,7 @@ export class Game {
     this.mode = this.modes[id];
     this.stats = this.mode.usesSetup ? buildStats(this.progress.setup) : STOCK_STATS;
     this.battery.configure(this.stats);
+    this.drone.setLook(droneLook(this.mode.usesSetup ? this.progress.setup : STOCK_SETUP));
     this.crashTimerS = 0;
     this.flightTimeS = 0;
     this.mode.start();

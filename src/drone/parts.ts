@@ -69,6 +69,11 @@ export function buildStats(setup: Readonly<DroneSetup>): DroneStats {
   };
 }
 
+/** What the drone model should draw for a setup. */
+export function droneLook(setup: Readonly<DroneSetup>): { propBlades: 2 | 3 | 4 | 5; battery: BatteryId } {
+  return { propBlades: PARTS.propellers[setup.prop].blades, battery: setup.battery };
+}
+
 /** Short name for menus and the race panel: "Allround 3-blade · Standard 1500". */
 export function setupName(setup: Readonly<DroneSetup>): string {
   const prop = PARTS.propellers[setup.prop];

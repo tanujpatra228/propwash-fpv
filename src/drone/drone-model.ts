@@ -11,20 +11,30 @@ import {
   DoubleSide,
   type Material,
 } from 'three';
-import { DRONE } from '../config';
+import { DRONE, PARTS } from '../config';
+import type { BatteryId } from './parts';
 import { lerp } from '../core/math';
 
 export interface DroneModelOptions {
   color: number;
   /** Translucent white-blue copy for best-lap ghosts: no shadows, no depth writes. */
   ghost?: boolean;
-  /** Phase 3 parts will use other blade counts. Phase 1 always draws 3. */
   propBlades?: 2 | 3 | 4 | 5;
+  /** Which battery is strapped on top; sets its size and label colour. Defaults to the stock pack. */
+  battery?: BatteryId;
+}
+
+/** The parts that change how the drone looks. */
+export interface DroneLook {
+  propBlades: 2 | 3 | 4 | 5;
+  battery: BatteryId;
 }
 
 export interface DroneModel {
   group: Group;
   setColor(color: number): void;
+  /** Swaps the propellers and the battery that are drawn. */
+  setLook(look: DroneLook): void;
   /** Spins the props; faster at higher throttle. Alternating directions per motor. */
   spinProps(throttle01: number, dtS: number): void;
   dispose(): void;
@@ -102,28 +112,73 @@ export function createDroneModel(options: DroneModelOptions): DroneModel {
   add(geo.arm, carbon, 0, -0.002, 0, -Math.PI / 4);
   add(geo.canopy, accent, 0, 0.024, 0.005);
   add(geo.stack, carbon, 0, 0.056, 0.012);
-  add(geo.strap, accent, 0, 0.073, 0.012);
   add(geo.camera, carbon, 0, 0.022, -0.06).rotation.x = 0.4;
   add(geo.lens, metal, 0, 0.026, -0.074).rotation.x = Math.PI / 2 + 0.4;
   add(geo.led, led, 0, -0.01, 0);
   add(geo.antenna, carbon, 0, 0.05, 0.07).rotation.x = -0.7;
 
   const props: Array<{ group: Group; direction: number }> = [];
-  for (const [x, z, direction] of MOTORS) {
-    add(geo.motor, metal, x, 0.014, z);
-    const propGroup = new Group();
-    propGroup.position.set(x, 0.028, z);
-    for (let i = 0; i < blades; i++) {
-      const blade = new Mesh(geo.blade, accent);
-      blade.rotation.y = (i * Math.PI * 2) / blades;
-      propGroup.add(blade);
+  const batteryBody = new MeshStandardMaterial({ color: 0x15181c, roughness: 0.6, metalness: 0.1, ...ghostExtras });
+  const batteryLabel = new MeshStandardMaterial({ color: 0xffc94a, roughness: 0.5, emissive: 0xffc94a, emissiveIntensity: 0.25, ...ghostExtras });
+  materials.push(batteryBody, batteryLabel);
+  const batteryGroup = new Group();
+  group.add(batteryGroup);
+  const batteryGeometries: BufferGeometry[] = [];
+
+  const buildBattery = (id: BatteryId): void => {
+    batteryGroup.clear();
+    for (const g of batteryGeometries) g.dispose();
+    batteryGeometries.length = 0;
+    const part = PARTS.batteries[id];
+    const [w, h, l] = part.sizeM;
+    const body = new BoxGeometry(w, h, l);
+    const label = new BoxGeometry(w + 0.002, h * 0.5, l * 0.4);
+    batteryGeometries.push(body, label);
+    batteryLabel.color.setHex(isGhost ? 0xffffff : part.labelColor);
+    batteryLabel.emissive.setHex(isGhost ? 0xffffff : part.labelColor);
+    // Sits on the stack, under the strap, centred a little back so the camera still sees forward.
+    const y = 0.071 + h / 2 - 0.003;
+    const strap = new BoxGeometry(w + 0.004, h + 0.004, 0.007);
+    batteryGeometries.push(strap);
+    const parts: ReadonlyArray<readonly [BufferGeometry, Material, number, number]> = [
+      [body, batteryBody, y, 0.012],
+      [label, batteryLabel, y, 0.012],
+      [strap, accent, y, 0.012 - l * 0.32],
+      [strap, accent, y, 0.012 + l * 0.32],
+    ];
+    for (const [geometry, material, yy, zz] of parts) {
+      const mesh = new Mesh(geometry, material);
+      mesh.position.set(0, yy, zz);
+      mesh.castShadow = !isGhost;
+      batteryGroup.add(mesh);
     }
-    const blur = new Mesh(geo.disc, disc);
-    blur.rotation.x = -Math.PI / 2;
-    propGroup.add(blur);
-    group.add(propGroup);
-    props.push({ group: propGroup, direction });
-  }
+  };
+
+  const buildProps = (count: number): void => {
+    for (const prop of props) group.remove(prop.group);
+    props.length = 0;
+    // More blades are narrower, so the difference reads at a glance.
+    const widthScale = Math.min(1.5, Math.max(0.7, 3 / count));
+    for (const [x, z, direction] of MOTORS) {
+      const propGroup = new Group();
+      propGroup.position.set(x, 0.028, z);
+      for (let i = 0; i < count; i++) {
+        const blade = new Mesh(geo.blade, accent);
+        blade.rotation.y = (i * Math.PI * 2) / count;
+        blade.scale.z = widthScale;
+        propGroup.add(blade);
+      }
+      const blur = new Mesh(geo.disc, disc);
+      blur.rotation.x = -Math.PI / 2;
+      propGroup.add(blur);
+      group.add(propGroup);
+      props.push({ group: propGroup, direction });
+    }
+  };
+
+  for (const [x, z] of MOTORS) add(geo.motor, metal, x, 0.014, z);
+  buildProps(blades);
+  buildBattery(options.battery ?? PARTS.stockBattery);
   group.scale.setScalar(DRONE.scale);
 
   return {
@@ -134,6 +189,10 @@ export function createDroneModel(options: DroneModelOptions): DroneModel {
       led.color.setHex(color);
       led.emissive.setHex(color);
     },
+    setLook(look: DroneLook): void {
+      buildProps(look.propBlades);
+      buildBattery(look.battery);
+    },
     spinProps(throttle01: number, dtS: number): void {
       const speed = lerp(DRONE.propSpinRadps.idle, DRONE.propSpinRadps.full, throttle01);
       for (const prop of props) prop.group.rotation.y += prop.direction * speed * dtS;
@@ -141,6 +200,7 @@ export function createDroneModel(options: DroneModelOptions): DroneModel {
     dispose(): void {
       // Geometries are shared and stay alive; only per-drone materials are released.
       for (const material of materials) material.dispose();
+      for (const g of batteryGeometries) g.dispose();
     },
   };
 }

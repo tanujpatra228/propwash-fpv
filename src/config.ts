@@ -379,10 +379,10 @@ export const PARTS = {
     hauler: { label: 'Hauler', blades: 5, topSpeed: 0.88, grip: 1.3, lift: 1.2, drain: 1.3, wobble: 0, price: 600, blurb: 'Smoothest and strongest, but thirsty' },
   },
   batteries: {
-    light: { label: 'Light 1100', cells: 4, capacityMah: 1100, weightG: 140, topSpeed: 1, lift: 1, drain: 1, price: 200, blurb: 'Lighter and quicker to accelerate, short flights' },
-    standard: { label: 'Standard 1500', cells: 4, capacityMah: 1500, weightG: 185, topSpeed: 1, lift: 1, drain: 1, price: 0, blurb: 'Balanced. The stock pack' },
-    long: { label: 'Long 1800', cells: 4, capacityMah: 1800, weightG: 215, topSpeed: 1, lift: 1, drain: 1, price: 400, blurb: 'Heavier, long flights' },
-    punch: { label: 'Punch 1300 6S', cells: 6, capacityMah: 1300, weightG: 220, topSpeed: 1.12, lift: 1.1, drain: 1.25, price: 900, blurb: 'More voltage: faster and punchier, hungry' },
+    light: { label: 'Light 1100', sizeM: [0.03, 0.02, 0.066], labelColor: 0x5cc8ff, cells: 4, capacityMah: 1100, weightG: 140, topSpeed: 1, lift: 1, drain: 1, price: 200, blurb: 'Lighter and quicker to accelerate, short flights' },
+    standard: { label: 'Standard 1500', sizeM: [0.032, 0.026, 0.08], labelColor: 0xffc94a, cells: 4, capacityMah: 1500, weightG: 185, topSpeed: 1, lift: 1, drain: 1, price: 0, blurb: 'Balanced. The stock pack' },
+    long: { label: 'Long 1800', sizeM: [0.034, 0.03, 0.094], labelColor: 0x5fe08c, cells: 4, capacityMah: 1800, weightG: 215, topSpeed: 1, lift: 1, drain: 1, price: 400, blurb: 'Heavier, long flights' },
+    punch: { label: 'Punch 1300 6S', sizeM: [0.036, 0.032, 0.088], labelColor: 0xff5a6a, cells: 6, capacityMah: 1300, weightG: 220, topSpeed: 1.12, lift: 1.1, drain: 1.25, price: 900, blurb: 'More voltage: faster and punchier, hungry' },
   },
   /** Per level above 1. */
   upgrade: { propDrainCutPerLevel: 0.05, propWobbleCutPerLevel: 0.2, batteryCapacityGainPerLevel: 0.1 },

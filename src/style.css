@@ -1172,3 +1172,11 @@ kbd {
   .menu-list b { font-size: 21px; }
   .menu-list small { font-size: 12px; }
 }
+
+.hg-stage {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 600 / 260;
+  background: radial-gradient(ellipse at 50% 70%, rgba(92, 200, 255, 0.16), rgba(0, 0, 0, 0.25));
+  box-shadow: inset 0 0 0 1px var(--line);
+}
