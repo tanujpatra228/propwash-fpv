@@ -1,9 +1,9 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 /** These tests need the city to be the active track, which is decided when `config.ts` is first loaded. */
-async function loadCity() {
+async function loadCity(track = 'city') {
   vi.resetModules();
-  vi.stubGlobal('location', { search: '?track=city' });
+  vi.stubGlobal('location', { search: `?track=${track}` });
   vi.stubGlobal('localStorage', { getItem: () => null });
   const config = await import('../../config');
   const trackModule = await import('../track');
@@ -56,5 +56,26 @@ describe('Downtown Dash track', () => {
     expect(new Set(indices).size).toBe(12);
     const start = city.track.positions[indices[0] ?? 0];
     expect(Math.hypot((start?.x ?? 0) - 0, (start?.z ?? 0) - 190)).toBeLessThan(12);
+  });
+});
+
+describe('Downtown Dash: Night', () => {
+  it('is the same city and line in a night atmosphere with its own world version', async () => {
+    const day = await loadCity('city');
+    const night = await loadCity('night');
+    expect(night.config.ACTIVE_TRACK_ID).toBe('night');
+    expect(night.config.RENDER.isNight).toBe(true);
+    expect(day.config.RENDER.isNight).toBe(false);
+    expect(night.config.WORLD.version).toBe(102);
+    expect(night.config.WORLD.version).not.toBe(day.config.WORLD.version);
+    expect(night.track.lengthM).toBeCloseTo(day.track.lengthM, 3);
+    expect(JSON.stringify(night.plan)).toBe(JSON.stringify(day.plan));
+  });
+  it('is dim but readable: lit by a moon, with a night sky and fog', async () => {
+    const { config } = await loadCity('night');
+    expect(config.RENDER.hasStars).toBe(true);
+    expect(config.RENDER.lightElevationDeg).toBeGreaterThan(0);
+    expect(config.RENDER.sunElevationDeg).toBeLessThan(0);
+    expect(config.RENDER.hemisphereIntensity).toBeGreaterThan(0.3);
   });
 });

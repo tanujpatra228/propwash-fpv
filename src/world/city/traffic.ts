@@ -1,4 +1,4 @@
-import { BoxGeometry, Color, InstancedMesh, MeshStandardMaterial, Object3D, Vector3, type Scene } from 'three';
+import { BoxGeometry, Color, InstancedMesh, MeshBasicMaterial, MeshStandardMaterial, Object3D, Vector3, type Scene } from 'three';
 import type { ColliderWorld, DynamicBox } from '../../physics/colliders';
 import { buildTraffic, vehiclePose, type Vehicle, type VehiclePose, type VehicleType } from './traffic-plan';
 
@@ -10,6 +10,8 @@ interface Group {
   boxes: DynamicBox[];
   body: InstancedMesh;
   cabin: InstancedMesh;
+  /** Headlights and tail lights (two per vehicle), night only. */
+  lights: InstancedMesh | null;
 }
 
 /** The moving cars, vans and buses: drawn as instances and solid (each has a collider that follows it). */
@@ -18,7 +20,7 @@ export class Traffic {
   private readonly pose: VehiclePose = { x: 0, z: 0, yawRad: 0, speedMps: 0 };
   private readonly dummy = new Object3D();
 
-  constructor(scene: Scene, colliders: ColliderWorld) {
+  constructor(scene: Scene, colliders: ColliderWorld, hasLights = false) {
     const all = buildTraffic();
     const unit = new BoxGeometry(1, 1, 1);
     const color = new Color();
@@ -33,9 +35,34 @@ export class Traffic {
         scene.add(mesh);
       }
       const boxes = vehicles.map((v) => colliders.addDynamicBox(new Vector3(v.widthM / 2, v.heightM / 2, v.lengthM / 2), 'vehicle'));
-      this.groups.push({ vehicles, boxes, body, cabin });
+      let lights: InstancedMesh | null = null;
+      if (hasLights) {
+        lights = new InstancedMesh(unit, new MeshBasicMaterial({ color: 0xffffff }), vehicles.length * 2);
+        lights.frustumCulled = false;
+        scene.add(lights);
+        vehicles.forEach((_, i) => {
+          lights?.setColorAt(i * 2, color.setHex(0xfff0c8));
+          lights?.setColorAt(i * 2 + 1, color.setHex(0xff2a22));
+        });
+      }
+      this.groups.push({ vehicles, boxes, body, cabin, lights });
     }
     this.update(0);
+  }
+
+  /** Two light bars: white at the front, red at the back. */
+  private placeLights(lights: InstancedMesh, i: number, v: Vehicle, pose: VehiclePose): void {
+    const { dummy } = this;
+    const fx = -Math.sin(pose.yawRad);
+    const fz = -Math.cos(pose.yawRad);
+    for (const end of [1, -1]) {
+      const reach = (v.lengthM / 2 + 0.03) * end;
+      dummy.position.set(pose.x + fx * reach, v.heightM * 0.3 + 0.15, pose.z + fz * reach);
+      dummy.rotation.set(0, pose.yawRad, 0);
+      dummy.scale.set(v.widthM * 0.82, 0.2, 0.08);
+      dummy.updateMatrix();
+      lights.setMatrixAt(i * 2 + (end === 1 ? 0 : 1), dummy.matrix);
+    }
   }
 
   update(timeS: number): void {
@@ -59,10 +86,15 @@ export class Traffic {
         dummy.updateMatrix();
         group.cabin.setMatrixAt(i, dummy.matrix);
         group.boxes[i]?.place(pose.x, v.heightM / 2 + 0.1, pose.z, pose.yawRad);
+        if (group.lights) this.placeLights(group.lights, i, v, pose);
       });
       group.body.instanceMatrix.needsUpdate = true;
       group.cabin.instanceMatrix.needsUpdate = true;
       if (group.body.instanceColor) group.body.instanceColor.needsUpdate = true;
+      if (group.lights) {
+        group.lights.instanceMatrix.needsUpdate = true;
+        if (group.lights.instanceColor) group.lights.instanceColor.needsUpdate = true;
+      }
     }
   }
 }

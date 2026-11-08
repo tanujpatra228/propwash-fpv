@@ -11,6 +11,7 @@ import {
 } from 'three';
 import { Sky } from 'three/addons/objects/Sky.js';
 import { RENDER } from '../config';
+import { buildNightDome, buildNightSky } from './stars';
 
 /** The stock sky draws the sun disc about 19,000 times brighter than the sky, which bloom smears across half the screen. */
 const SUN_DISC_BRIGHTNESS = '19000.0';
@@ -53,8 +54,18 @@ export function buildSky(scene: Scene, renderer: WebGLRenderer): SkyRig {
     MathUtils.degToRad(90 - RENDER.sunElevationDeg),
     MathUtils.degToRad(RENDER.sunAzimuthDeg),
   );
+  const lightDirection = new Vector3().setFromSphericalCoords(
+    1,
+    MathUtils.degToRad(90 - RENDER.lightElevationDeg),
+    MathUtils.degToRad(RENDER.lightAzimuthDeg),
+  );
   const dome = createSkyDome(3000, sunDirection);
   scene.add(dome);
+  if (RENDER.hasStars) {
+    dome.visible = false; // the stock dome is pure black after dark; a navy gradient takes its place
+    buildNightDome(scene);
+    buildNightSky(scene, lightDirection);
+  }
 
   const pmrem = new PMREMGenerator(renderer);
   const envScene = new Scene();
@@ -65,14 +76,14 @@ export function buildSky(scene: Scene, renderer: WebGLRenderer): SkyRig {
 
   scene.fog = new FogExp2(new Color(RENDER.fogColor), RENDER.fogDensity);
 
-  const sun = new DirectionalLight(0xffdcb4, RENDER.sunIntensity);
+  const sun = new DirectionalLight(RENDER.lightColor, RENDER.sunIntensity);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
   sun.shadow.bias = -0.0004;
   sun.shadow.normalBias = 0.03;
   sun.shadow.camera.near = 1;
   sun.shadow.camera.far = 600;
-  const hemisphere = new HemisphereLight(0xbcd2ff, 0x5a4a35, RENDER.hemisphereIntensity);
+  const hemisphere = new HemisphereLight(RENDER.hemisphereSky, RENDER.hemisphereGround, RENDER.hemisphereIntensity);
   scene.add(sun, sun.target, hemisphere);
 
   let currentExtentM = 0;
@@ -108,7 +119,7 @@ export function buildSky(scene: Scene, renderer: WebGLRenderer): SkyRig {
     },
     followFocus(position: Vector3): void {
       sun.target.position.copy(position);
-      sun.position.copy(position).addScaledVector(sunDirection, 300);
+      sun.position.copy(position).addScaledVector(lightDirection, 300);
     },
   };
   rig.setShadowExtent(RENDER.shadowExtentM);

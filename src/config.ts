@@ -21,11 +21,14 @@ const WORLD_BASE = {
   },
 } as const;
 
-export type TrackId = 'valley' | 'city';
-export const TRACK_IDS: readonly TrackId[] = ['valley', 'city'];
+export type TrackId = 'valley' | 'city' | 'night';
+export const TRACK_IDS: readonly TrackId[] = ['valley', 'city', 'night'];
+
+/** Which world a track is built from. A track is a world plus an atmosphere (`night` is the city after dark). */
+export type WorldFamily = 'valley' | 'city';
 
 export function isTrackId(value: unknown): value is TrackId {
-  return value === 'valley' || value === 'city';
+  return value === 'valley' || value === 'city' || value === 'night';
 }
 
 /**
@@ -33,8 +36,9 @@ export function isTrackId(value: unknown): value is TrackId {
  * ghosts and best laps. `start` is gate 0's position on the ground plane. The drone cannot leave the bounds box.
  */
 export const TRACK_DEFS = {
-  valley: { name: 'Valley Sprint', blurb: 'Nature, a lake and a factory.', worldVersion: 1, start: [0, -150], halfSizeM: 900, ceilingM: 300 },
-  city: { name: 'Downtown Dash', blurb: 'Streets, traffic, towers and windows to fly through.', worldVersion: 101, start: [0, 190], halfSizeM: 320, ceilingM: 170 },
+  valley: { family: 'valley' as WorldFamily, isNight: false, name: 'Valley Sprint', blurb: 'Nature, a lake and a factory.', worldVersion: 1, start: [0, -150], halfSizeM: 900, ceilingM: 300 },
+  city: { family: 'city' as WorldFamily, isNight: false, name: 'Downtown Dash', blurb: 'Streets, traffic, towers and windows to fly through.', worldVersion: 101, start: [0, 190], halfSizeM: 320, ceilingM: 170 },
+  night: { family: 'city' as WorldFamily, isNight: true, name: 'Downtown Dash: Night', blurb: 'The same city after dark: neon, street lights and glowing windows.', worldVersion: 102, start: [0, 190], halfSizeM: 320, ceilingM: 170 },
 } as const;
 
 /** The track chosen at start-up: `?track=` first, then the saved choice, else the valley. Changing it reloads the page. */
@@ -75,7 +79,7 @@ export const VALLEY = {
 type ControlPoint = readonly [x: number, z: number, clearanceM: number | 'bando' | 'lake'];
 
 /** Control points: [x, z, clearance above ground in metres, or a named zone]. */
-const TRACK_POINTS: Record<TrackId, readonly ControlPoint[]> = {
+const TRACK_POINTS: Record<WorldFamily, readonly ControlPoint[]> = {
   valley: [
     [0, -150, 5],
     [95, -138, 6],
@@ -105,7 +109,7 @@ const TRACK_POINTS: Record<TrackId, readonly ControlPoint[]> = {
  * Where each gate sits, as [x, z] on the ground plane, for tracks whose gates are placed by hand (the city).
  * Tracks without anchors space their gates evenly along the line.
  */
-const GATE_ANCHORS: Partial<Record<TrackId, ReadonlyArray<readonly [number, number]>>> = {
+const GATE_ANCHORS: Partial<Record<WorldFamily, ReadonlyArray<readonly [number, number]>>> = {
   city: [[0, 190], [0, 100], [0, 38], [0, -75], [82, -155], [82, -205], [170, -246], [244, -170], [190, -60], [126, -60], [120, 0], [50, 240]],
 };
 
@@ -130,10 +134,10 @@ const TRACK_SHARED = {
 export const TRACK = {
   ...TRACK_SHARED,
   name: ACTIVE_TRACK_DEF.name as string,
-  points: TRACK_POINTS[ACTIVE_TRACK_ID],
-  gateAnchors: GATE_ANCHORS[ACTIVE_TRACK_ID] ?? null,
+  points: TRACK_POINTS[ACTIVE_TRACK_DEF.family],
+  gateAnchors: GATE_ANCHORS[ACTIVE_TRACK_DEF.family] ?? null,
   /** Samples this close to the factory centre are not forced above the terrain (the valley only). */
-  bandoZoneRadiusM: ACTIVE_TRACK_ID === 'valley' ? 30 : 0,
+  bandoZoneRadiusM: ACTIVE_TRACK_DEF.family === 'valley' ? 30 : 0,
 };
 
 /** Downtown Dash: a 4 by 4 grid of blocks between avenues. See docs/features/city-track.md. */
@@ -294,8 +298,31 @@ export const DRONE = {
   propSpinRadps: { idle: 60, full: 420 },
 } as const;
 
-export const RENDER = {
+interface Atmosphere {
   /** Tuned by measurement in M5: the first values (0.74, sun 2.6, sky fill 1) over-exposed whites and made everything glow. */
+  toneMappingExposure: number;
+  sunIntensity: number;
+  hemisphereIntensity: number;
+  environmentIntensity: number;
+  sky: { turbidity: number; rayleigh: number; mieCoefficient: number; mieDirectionalG: number };
+  fogDensity: number;
+  fogColor: number;
+  /** Where the sky dome's sun is. At night it is below the horizon, so the dome goes dark. */
+  sunElevationDeg: number;
+  sunAzimuthDeg: number;
+  /** The one shadow-casting light: the sun by day, the moon at night. */
+  lightColor: number;
+  lightElevationDeg: number;
+  lightAzimuthDeg: number;
+  hemisphereSky: number;
+  hemisphereGround: number;
+  shadowExtentM: number;
+  hasStars: boolean;
+  /** Windows, signs, street lamps and vehicle lights glow. */
+  isNight: boolean;
+}
+
+const ATMOSPHERE_DAY: Atmosphere = {
   toneMappingExposure: 0.68,
   sunIntensity: 1.7,
   hemisphereIntensity: 0.4,
@@ -306,8 +333,38 @@ export const RENDER = {
   fogColor: 0xc8b8a4,
   sunElevationDeg: 15,
   sunAzimuthDeg: 205,
+  lightColor: 0xffdcb4,
+  lightElevationDeg: 15,
+  lightAzimuthDeg: 205,
+  hemisphereSky: 0xbcd2ff,
+  hemisphereGround: 0x5a4a35,
   shadowExtentM: 90,
-} as const;
+  hasStars: false,
+  isNight: false,
+};
+
+/** After dark: a dim blue moon, a deep navy sky with stars, light fog that hides the far edge. */
+const ATMOSPHERE_NIGHT: Atmosphere = {
+  ...ATMOSPHERE_DAY,
+  toneMappingExposure: 1.0,
+  sunIntensity: 1.1,
+  hemisphereIntensity: 0.6,
+  environmentIntensity: 0.35,
+  sky: { turbidity: 2, rayleigh: 1.1, mieCoefficient: 0.001, mieDirectionalG: 0.8 },
+  fogDensity: 0.0017,
+  fogColor: 0x101a38,
+  sunElevationDeg: -4,
+  lightColor: 0x8aa6ff,
+  lightElevationDeg: 38,
+  lightAzimuthDeg: 120,
+  hemisphereSky: 0x34508f,
+  hemisphereGround: 0x14161c,
+  hasStars: true,
+  isNight: true,
+};
+
+/** The atmosphere of the active track. */
+export const RENDER: Atmosphere = ACTIVE_TRACK_DEF.isNight ? ATMOSPHERE_NIGHT : ATMOSPHERE_DAY;
 
 export const COLLISION = {
   /** Cell size of the tree lookup grid. */

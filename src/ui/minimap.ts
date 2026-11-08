@@ -1,4 +1,4 @@
-import { ACTIVE_TRACK_ID, CITY, VALLEY } from '../config';
+import { ACTIVE_TRACK_DEF, CITY, VALLEY } from '../config';
 import { el } from '../core/dom';
 import { track } from '../world/track';
 import type { HudState } from './hud-state';
@@ -59,7 +59,7 @@ export class Minimap {
     c.strokeStyle = 'rgba(255,255,255,.75)';
     c.lineWidth = 3;
     c.stroke();
-    if (ACTIVE_TRACK_ID === 'city') this.drawCity(c);
+    if (ACTIVE_TRACK_DEF.family === 'city') this.drawCity(c);
     else this.drawValley(c);
     const start = track.positions[0];
     if (start) {

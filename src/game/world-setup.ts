@@ -5,7 +5,7 @@ import { buildBoundary, type Boundary } from '../world/boundary';
 import { buildGates, type Gate } from '../world/gates';
 import { buildScenery, type Scenery } from '../world/scenery';
 import { buildCityScenery } from '../world/city/city-world';
-import { ACTIVE_TRACK_ID } from '../config';
+import { ACTIVE_TRACK_DEF } from '../config';
 import { buildSky, type SkyRig } from '../world/sky';
 import { buildTerrain, buildWater } from '../world/terrain';
 import { createWorldTextures } from '../world/textures';
@@ -23,7 +23,7 @@ export function buildWorldContent(scene: Scene, renderer: GameRenderer, collider
   const maxAnisotropy = renderer.webgl.capabilities.getMaxAnisotropy();
   const textures = createWorldTextures(maxAnisotropy);
   let scenery: Scenery;
-  if (ACTIVE_TRACK_ID === 'city') {
+  if (ACTIVE_TRACK_DEF.family === 'city') {
     scenery = buildCityScenery(scene, colliders, textures, maxAnisotropy);
   } else {
     buildTerrain(scene, textures.detail);

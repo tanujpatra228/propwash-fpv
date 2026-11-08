@@ -44,3 +44,25 @@ export function createFacadeTexture(maxAnisotropy: number): CanvasTexture {
   texture.minFilter = LinearMipmapLinearFilter;
   return texture;
 }
+
+/** White where the glass is, black elsewhere, in the same layout as the facade. At night it makes the windows glow. */
+export function createWindowMask(maxAnisotropy: number): CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = SIZE;
+  canvas.height = SIZE;
+  const c = canvas.getContext('2d');
+  if (c) {
+    c.fillStyle = '#000';
+    c.fillRect(0, 0, SIZE, SIZE);
+    c.fillStyle = '#fff';
+    c.fillRect(36, 40, SIZE - 72, SIZE - 40 - 52);
+    c.fillStyle = '#000';
+    c.fillRect(SIZE / 2 - 3, 40, 6, SIZE - 40 - 52);
+  }
+  const texture = new CanvasTexture(canvas);
+  texture.wrapS = RepeatWrapping;
+  texture.wrapT = RepeatWrapping;
+  texture.anisotropy = maxAnisotropy;
+  texture.minFilter = LinearMipmapLinearFilter;
+  return texture;
+}

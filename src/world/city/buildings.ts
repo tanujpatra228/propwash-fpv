@@ -31,7 +31,7 @@ function boxGeometry(b: CityBox): BoxGeometry {
 }
 
 /** Builds every building as one merged mesh and registers a solid box for each part. Returns the mesh. */
-export function buildBuildings(scene: Scene, colliders: ColliderWorld, plan: CityPlan, facade: Texture): Mesh {
+export function buildBuildings(scene: Scene, colliders: ColliderWorld, plan: CityPlan, facade: Texture, windowMask: Texture | null): Mesh {
   const geometries: BufferGeometry[] = [];
   for (const building of plan.buildings) {
     for (const b of building.boxes) {
@@ -42,9 +42,36 @@ export function buildBuildings(scene: Scene, colliders: ColliderWorld, plan: Cit
   const merged = mergeGeometries(geometries, false);
   if (!merged) throw new Error('Could not merge city buildings');
   for (const g of geometries) g.dispose();
-  const mesh = new Mesh(merged, new MeshStandardMaterial({ map: facade, vertexColors: true, roughness: 0.5, metalness: 0.15 }));
+  const material = new MeshStandardMaterial({ map: facade, vertexColors: true, roughness: 0.5, metalness: 0.15 });
+  if (windowMask) makeWindowsGlow(material, windowMask);
+  const mesh = new Mesh(merged, material);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
   scene.add(mesh);
   return mesh;
+}
+
+/**
+ * Night: the windows glow warm, but only some of them. Each window (one bay by one floor, found from the world position)
+ * gets a hash, and only windows whose hash is high enough are lit, so the towers look inhabited, not floodlit.
+ */
+function makeWindowsGlow(material: MeshStandardMaterial, mask: Texture): void {
+  material.emissive = new Color(0xffc27a);
+  material.emissiveMap = mask;
+  material.emissiveIntensity = 0.85;
+  material.onBeforeCompile = (shader) => {
+    shader.vertexShader = `varying vec3 vWorldPos;\n${shader.vertexShader.replace(
+      '#include <begin_vertex>',
+      '#include <begin_vertex>\nvWorldPos = (modelMatrix * vec4(transformed, 1.0)).xyz;',
+    )}`;
+    shader.fragmentShader = `varying vec3 vWorldPos;
+float windowHash(vec3 p) { p = fract(p * 0.3183099 + vec3(0.1, 0.2, 0.3)); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+${shader.fragmentShader.replace(
+      '#include <emissivemap_fragment>',
+      `#include <emissivemap_fragment>
+      vec3 windowCell = floor(vec3(vWorldPos.x / ${CITY.windowBayM.toFixed(1)}, vWorldPos.y / ${CITY.floorHeightM.toFixed(1)}, vWorldPos.z / ${CITY.windowBayM.toFixed(1)}));
+      float windowRoll = windowHash(windowCell);
+      totalEmissiveRadiance *= step(0.6, windowRoll) * (0.55 + 0.45 * windowHash(windowCell + 7.0));`,
+    )}`;
+  };
 }

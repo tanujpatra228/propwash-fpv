@@ -10,7 +10,8 @@ export interface SavedBestLap {
   ghost: GhostData;
 }
 
-const KEY = `trial.valley-sprint.w${WORLD.version}.v1`;
+const keyFor = (worldVersion: number): string => `trial.valley-sprint.w${worldVersion}.v1`;
+const KEY = keyFor(WORLD.version);
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
@@ -35,6 +36,11 @@ export function isSavedBestLap(value: unknown): value is SavedBestLap {
 
 export function loadBestLap(): SavedBestLap | null {
   return loadJson(KEY, isSavedBestLap);
+}
+
+/** The best lap saved for another track (for the map cards), looked up by that track's world version. */
+export function loadBestLapForVersion(worldVersion: number): SavedBestLap | null {
+  return loadJson(keyFor(worldVersion), isSavedBestLap);
 }
 
 /** Returns false when storage is blocked (the best lap then lasts for this session only). */
