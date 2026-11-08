@@ -39,10 +39,12 @@ export const TRACK_DEFS = {
 
 /** The track chosen at start-up: `?track=` first, then the saved choice, else the valley. Changing it reloads the page. */
 function readActiveTrack(): TrackId {
+  // `globalThis` so the same file also compiles for the server, which has no window.
+  const env = globalThis as { location?: { search: string }; localStorage?: { getItem(key: string): string | null } };
   try {
-    const fromUrl = new URLSearchParams(window.location.search).get('track');
+    const fromUrl = new URLSearchParams(env.location?.search ?? '').get('track');
     if (isTrackId(fromUrl)) return fromUrl;
-    const saved: unknown = JSON.parse(window.localStorage.getItem('pw.track.v1') ?? 'null');
+    const saved: unknown = JSON.parse(env.localStorage?.getItem('pw.track.v1') ?? 'null');
     if (isTrackId(saved)) return saved;
   } catch {
     // No window (the server) or blocked storage: the valley.

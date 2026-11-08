@@ -3,7 +3,8 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 /** These tests need the city to be the active track, which is decided when `config.ts` is first loaded. */
 async function loadCity() {
   vi.resetModules();
-  vi.stubGlobal('window', { location: { search: '?track=city' }, localStorage: { getItem: () => null } });
+  vi.stubGlobal('location', { search: '?track=city' });
+  vi.stubGlobal('localStorage', { getItem: () => null });
   const config = await import('../../config');
   const trackModule = await import('../track');
   const plan = await import('./plan');
