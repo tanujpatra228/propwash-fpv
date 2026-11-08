@@ -45,6 +45,9 @@ import { MenuDirector } from './menu-director';
 import { LiveController } from './live-controller';
 import { FreeFlight } from './modes/free-flight';
 import { LiveRace } from './modes/live-race';
+import { BatteryChallenge } from './modes/battery-challenge';
+import { showChallengePicker } from './challenge-ui';
+import { loadRecords, type ChallengeDef } from './challenge-results';
 import type { GameMode, ModeHost, ModeId, NextStep } from './modes/mode';
 import { TrainingMode } from './modes/training';
 import { TimeTrial } from './modes/time-trial';
@@ -96,6 +99,8 @@ export class Game {
   private readonly online: OnlineUi;
   private readonly live: LiveController;
   private readonly hangar: Hangar;
+  private readonly challenge: BatteryChallenge;
+  private readonly challengePicker = new ChoiceDialog<string>();
   private readonly modes: Record<ModeId, GameMode>;
   private mode: GameMode;
   private phase: 'menu' | 'playing' = 'menu';
@@ -147,10 +152,12 @@ export class Game {
       returnToLobby: () => this.returnToMenu(true),
       notify: (title, subtitle) => this.banner.show(title, subtitle, 'info', 3),
     });
+    this.challenge = new BatteryChallenge(host);
     const liveRace = new LiveRace(host, this.live);
     this.live.attachMode(liveRace);
     this.modes = {
       live: liveRace,
+      challenge: this.challenge,
       free: new FreeFlight(host, () => this.isFreeDrainOn),
       trial: this.trial,
       training: new TrainingMode(host, { load: loadCompletedLessons, save: saveCompletedLessons }),
@@ -201,6 +208,7 @@ export class Game {
         onTraining: () => this.startMode('training'),
         onRaceFriends: () => void this.live.open(),
         onHangar: () => this.hangar.open(),
+        onChallenge: () => this.openChallenges(),
         onControls: () => this.openControls(),
         onQualityChange: (id) => this.applyQuality(id),
         onPilotChange: (next) => {
@@ -322,6 +330,16 @@ export class Game {
         this.input.enabled = true;
       } else this.input.enabled = true;
     });
+  }
+
+  private openChallenges(): void {
+    const back = (): void => void (this.input.enabled = false);
+    showChallengePicker(this.challengePicker, loadRecords(), this.progress.setup, (def) => this.startChallenge(def), back);
+  }
+
+  private startChallenge(def: ChallengeDef): void {
+    this.challenge.setChallenge(def);
+    this.startMode('challenge');
   }
 
   private refreshMenuText(): void {

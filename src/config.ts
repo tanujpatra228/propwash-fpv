@@ -394,6 +394,24 @@ export const PARTS = {
   stockBattery: 'standard',
 } as const;
 
+/**
+ * Battery Challenge: finish the laps before the one battery runs out. `laps: null` is Endurance (as many as you can).
+ * Par times are first guesses until playtested. See docs/features/battery-challenge.md.
+ */
+export const CHALLENGES = {
+  list: [
+    { id: 'three', name: 'Three on a pack', blurb: 'Finish 3 laps before the battery dies.', laps: 3, parS: 150, requiredProp: null },
+    { id: 'five', name: 'Five on a pack', blurb: 'Finish 5 laps. You will need an efficient setup.', laps: 5, parS: 250, requiredProp: null },
+    { id: 'heavy', name: 'Heavy sprint', blurb: 'Finish 2 laps on Hauler 5-blade props.', laps: 2, parS: 85, requiredProp: 'hauler' },
+    { id: 'endurance', name: 'Endurance', blurb: 'As many laps as one battery allows.', laps: null, parS: null, requiredProp: null },
+  ],
+  /** Two stars need at least this much charge left at the finish. */
+  twoStarCharge01: 0.15,
+  countdownS: 3,
+  /** The run ends this long after the battery empties if the drone has not landed. */
+  emptyBatteryGraceS: 3,
+} as const;
+
 export const STORAGE_PREFIX = 'pw.';
 
 /** Stock-drone flight tuning. Units: metres, seconds, radians. */

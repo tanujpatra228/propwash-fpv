@@ -8,7 +8,7 @@ import type { LessonPanelState } from '../../ui/lesson-panel';
 import type { StandingRow } from '../../ui/standings-panel';
 import type { Pose } from '../respawn';
 
-export type ModeId = 'free' | 'trial' | 'training' | 'live';
+export type ModeId = 'free' | 'trial' | 'training' | 'live' | 'challenge';
 
 /** What a dialog button does. The game carries these out. */
 export type NextStep = 'menu' | 'trial' | 'restart' | 'stay';

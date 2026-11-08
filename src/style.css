@@ -674,7 +674,7 @@ kbd {
   flex-direction: column;
   gap: 18px;
   overflow-y: auto;
-  scrollbar-width: none;
+  scrollbar-width: thin;
 }
 
 .menu-left > * {
@@ -1163,3 +1163,12 @@ kbd {
 .hg-track i.better { background: var(--ok); }
 .hg-track i.worse { background: var(--bad); }
 .hg-message:empty { display: none; }
+
+/* Short screens: the menu has nine entries, so tighten it and let it scroll if it still does not fit. */
+@media (max-height: 880px) {
+  .menu-left { top: 28px; gap: 10px; }
+  .logo { font-size: 60px; }
+  .menu-list button { padding: 6px 16px 6px 18px; }
+  .menu-list b { font-size: 21px; }
+  .menu-list small { font-size: 12px; }
+}
