@@ -70,7 +70,8 @@ const shared = (() => {
       led: new BoxGeometry(0.06, 0.006, 0.12),
       antenna: new CylinderGeometry(0.002, 0.002, 0.07, 4),
       motor: new CylinderGeometry(0.014, 0.015, 0.022, 12),
-      blade: new BoxGeometry(0.125, 0.002, 0.016),
+      // One blade reaches from the hub outwards, so N rotated copies show exactly N blades.
+      blade: new BoxGeometry(0.062, 0.002, 0.016).translate(0.031, 0, 0),
       disc: new CircleGeometry(0.064, 24),
     };
     return cache;
