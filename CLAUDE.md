@@ -41,6 +41,8 @@ Each feature gets its own file in `docs/features/`, written from the template be
 | Live race rooms | [live-race-rooms.md](docs/features/live-race-rooms.md) | 5 | Done (needs live-site check) |
 | Drone parts and upgrades | [drone-parts-and-upgrades.md](docs/features/drone-parts-and-upgrades.md) | 3 | In progress (built, needs playtest) |
 | City track | [city-track.md](docs/features/city-track.md) | 6 | In progress (built, needs playtest) |
+| Night city and map screen | [night-city.md](docs/features/night-city.md) | 6 | In progress (built, needs playtest) |
+| Maps roadmap | [maps-roadmap.md](docs/features/maps-roadmap.md) | 6 | Approved |
 | Battery Challenge | [battery-challenge.md](docs/features/battery-challenge.md) | 3 | In progress (built, needs playtest) |
 
 ## Working rules (summary; details in the standards)

@@ -1,8 +1,12 @@
 # Plan: New Maps
 
-Status: Proposed (waiting for approval)
+Status: Approved. Step A (map screen) and step B (night city) built; Harbor Run is next
 Phase: 6
 Last updated: 2026-11-08
+
+## Decisions (2026-11-08)
+
+Order as proposed (Night, Harbor, Glacier, Foundry). Wind: yes, with a setting to turn it off. Water: a splash effect and a crash. All maps open from the start. Procedural first, real textures later.
 
 ## Where we are
 
