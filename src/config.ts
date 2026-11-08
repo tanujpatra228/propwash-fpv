@@ -7,12 +7,8 @@ export const LOOP = {
   minDtS: 0.0001,
 } as const;
 
-export const WORLD = {
-  /** Bump when noise or seeds change: it invalidates saved ghosts and best laps. */
-  version: 1,
+const WORLD_BASE = {
   seed: 1337,
-  /** The drone cannot leave this box. Centre is the origin; the floor is the terrain. */
-  bounds: { halfSizeM: 900, ceilingM: 300 },
   /** The faint grid that marks the boundary. It only shows when the drone is close. */
   boundaryGrid: {
     spacingM: 25,
@@ -25,6 +21,45 @@ export const WORLD = {
   },
 } as const;
 
+export type TrackId = 'valley' | 'city';
+export const TRACK_IDS: readonly TrackId[] = ['valley', 'city'];
+
+export function isTrackId(value: unknown): value is TrackId {
+  return value === 'valley' || value === 'city';
+}
+
+/**
+ * Per-track facts the server also needs. `worldVersion` is bumped when a track's world changes: it invalidates saved
+ * ghosts and best laps. `start` is gate 0's position on the ground plane. The drone cannot leave the bounds box.
+ */
+export const TRACK_DEFS = {
+  valley: { name: 'Valley Sprint', blurb: 'Nature, a lake and a factory.', worldVersion: 1, start: [0, -150], halfSizeM: 900, ceilingM: 300 },
+  city: { name: 'Downtown Dash', blurb: 'Streets, traffic, towers and windows to fly through.', worldVersion: 101, start: [0, 190], halfSizeM: 320, ceilingM: 170 },
+} as const;
+
+/** The track chosen at start-up: `?track=` first, then the saved choice, else the valley. Changing it reloads the page. */
+function readActiveTrack(): TrackId {
+  try {
+    const fromUrl = new URLSearchParams(window.location.search).get('track');
+    if (isTrackId(fromUrl)) return fromUrl;
+    const saved: unknown = JSON.parse(window.localStorage.getItem('pw.track.v1') ?? 'null');
+    if (isTrackId(saved)) return saved;
+  } catch {
+    // No window (the server) or blocked storage: the valley.
+  }
+  return 'valley';
+}
+
+export const ACTIVE_TRACK_ID: TrackId = readActiveTrack();
+export const ACTIVE_TRACK_DEF = TRACK_DEFS[ACTIVE_TRACK_ID];
+
+export const WORLD = {
+  ...WORLD_BASE,
+  version: ACTIVE_TRACK_DEF.worldVersion as number,
+  bounds: { halfSizeM: ACTIVE_TRACK_DEF.halfSizeM as number, ceilingM: ACTIVE_TRACK_DEF.ceilingM as number },
+};
+
+
 /** Valley layout. Changing noise, sizes or seeds changes the world: bump WORLD.version. */
 export const VALLEY = {
   sizeM: 2600,
@@ -35,10 +70,11 @@ export const VALLEY = {
   bando: { x: 112, z: 100, innerRadiusM: 24, outerRadiusM: 42 },
 } as const;
 
-/** Control points of "Valley Sprint": [x, z, clearance above ground in metres, or a named zone]. */
-export const TRACK = {
-  name: 'Valley Sprint',
-  points: [
+type ControlPoint = readonly [x: number, z: number, clearanceM: number | 'bando' | 'lake'];
+
+/** Control points: [x, z, clearance above ground in metres, or a named zone]. */
+const TRACK_POINTS: Record<TrackId, readonly ControlPoint[]> = {
+  valley: [
     [0, -150, 5],
     [95, -138, 6],
     [168, -78, 8],
@@ -51,6 +87,27 @@ export const TRACK = {
     [-160, -62, 6],
     [-88, -130, 4],
   ],
+  // Downtown Dash: north up the main avenue and under the skybridge, east, through two tower portals, over the avenue
+  // on a high arch, down the east avenue, west through the park over the pond, south down the avenue and back.
+  city: [
+    [0, 200, 6], [0, 140, 7], [0, 100, 8], [0, 38, 9], [0, -30, 11], [0, -80, 12], [3, -103, 10], [20, -112, 9],
+    [53, -111, 8], [72, -116, 6.5], [82, -130, 5.5], [82, -155, 5.5], [82, -180, 5.5], [82, -205, 5.5], [82, -236, 8],
+    [92, -245, 10], [115, -247, 16], [150, -246, 26], [190, -246, 24], [226, -240, 18], [244, -215, 13], [244, -170, 10],
+    [244, -100, 8], [240, -70, 5], [226, -60, 4], [190, -60, 3], [150, -60, 4], [126, -60, 6], [112, -58, 6],
+    [119, -42, 6], [120, -10, 6], [120, 0, 7], [120, 60, 9], [120, 120, 10], [120, 180, 8], [115, 215, 7], [100, 234, 7],
+    [75, 240, 7], [50, 240, 7], [20, 237, 7], [3, 225, 6],
+  ],
+};
+
+/**
+ * Where each gate sits, as [x, z] on the ground plane, for tracks whose gates are placed by hand (the city).
+ * Tracks without anchors space their gates evenly along the line.
+ */
+const GATE_ANCHORS: Partial<Record<TrackId, ReadonlyArray<readonly [number, number]>>> = {
+  city: [[0, 190], [0, 100], [0, 38], [0, -75], [82, -155], [82, -205], [170, -246], [244, -170], [190, -60], [126, -60], [120, 0], [50, 240]],
+};
+
+const TRACK_SHARED = {
   samples: 4000,
   gateCount: 12,
   /** How far above the highest ground within groundScanRadiusM a normal control point sits. */
@@ -59,7 +116,6 @@ export const TRACK = {
   lakeClearanceM: 2.4,
   minGroundClearanceM: 1.8,
   /** Samples within this distance of the factory centre are not forced above the terrain. */
-  bandoZoneRadiusM: 30,
   smoothingPasses: 4,
   smoothingHalfWindow: 6,
   curvatureHalfWindow: 6,
@@ -67,6 +123,54 @@ export const TRACK = {
   curvatureSmoothHalfWindow: 8,
   /** Highest sideways acceleration an AI drone or ghost is posed for. */
   maxLateralAccelMps2: 22,
+} as const;
+
+export const TRACK = {
+  ...TRACK_SHARED,
+  name: ACTIVE_TRACK_DEF.name as string,
+  points: TRACK_POINTS[ACTIVE_TRACK_ID],
+  gateAnchors: GATE_ANCHORS[ACTIVE_TRACK_ID] ?? null,
+  /** Samples this close to the factory centre are not forced above the terrain (the valley only). */
+  bandoZoneRadiusM: ACTIVE_TRACK_ID === 'valley' ? 30 : 0,
+};
+
+/** Downtown Dash: a 4 by 4 grid of blocks between avenues. See docs/features/city-track.md. */
+export const CITY = {
+  seed: 424_242,
+  avenueSpacingM: 120,
+  avenueWidthM: 28,
+  /** Block centres on each axis. */
+  blockCentersM: [-180, -60, 60, 180],
+  blockHalfM: 46,
+  /** Each block holds four lots: this half-size, centred this far from the block centre. */
+  lotHalfM: 19,
+  lotOffsetM: 22,
+  height: { tower: [60, 110], mid: [25, 55], low: [10, 20] },
+  /** Chance a free lot becomes a tower or a mid-rise (the rest are low). */
+  towerChance: 0.25,
+  midChance: 0.45,
+  plazaBlock: { ix: 1, iz: 3 },
+  parkBlock: { ix: 3, iz: 1 },
+  /** Lots forced tall so the skybridge has towers to hang between: lot centres. */
+  bridgeTowerLots: [[-38, 38], [38, 38]],
+  bridgeTowerHeightM: 78,
+  skybridge: { z: 38, bottomY: 22, depthM: 6, heightM: 6 },
+  /** Lots with a tunnel through them (a "window" to fly through): lot centre and the axis the tunnel runs along. */
+  portalLots: [
+    { x: 82, z: -158, axis: 'z' },
+    { x: 82, z: -202, axis: 'z' },
+    { x: -82, z: -82, axis: 'x' },
+    { x: -38, z: -82, axis: 'x' },
+    { x: -158, z: 82, axis: 'z' },
+    { x: 158, z: 82, axis: 'z' },
+  ],
+  portalLotHeightM: 55,
+  portal: { widthM: 8, heightM: 5, floorM: 3 },
+  /** Windows on towers: one window bay is this wide and one floor this tall. */
+  windowBayM: 6,
+  floorHeightM: 4,
+  /** Tint of each building kind: [low, mid, tower] colours multiplied into the facade texture. */
+  tints: [0xd8c9b0, 0xb9c2c9, 0x9fb7c8, 0xe6e2da, 0xc7b8a8, 0x8fa4b5],
 } as const;
 
 export const SCENERY = {

@@ -176,8 +176,32 @@ export const track: Track = {
   },
 };
 
+/** For hand-placed gates: the sample nearest to each anchor, searched forward from the previous gate so order is kept. */
+const anchoredSamples: number[] | null = TRACK.gateAnchors
+  ? (() => {
+      const result: number[] = [];
+      let from = 0;
+      for (const [ax, az] of TRACK.gateAnchors) {
+        let best = from;
+        let bestDistance = Infinity;
+        for (let k = 0; k < COUNT; k++) {
+          const i = (from + k) % COUNT;
+          const p = at(positions, i);
+          const d = (p.x - ax) ** 2 + (p.z - az) ** 2;
+          if (d < bestDistance) {
+            bestDistance = d;
+            best = i;
+          }
+        }
+        result.push(best);
+        from = best;
+      }
+      return result;
+    })()
+  : null;
+
 /** Index of the gate along the line (gate 0 is the start/finish). */
 export function gateSampleIndex(gateIndex: number): number {
-  return Math.round((gateIndex / TRACK.gateCount) * COUNT) % COUNT;
+  return anchoredSamples?.[gateIndex] ?? Math.round((gateIndex / TRACK.gateCount) * COUNT) % COUNT;
 }
 

@@ -1,4 +1,4 @@
-import { VALLEY } from '../config';
+import { ACTIVE_TRACK_ID, CITY, VALLEY } from '../config';
 import { el } from '../core/dom';
 import { track } from '../world/track';
 import type { HudState } from './hud-state';
@@ -59,6 +59,17 @@ export class Minimap {
     c.strokeStyle = 'rgba(255,255,255,.75)';
     c.lineWidth = 3;
     c.stroke();
+    if (ACTIVE_TRACK_ID === 'city') this.drawCity(c);
+    else this.drawValley(c);
+    const start = track.positions[0];
+    if (start) {
+      const [sx, sy] = this.toMap(start.x, start.z);
+      c.fillStyle = '#fff';
+      c.fillRect(sx - 5, sy - 5, 10, 10);
+    }
+  }
+
+  private drawValley(c: CanvasRenderingContext2D): void {
     const [lx, ly] = this.toMap(VALLEY.lake.x, VALLEY.lake.z);
     c.fillStyle = 'rgba(70,150,190,.45)';
     c.beginPath();
@@ -67,12 +78,26 @@ export class Minimap {
     const [bx, by] = this.toMap(VALLEY.bando.x, VALLEY.bando.z);
     c.fillStyle = 'rgba(200,190,170,.45)';
     c.fillRect(bx - 7, by - 7, 14, 14);
-    const start = track.positions[0];
-    if (start) {
-      const [sx, sy] = this.toMap(start.x, start.z);
-      c.fillStyle = '#fff';
-      c.fillRect(sx - 5, sy - 5, 10, 10);
-    }
+  }
+
+  /** Blocks as dark squares (the streets are the gaps), the park in green with its pond, the plaza lighter. */
+  private drawCity(c: CanvasRenderingContext2D): void {
+    const { blockCentersM: centers, blockHalfM: half, parkBlock, plazaBlock } = CITY;
+    centers.forEach((bx, ix) => {
+      centers.forEach((bz, iz) => {
+        const [x, y] = this.toMap(bx - half, bz - half);
+        const size = 2 * half * this.pixelsPerM;
+        c.fillStyle = ix === parkBlock.ix && iz === parkBlock.iz ? 'rgba(96,160,70,.55)' : ix === plazaBlock.ix && iz === plazaBlock.iz ? 'rgba(210,200,180,.4)' : 'rgba(255,255,255,.12)';
+        c.fillRect(x, y, size, size);
+      });
+    });
+    const px = centers[parkBlock.ix] ?? 0;
+    const pz = centers[parkBlock.iz] ?? 0;
+    const [pondX, pondY] = this.toMap(px - 8, pz);
+    c.fillStyle = 'rgba(70,150,190,.7)';
+    c.beginPath();
+    c.arc(pondX, pondY, 16 * this.pixelsPerM, 0, Math.PI * 2);
+    c.fill();
   }
 
   update(state: HudState): void {

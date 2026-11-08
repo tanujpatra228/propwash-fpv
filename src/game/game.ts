@@ -34,6 +34,7 @@ import { MenuDirector } from './menu-director';
 import { LiveController } from './live-controller';
 import { createModes } from './modes-setup';
 import { ChallengeMenu } from './challenge-ui';
+import { TrackPicker } from '../ui/track-picker';
 import type { GameMode, ModeHost, ModeId, NextStep } from './modes/mode';
 import type { TimeTrial } from './modes/time-trial';
 import type { Pose } from './respawn';
@@ -81,6 +82,7 @@ export class Game {
   private readonly live: LiveController;
   private readonly hangar: Hangar;
   private readonly challenges: ChallengeMenu;
+  private readonly tracks = new TrackPicker(() => void (this.input.enabled = false));
   private readonly modes: Record<ModeId, GameMode>;
   private mode: GameMode;
   private phase: 'menu' | 'playing' = 'menu';
@@ -177,6 +179,7 @@ export class Game {
         onRaceFriends: () => void this.live.open(),
         onHangar: () => this.hangar.open(),
         onChallenge: () => this.challenges.open(),
+        onTrack: () => this.tracks.open(),
         onControls: () => this.openControls(),
         onQualityChange: (id) => this.applyQuality(id),
         onPilotChange: (next) => {
@@ -231,9 +234,7 @@ export class Game {
     this.returnToMenu();
   }
 
-  start(): void {
-    requestAnimationFrame(this.frame);
-  }
+  start = (): number => requestAnimationFrame(this.frame);
 
   // ---- phases ----
 
