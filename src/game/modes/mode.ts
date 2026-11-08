@@ -8,6 +8,16 @@ import type { LessonPanelState } from '../../ui/lesson-panel';
 import type { StandingRow } from '../../ui/standings-panel';
 import type { Pose } from '../respawn';
 
+/** Another pilot in a live race, where they are right now (smoothed). Colour is their grid-slot colour. */
+export interface PilotMarker {
+  id: string;
+  name: string;
+  color: number;
+  x: number;
+  y: number;
+  z: number;
+}
+
 export type ModeId = 'free' | 'trial' | 'training' | 'live' | 'challenge';
 
 /** What a dialog button does. The game carries these out. */
@@ -64,6 +74,8 @@ export interface ModeHud {
   lesson: LessonPanelState | null;
   /** Live race order, or null outside a live race. */
   standings: readonly StandingRow[] | null;
+  /** Other pilots to mark on the screen and the minimap. Empty outside a live race. */
+  others: readonly PilotMarker[];
   /** Name shown above the ghost: "Best lap", or the pilot being raced. */
   ghostLabel: string;
 }

@@ -8,7 +8,7 @@ const PADDING_PX = 26;
 const EXTRA_WORLD_M = 40;
 const TRACK_STEP = 20;
 
-/** Round minimap. The track, lake and factory are drawn once; only the drone arrow is redrawn. */
+/** Round minimap. The track, lake and factory are drawn once; only the drone arrow and other pilots' dots are redrawn. */
 export class Minimap {
   private readonly canvas = el('canvas', { class: 'minimap', width: String(SIZE_PX), height: String(SIZE_PX), 'aria-label': 'Minimap' });
   private readonly context: CanvasRenderingContext2D | null = this.canvas.getContext('2d');
@@ -84,6 +84,16 @@ export class Minimap {
     c.arc(SIZE_PX / 2, SIZE_PX / 2, SIZE_PX / 2 - 2, 0, Math.PI * 2);
     c.clip();
     c.drawImage(this.background, 0, 0);
+    for (const other of state.others) {
+      const [ox, oy] = this.toMap(other.x, other.z);
+      c.beginPath();
+      c.arc(ox, oy, 7, 0, Math.PI * 2);
+      c.fillStyle = `#${other.color.toString(16).padStart(6, '0')}`;
+      c.fill();
+      c.lineWidth = 2.5;
+      c.strokeStyle = '#000';
+      c.stroke();
+    }
     const [x, y] = this.toMap(state.map.x, state.map.z);
     // Heading: forward is -Z at yaw 0, and the map's +Y axis is world +Z.
     const angle = Math.atan2(-Math.cos(state.map.yawRad), -Math.sin(state.map.yawRad));

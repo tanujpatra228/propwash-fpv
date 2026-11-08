@@ -4,6 +4,8 @@ import type { Battery } from '../drone/battery';
 import type { FlightModel } from '../drone/flight-model';
 import { clampToScreenEdge } from '../ui/gate-marker';
 import { isOnScreen } from '../ui/ghost-tag';
+import type { HudOther } from '../ui/hud-state';
+import { ROOMS } from '../config';
 import { Hud } from '../ui/hud';
 import type { HudState } from '../ui/hud-state';
 import type { FlightMenuCallbacks, FlightMenuLabels } from '../ui/flight-menu';
@@ -59,9 +61,13 @@ export class HudBridge {
     gateCount: TRACK.gateCount,
     nextGate: { x: 0, y: 0, distM: 0 },
     map: { x: 0, z: 0, yawRad: 0 },
+    others: [],
     ghost: { isVisible: false, x: 0, y: 0 },
     mode: { label: '', hint: '', race: null, countdown: '', swapProgress01: 0, lesson: null, standings: null },
   };
+
+  /** One reusable record per possible pilot, so a live race allocates nothing per frame. */
+  private readonly otherPool: HudOther[] = Array.from({ length: ROOMS.maxPilots }, () => ({ name: '', color: 0, x: 0, z: 0, ndcX: 0, ndcY: 0, distM: 0, isOnScreen: false }));
 
   constructor(scene: Scene, callbacks: FlightMenuCallbacks) {
     this.hud = new Hud(callbacks);
@@ -119,6 +125,7 @@ export class HudBridge {
     s.map.z = position.z;
     s.map.yawRad = flight.yawRad;
     this.projectGhost(frame, s.ghost);
+    this.projectOthers(frame);
     s.mode.label = frame.mode.hud.modeLabel;
     s.mode.hint = frame.mode.hud.hint;
     s.mode.race = frame.mode.hud.race;
@@ -127,6 +134,33 @@ export class HudBridge {
     s.mode.lesson = frame.mode.hud.lesson;
     s.mode.standings = frame.mode.hud.standings;
     this.hud.update(s, frame.timeS);
+  }
+
+  /** Fills `state.others` with the other pilots' screen and map positions. */
+  private projectOthers(frame: HudFrame): void {
+    const list = this.state.others;
+    list.length = 0;
+    const markers = frame.mode.hud.others;
+    if (markers.length === 0) return;
+    frame.camera.updateMatrixWorld();
+    for (let i = 0; i < markers.length && i < this.otherPool.length; i++) {
+      const m = markers[i];
+      const out = this.otherPool[i];
+      if (!m || !out) continue;
+      projected.set(m.x, m.y, m.z).project(frame.camera);
+      const behind = projected.z > 1;
+      const edge = clampToScreenEdge(projected.x, projected.y, behind);
+      out.name = m.name;
+      out.color = m.color;
+      out.x = m.x;
+      out.z = m.z;
+      out.ndcX = edge.x;
+      out.ndcY = edge.y;
+      const { position } = frame.flight;
+      out.distM = Math.hypot(m.x - position.x, m.y - position.y, m.z - position.z);
+      out.isOnScreen = isOnScreen(projected.x, projected.y, projected.z);
+      list.push(out);
+    }
   }
 
   /** Projects a point just above the ghost to the screen. */

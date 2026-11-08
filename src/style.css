@@ -1180,3 +1180,28 @@ kbd {
   background: radial-gradient(ellipse at 50% 70%, rgba(92, 200, 255, 0.16), rgba(0, 0, 0, 0.25));
   box-shadow: inset 0 0 0 1px var(--line);
 }
+
+/* ---------- other pilots (live race pins) */
+.pilot-pin {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  --pin: #fff;
+}
+
+.pilot-pin i {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--pin);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.7), 0 0 10px var(--pin);
+}
+
+.pilot-pin span { display: flex; flex-direction: column; font: 14px/1.1 var(--osd); text-shadow: 0 1px 4px #000, 0 0 2px #000; }
+.pilot-pin b { color: #fff; font-weight: 400; }
+.pilot-pin small { color: var(--pin); }
+.pilot-pin.off { opacity: 0.75; }

@@ -6,6 +6,7 @@ import { createRoom, RoomClient } from '../net/room-client';
 import { LobbyScreen } from '../ui/lobby-screen';
 import { askPilotName } from '../ui/name-prompt';
 import type { LiveRace, LiveSession } from './modes/live-race';
+import type { PilotMarker } from './modes/mode';
 import { RemoteDrones } from './remote-drones';
 
 /** What the controller asks of the game. */
@@ -36,6 +37,10 @@ export class LiveController implements LiveSession {
   mySlot = 0;
   roster: readonly RosterEntry[] = [];
   order: readonly StandingEntry[] = [];
+
+  get others(): readonly PilotMarker[] {
+    return this.drones.visible;
+  }
 
   constructor(private readonly host: LiveHost) {
     this.drones = new RemoteDrones(host.scene);
