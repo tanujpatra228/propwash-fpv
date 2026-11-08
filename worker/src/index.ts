@@ -1,4 +1,4 @@
-import { ONLINE } from '../../src/config';
+import { isTrackId, ONLINE } from '../../src/config';
 import { validateLapSubmission } from '../../src/core/lap-validation';
 import { makeRoomCode, normaliseRoomCode } from '../../src/core/room-protocol';
 import { errorResponse, json, readJsonBody } from './http';
@@ -25,7 +25,9 @@ async function handleSubmit(request: Request, env: Env): Promise<Response> {
 async function handleLeaderboard(url: URL, env: Env): Promise<Response> {
   const asked = Number(url.searchParams.get('limit') ?? ONLINE.leaderboardDefaultLimit);
   const limit = Number.isInteger(asked) ? Math.min(Math.max(asked, 1), ONLINE.leaderboardMaxLimit) : ONLINE.leaderboardDefaultLimit;
-  return json(await leaderboard(env.DB, limit), 200, `public, max-age=${ONLINE.leaderboardCacheS}`);
+  const trackParam = url.searchParams.get('track') ?? 'valley';
+  if (!isTrackId(trackParam)) return errorResponse('Unknown track.', 400);
+  return json(await leaderboard(env.DB, trackParam, limit), 200, `public, max-age=${ONLINE.leaderboardCacheS}`);
 }
 
 async function handleGhost(id: string, env: Env): Promise<Response> {
@@ -46,7 +48,7 @@ function handleRoomSocket(request: Request, rawCode: string, url: URL, env: Env)
   const target = new URL(request.url);
   target.search = '';
   target.searchParams.set('code', code);
-  for (const key of ['name', 'world']) target.searchParams.set(key, url.searchParams.get(key) ?? '');
+  for (const key of ['name', 'world', 'track']) target.searchParams.set(key, url.searchParams.get(key) ?? '');
   return env.ROOMS.get(env.ROOMS.idFromName(code)).fetch(new Request(target, request));
 }
 

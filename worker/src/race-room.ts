@@ -6,7 +6,7 @@
  * pings are answered by the runtime without waking the object, and the room is stored in SQLite-backed storage.
  */
 import { DurableObject } from 'cloudflare:workers';
-import { ROOMS, WORLD } from '../../src/config';
+import { isTrackId, ROOMS, TRACK_DEFS } from '../../src/config';
 import { EVERYONE, Room, type RoomSnapshot, type Step } from '../../src/core/room-logic';
 import { encode } from '../../src/core/room-protocol';
 
@@ -24,10 +24,12 @@ export class RaceRoom extends DurableObject<Env> {
     this.ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping', 'pong'));
   }
 
-  private async load(code: string): Promise<Room> {
+  private async load(code: string, trackParam = 'valley'): Promise<Room> {
     if (this.room) return this.room;
     const saved = await this.ctx.storage.get<RoomSnapshot>(STATE_KEY);
-    this.room = saved ? Room.restore(saved) : new Room(code, WORLD.version);
+    // A new room races on the track of whoever opens it first.
+    const track = isTrackId(trackParam) ? trackParam : 'valley';
+    this.room = saved ? Room.restore(saved) : new Room(code, TRACK_DEFS[track].worldVersion);
     return this.room;
   }
 
@@ -35,7 +37,7 @@ export class RaceRoom extends DurableObject<Env> {
     if (request.headers.get('upgrade') !== 'websocket') return new Response('Expected a WebSocket.', { status: 426 });
     const url = new URL(request.url);
     const code = url.searchParams.get('code') ?? '';
-    const room = await this.load(code);
+    const room = await this.load(code, url.searchParams.get('track') ?? undefined);
     const pair = new WebSocketPair();
     const [client, server] = [pair[0], pair[1]];
     // The pilot's id inside the room is random and per connection, so a player's saved pilot id is never shared.

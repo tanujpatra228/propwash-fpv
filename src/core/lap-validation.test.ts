@@ -19,6 +19,7 @@ function goodLap(seconds = 45): LapSubmission {
   return {
     pilotId: 'a1b2c3d4-e5f6-7890',
     name: 'Arjun',
+    track: 'valley' as const,
     worldVersion: WORLD.version,
     lapTimeS: seconds,
     splitsS: Array.from({ length: TRACK.gateCount }, (_, i) => (i * seconds) / TRACK.gateCount),
@@ -118,5 +119,20 @@ describe('validateLapSubmission: refused', () => {
     const started = performance.now();
     for (let i = 0; i < 20; i++) validateLapSubmission(lap);
     expect((performance.now() - started) / 20).toBeLessThan(10);
+  });
+});
+
+describe('validateLapSubmission: tracks', () => {
+  it('refuses an unknown track', () => {
+    expect(reason(withChange(goodLap(), { track: 'moon' as never }))).toMatch(/track/i);
+  });
+  it('checks the start gate and version of the track named in the lap', () => {
+    // A valley lap labelled as a city lap starts 340 m from the city start gate.
+    expect(reason(withChange(goodLap(), { track: 'city', worldVersion: 101 }))).toMatch(/start gate/);
+    expect(reason(withChange(goodLap(), { track: 'city' }))).toMatch(/version/);
+  });
+  it('treats a lap with no track as the valley (older clients)', () => {
+    const { track: _track, ...older } = goodLap();
+    expect(validateLapSubmission(older).ok).toBe(true);
   });
 });

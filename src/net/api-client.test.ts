@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { LapSubmission } from '../core/lap-validation';
 import { ApiClient } from './api-client';
 
-const lap = { pilotId: 'pilot-1234', name: 'Arjun', worldVersion: 1, lapTimeS: 45, splitsS: [], ghost: { hz: 20, data: 'AAAAAA' } } as LapSubmission;
+const lap = { pilotId: 'pilot-1234', name: 'Arjun', track: 'valley', worldVersion: 1, lapTimeS: 45, splitsS: [], ghost: { hz: 20, data: 'AAAAAA' } } as LapSubmission;
 const reply = (body: unknown, status = 200): Response => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 const client = (impl: (url: string, init?: RequestInit) => Promise<Response>, timeoutMs = 100): ApiClient => new ApiClient(impl, timeoutMs);
 
@@ -58,7 +58,7 @@ describe('ApiClient.leaderboard and ghost', () => {
   });
 
   it('returns a ghost, or null when missing or malformed', async () => {
-    const ghost = { name: 'Arjun', lapTimeS: 40, splitsS: [0, 1], ghost: { hz: 20, data: 'AAAAAA' } };
+    const ghost = { track: 'valley', name: 'Arjun', lapTimeS: 40, splitsS: [0, 1], ghost: { hz: 20, data: 'AAAAAA' } };
     expect(await client(async () => reply(ghost)).ghost('abc')).toEqual(ghost);
     expect(await client(async () => reply({ error: 'Not found.' }, 404)).ghost('abc')).toBeNull();
     expect(await client(async () => reply({ name: 'x' })).ghost('abc')).toBeNull();

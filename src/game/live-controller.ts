@@ -1,5 +1,5 @@
 import type { Scene } from 'three';
-import { ROOMS } from '../config';
+import { ACTIVE_TRACK_ID, ROOMS } from '../config';
 import { normaliseRoomCode, type PoseFields, type RosterEntry, type RoomPhase, type ServerMessage, type StandingEntry } from '../core/room-protocol';
 import { loadPilotName, savePilotName } from '../net/pilot-identity';
 import { createRoom, RoomClient } from '../net/room-client';
@@ -175,7 +175,7 @@ export class LiveController implements LiveSession {
   }
 
   private copyLink(): void {
-    const url = `${window.location.origin}/?room=${encodeURIComponent(this.code)}`;
+    const url = `${window.location.origin}/?room=${encodeURIComponent(this.code)}&track=${ACTIVE_TRACK_ID}`;
     void navigator.clipboard?.writeText(url).catch(() => window.prompt('Copy this link', url));
     this.lobby.setMessage('Invite link copied.');
   }

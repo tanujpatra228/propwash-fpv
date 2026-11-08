@@ -168,6 +168,38 @@ export const CITY = {
   ],
   portalLotHeightM: 55,
   portal: { widthM: 8, heightM: 5, floorM: 3 },
+  /** Vehicles stop and go in blocks: each axis moves one block per green and waits through the other axis's green. */
+  traffic: {
+    laneOffsetM: 7,
+    /** Lanes run the whole world plus a margin so vehicles wrap outside the playable area. */
+    laneLengthM: 720,
+    blockM: 120,
+    cycleS: 40,
+    greenS: 18,
+    /** Rest position inside a block, measured from the intersection line: keeps stopped vehicles out of junctions. */
+    restMinM: 22,
+    restMaxM: 98,
+    minGapM: 4,
+    vehiclesPerBlockLane: [1, 2],
+    types: {
+      car: { lengthM: 4.4, widthM: 1.9, heightM: 1.45, weight: 0.6 },
+      van: { lengthM: 5.4, widthM: 2.1, heightM: 2.2, weight: 0.25 },
+      bus: { lengthM: 11, widthM: 2.6, heightM: 3.1, weight: 0.15 },
+    },
+    colors: [0xd23a2f, 0x2f6fd2, 0xe8e8e8, 0x1f1f22, 0xf0c230, 0x3aa870, 0xb0b4b8, 0xe07a2a, 0x7a3fb0],
+  },
+  /** Birds, delivery drones and pedestrians: scenery only, never solid. */
+  life: {
+    parkBirds: 26,
+    towerBirds: 16,
+    deliveryDrones: 6,
+    deliveryDroneSpeedMps: [14, 22],
+    deliveryDroneHeightM: [16, 28],
+    pedestrians: 160,
+    walkSpeedMps: 1.3,
+    /** How far inside a block edge pedestrians walk. */
+    sidewalkInsetM: 6,
+  },
   /** Windows on towers: one window bay is this wide and one floor this tall. */
   windowBayM: 6,
   floorHeightM: 4,
