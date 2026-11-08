@@ -149,7 +149,6 @@ For friends this is plenty. Safeguards that keep it from running out:
 - Not verified: smooth remote-drone motion judged by eye, real internet latency, 8 pilots at once, behaviour on the deployed Cloudflare site (the sandbox cannot reach it), the budget numbers under real load.
 - Live races do not drain the battery (a 5-lap race would outlast it); Phase 3 can revisit this.
 - Pose relay replaced the planned batched `poses` message: outgoing messages are free and it needs no alarm timer.
-- The `game.ts` file grew to about 440 lines; extracting the mode wiring is a follow-up.
 
 ## Out of scope
 
