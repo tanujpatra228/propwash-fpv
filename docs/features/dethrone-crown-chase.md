@@ -1,6 +1,6 @@
 # Feature: Dethrone (Crown Chase)
 
-Status: Planned
+Status: In progress (built, needs playtest)
 Phase: 7
 Branch: `feat/phase-7`
 Last updated: 2026-11-14
@@ -80,6 +80,12 @@ If the king leaves, the crown passes to the pilot with the most points. If only 
 | 6 | Room: mode switch by non-host, during a match | Ignored | Unit |
 | 7 | Room: crown match runs to the end alarm and ranks by points | Results correct | Unit |
 | 8 | Two browsers in a crown room | Both see the crown, a steal works, results appear | Browser |
+
+## Verification and known gaps
+
+- Verified: 17 engine tests (touch, fast pass, near miss, side by side, protection, stale poses, ties, leaving, hibernation), room tests (mode switch, crown match to the end alarm, ranking, rematch), crown mode tests, and two headless browsers on the city map: the host switched to Crown chase, both entered the match, the crown moved when one pilot touched the other, standings and hints updated.
+- Not verified: how touching feels with real latency (1.8 m is a first guess), whether 3 s protection is right, the crown's look from the chase camera, a full 3 minute match with 4 to 8 pilots, results screen in a real match.
+- Drones were never solid to each other, so "no crashes between drones" needed no physics change.
 
 ## Out of scope
 

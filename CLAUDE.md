@@ -44,6 +44,7 @@ Each feature gets its own file in `docs/features/`, written from the template be
 | Night city and map screen | [night-city.md](docs/features/night-city.md) | 6 | In progress (built, needs playtest) |
 | Harbor Run | [harbor-run.md](docs/features/harbor-run.md) | 6 | In progress (built, needs playtest) |
 | Glacier Pass | [glacier-pass.md](docs/features/glacier-pass.md) | 6 | In progress (built, needs playtest) |
+| Dethrone (crown chase) | [dethrone-crown-chase.md](docs/features/dethrone-crown-chase.md) | 7 | In progress (built, needs playtest) |
 | Maps roadmap | [maps-roadmap.md](docs/features/maps-roadmap.md) | 6 | Approved |
 | Battery Challenge | [battery-challenge.md](docs/features/battery-challenge.md) | 3 | In progress (built, needs playtest) |
 
