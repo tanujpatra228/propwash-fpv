@@ -1,4 +1,4 @@
-import { ACTIVE_TRACK_DEF, CITY, VALLEY } from '../config';
+import { ACTIVE_TRACK_DEF, CITY, HARBOR, VALLEY } from '../config';
 import { el } from '../core/dom';
 import { track } from '../world/track';
 import type { HudState } from './hud-state';
@@ -60,6 +60,7 @@ export class Minimap {
     c.lineWidth = 3;
     c.stroke();
     if (ACTIVE_TRACK_DEF.family === 'city') this.drawCity(c);
+    else if (ACTIVE_TRACK_DEF.family === 'harbor') this.drawHarbor(c);
     else this.drawValley(c);
     const start = track.positions[0];
     if (start) {
@@ -78,6 +79,24 @@ export class Minimap {
     const [bx, by] = this.toMap(VALLEY.bando.x, VALLEY.bando.z);
     c.fillStyle = 'rgba(200,190,170,.45)';
     c.fillRect(bx - 7, by - 7, 14, 14);
+  }
+
+  /** Water behind, land in grey, the ship and warehouse darker. Drawn before the track line so the line stays on top. */
+  private drawHarbor(c: CanvasRenderingContext2D): void {
+    c.fillStyle = 'rgba(48,120,150,.55)';
+    c.fillRect(0, 0, SIZE_PX, SIZE_PX);
+    const rect = (x0: number, x1: number, z0: number, z1: number, fill: string): void => {
+      const [ax, ay] = this.toMap(x0, z0);
+      const [bx, by] = this.toMap(x1, z1);
+      c.fillStyle = fill;
+      c.fillRect(ax, ay, bx - ax, by - ay);
+    };
+    for (const [x0, x1, z0, z1] of HARBOR.land) rect(x0, x1, z0, z1, 'rgba(190,184,170,.55)');
+    const ship = HARBOR.ship;
+    rect(ship.x0, ship.x1, ship.z0, ship.z1, 'rgba(60,70,84,.9)');
+    const w = HARBOR.warehouse;
+    rect(w.x0, w.x1, w.z0, w.z1, 'rgba(120,110,96,.9)');
+    for (const crane of HARBOR.cranes) rect(crane.x - 2, crane.x + 2, HARBOR.crane.boomZ[0], HARBOR.crane.boomZ[1], 'rgba(230,150,40,.9)');
   }
 
   /** Blocks as dark squares (the streets are the gaps), the park in green with its pond, the plaza lighter. */

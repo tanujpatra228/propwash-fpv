@@ -21,14 +21,15 @@ const WORLD_BASE = {
   },
 } as const;
 
-export type TrackId = 'valley' | 'city' | 'night';
-export const TRACK_IDS: readonly TrackId[] = ['valley', 'city', 'night'];
+export type TrackId = 'valley' | 'city' | 'night' | 'harbor';
+export const TRACK_IDS: readonly TrackId[] = ['valley', 'city', 'night', 'harbor'];
 
 /** Which world a track is built from. A track is a world plus an atmosphere (`night` is the city after dark). */
-export type WorldFamily = 'valley' | 'city';
+export type WorldFamily = 'valley' | 'city' | 'harbor';
+export type AtmosphereId = 'day' | 'night' | 'dusk';
 
 export function isTrackId(value: unknown): value is TrackId {
-  return value === 'valley' || value === 'city' || value === 'night';
+  return value === 'valley' || value === 'city' || value === 'night' || value === 'harbor';
 }
 
 /**
@@ -36,9 +37,10 @@ export function isTrackId(value: unknown): value is TrackId {
  * ghosts and best laps. `start` is gate 0's position on the ground plane. The drone cannot leave the bounds box.
  */
 export const TRACK_DEFS = {
-  valley: { family: 'valley' as WorldFamily, isNight: false, name: 'Valley Sprint', blurb: 'Nature, a lake and a factory.', worldVersion: 1, start: [0, -150], halfSizeM: 900, ceilingM: 300 },
-  city: { family: 'city' as WorldFamily, isNight: false, name: 'Downtown Dash', blurb: 'Streets, traffic, towers and windows to fly through.', worldVersion: 101, start: [0, 190], halfSizeM: 320, ceilingM: 170 },
-  night: { family: 'city' as WorldFamily, isNight: true, name: 'Downtown Dash: Night', blurb: 'The same city after dark: neon, street lights and glowing windows.', worldVersion: 102, start: [0, 190], halfSizeM: 320, ceilingM: 170 },
+  valley: { family: 'valley' as WorldFamily, atmosphere: 'day' as AtmosphereId, isNight: false, name: 'Valley Sprint', blurb: 'Nature, a lake and a factory.', worldVersion: 1, start: [0, -150], halfSizeM: 900, ceilingM: 300 },
+  city: { family: 'city' as WorldFamily, atmosphere: 'day' as AtmosphereId, isNight: false, name: 'Downtown Dash', blurb: 'Streets, traffic, towers and windows to fly through.', worldVersion: 101, start: [0, 190], halfSizeM: 320, ceilingM: 170 },
+  night: { family: 'city' as WorldFamily, atmosphere: 'night' as AtmosphereId, isNight: true, name: 'Downtown Dash: Night', blurb: 'The same city after dark: neon, street lights and glowing windows.', worldVersion: 102, start: [0, 190], halfSizeM: 320, ceilingM: 170 },
+  harbor: { family: 'harbor' as WorldFamily, atmosphere: 'dusk' as AtmosphereId, isNight: false, name: 'Harbor Run', blurb: 'Container yard, cranes, a cargo ship and open water at golden hour.', worldVersion: 103, start: [-230, -128], halfSizeM: 360, ceilingM: 130 },
 } as const;
 
 /** The track chosen at start-up: `?track=` first, then the saved choice, else the valley. Changing it reloads the page. */
@@ -103,6 +105,18 @@ const TRACK_POINTS: Record<WorldFamily, readonly ControlPoint[]> = {
     [121, -47, 6], [120, -30, 6], [120, -10, 6], [120, 0, 7], [120, 60, 9], [120, 120, 10], [120, 180, 8], [115, 215, 7], [100, 234, 7],
     [75, 240, 7], [50, 240, 7], [20, 237, 7], [3, 225, 6],
   ],
+  // Harbor Run: east along the quay under crane 1, up the first container aisle, along the top of the yard, down the
+  // second aisle, under crane 2, over the ship's stern and through its cargo, a low run over the water, through the
+  // warehouse on the west pier and back to the quay.
+  harbor: [
+    [-230, -128, 7], [-205, -128, 7], [-180, -128, 8], [-160, -128, 6.5], [-125, -128, 7], [-90, -128, 6.5], [-60, -128, 8],
+    [-38, -131, 8], [-22, -148, 7], [-20, -175, 7], [-20, -215, 7], [-22, -243, 8], [-10, -258, 8], [20, -262, 8],
+    [60, -262, 8], [95, -255, 8], [109, -235, 7], [110, -205, 7], [110, -170, 7], [105, -142, 7], [100, -128, 7],
+    [96, -112, 9], [82, -103, 11], [60, -102, 13], [35, -102, 14], [0, -102, 14], [-42, -102, 14], [-62, -102, 13],
+    [-82, -100, 12], [-98, -84, 7], [-100, -60, 4], [-98, -38, 3.6], [-108, -24, 3.8], [-128, -21, 4.2], [-148, -27, 4.4],
+    [-162, -30, 4.2], [-180, -30, 4.2], [-198, -38, 5], [-218, -52, 6], [-240, -68, 7], [-250, -90, 7], [-246, -106, 7],
+    [-243, -120, 7],
+  ],
 };
 
 /**
@@ -111,6 +125,7 @@ const TRACK_POINTS: Record<WorldFamily, readonly ControlPoint[]> = {
  */
 const GATE_ANCHORS: Partial<Record<WorldFamily, ReadonlyArray<readonly [number, number]>>> = {
   city: [[0, 190], [0, 100], [0, 38], [0, -75], [82, -155], [82, -205], [170, -246], [244, -170], [190, -60], [126, -60], [120, 0], [50, 240]],
+  harbor: [[-230, -128], [-195, -128], [-160, -128], [-90, -128], [-20, -175], [-20, -240], [45, -262], [110, -205], [35, -102], [-45, -102], [-100, -40], [-170, -30]],
 };
 
 const TRACK_SHARED = {
@@ -209,6 +224,65 @@ export const CITY = {
   floorHeightM: 4,
   /** Tint of each building kind: [low, mid, tower] colours multiplied into the facade texture. */
   tints: [0xd8c9b0, 0xb9c2c9, 0x9fb7c8, 0xe6e2da, 0xc7b8a8, 0x8fa4b5],
+} as const;
+
+/** Harbor Run: land and water, the container yard, a cargo ship, two gantry cranes with swinging hooks, a warehouse. */
+export const HARBOR = {
+  seed: 31_337,
+  /** Quay and pier tops are this high above the water, which is at 0. */
+  quayY: 1,
+  /** Land rectangles as [x0, x1, z0, z1]: the yard and quay, two piers and a small jetty by the start. Everything else is water. */
+  land: [
+    [-360, 360, -360, -120],
+    [150, 190, -120, 120],
+    [-190, -150, -120, 60],
+    [-260, -210, -120, -100],
+  ],
+  yard: {
+    pitchX: 28,
+    pitchZ: 20,
+    blockX: 24,
+    blockZ: 15.6,
+    levelM: 2.6,
+    minLevels: 2,
+    maxLevels: 5,
+    /** Block rows (centre z): five between the quay lane and the top aisle, four beyond it. */
+    rowsZ: [-150, -170, -190, -210, -230, -285, -305, -325, -345],
+    firstX: -322,
+    lastX: 322,
+    /** Aisles kept clear: [centre x, half width]. And the east to west aisle along the top of the yard. */
+    aislesX: [[-20, 8], [110, 8]],
+    topAisle: { z: -262, half: 8 },
+    colors: [0x8a3a2a, 0x2f5d7a, 0x3c6a3c, 0xa7752e, 0x6b6b6b, 0xb3b3a8, 0x7a2f4a],
+  },
+  ship: {
+    x0: -70,
+    x1: 70,
+    z0: -114,
+    z1: -90,
+    hullHeightM: 9,
+    cargo: { x0: -45, x1: 45, z0: -111, z1: -93, top: 24 },
+    /** The tunnel through the cargo, along X: centre z, width, floor and ceiling heights. */
+    tunnel: { z: -102, width: 8, y0: 11, y1: 19 },
+    bridge: { x0: 50, x1: 68, z0: -111, z1: -105, top: 34 },
+  },
+  /** Gantry cranes on the quay, each with a trolley and hanging container sliding along z on a timer. */
+  cranes: [{ x: -160, phaseS: 0 }, { x: -90, phaseS: 3.5 }],
+  crane: {
+    halfGapX: 13,
+    legZ: [-135, -121],
+    boomZ: [-157, -55],
+    boomY: 37,
+    legSizeM: 1.6,
+    trolleyY: 34.5,
+    container: { widthM: 2.6, heightM: 2.6, lengthM: 12, bottomM: 5 },
+    centreZ: -128,
+    amplitudeM: 22.5,
+    periodS: 14,
+  },
+  warehouse: { x0: -185, x1: -155, z0: -60, z1: 0, heightM: 14, tunnel: { z: -30, widthM: 9, heightM: 8 } },
+  lighthouse: { x: -50, z: 316, radiusM: 5, heightM: 48 },
+  breakwater: [[-220, -40, 310, 322], [40, 220, 310, 322]],
 } as const;
 
 export const SCENERY = {
@@ -363,8 +437,30 @@ const ATMOSPHERE_NIGHT: Atmosphere = {
   isNight: true,
 };
 
+/** Golden hour on the water: a low orange sun, warm haze, long shadows. */
+const ATMOSPHERE_DUSK: Atmosphere = {
+  ...ATMOSPHERE_DAY,
+  toneMappingExposure: 0.85,
+  sunIntensity: 2.0,
+  hemisphereIntensity: 0.6,
+  environmentIntensity: 0.7,
+  sky: { turbidity: 6, rayleigh: 2.2, mieCoefficient: 0.004, mieDirectionalG: 0.9 },
+  fogDensity: 0.0014,
+  fogColor: 0xe0a574,
+  sunElevationDeg: 5,
+  sunAzimuthDeg: 250,
+  lightColor: 0xffa860,
+  lightElevationDeg: 5,
+  lightAzimuthDeg: 250,
+  hemisphereSky: 0xffd2a0,
+  hemisphereGround: 0x3a2e28,
+  shadowExtentM: 130,
+};
+
+const ATMOSPHERES: Record<AtmosphereId, Atmosphere> = { day: ATMOSPHERE_DAY, night: ATMOSPHERE_NIGHT, dusk: ATMOSPHERE_DUSK };
+
 /** The atmosphere of the active track. */
-export const RENDER: Atmosphere = ACTIVE_TRACK_DEF.isNight ? ATMOSPHERE_NIGHT : ATMOSPHERE_DAY;
+export const RENDER: Atmosphere = ATMOSPHERES[ACTIVE_TRACK_DEF.atmosphere];
 
 export const COLLISION = {
   /** Cell size of the tree lookup grid. */

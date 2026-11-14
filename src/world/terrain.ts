@@ -8,9 +8,11 @@ import {
   type Scene,
   type Texture,
 } from 'three';
-import { ACTIVE_TRACK_DEF, VALLEY } from '../config';
+import { ACTIVE_TRACK_DEF, HARBOR, VALLEY } from '../config';
+import { isLand } from './harbor/plan';
 
 const IS_CITY = ACTIVE_TRACK_DEF.family === 'city';
+const IS_HARBOR = ACTIVE_TRACK_DEF.family === 'harbor';
 import { fbm, smoothstep } from '../core/math';
 
 const { lake, bando } = VALLEY;
@@ -32,6 +34,7 @@ export const BANDO_FLOOR_Y = baseHeight(bando.x, bando.z);
 /** Terrain height at a point (the lake bed is below the water). Deterministic. */
 export function heightAt(x: number, z: number): number {
   if (IS_CITY) return 0; // the city is flat
+  if (IS_HARBOR) return isLand(x, z) ? HARBOR.quayY : 0; // the quay, or the water level
   let h = baseHeight(x, z);
   const lakeDistance = Math.hypot(x - lake.x, z - lake.z);
   if (lakeDistance < lake.radiusM * 1.7) {
@@ -49,6 +52,7 @@ export function heightAt(x: number, z: number): number {
 /** What the drone would touch first: terrain, or the lake surface over the lake. */
 export function groundY(x: number, z: number): number {
   if (IS_CITY) return 0;
+  if (IS_HARBOR) return isLand(x, z) ? HARBOR.quayY : 0;
   const h = heightAt(x, z);
   return Math.hypot(x - lake.x, z - lake.z) < lake.radiusM ? Math.max(h, LAKE_SURFACE_Y) : h;
 }
@@ -65,6 +69,12 @@ export function surfaceAt(x: number, z: number, out: Surface): Surface {
   if (IS_CITY) {
     out.isWater = false;
     out.y = 0;
+    return out;
+  }
+  if (IS_HARBOR) {
+    const land = isLand(x, z);
+    out.isWater = !land;
+    out.y = land ? HARBOR.quayY : 0;
     return out;
   }
   const h = heightAt(x, z);

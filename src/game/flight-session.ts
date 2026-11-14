@@ -2,6 +2,7 @@ import { COLLISION } from '../config';
 import { NO_INPUT, type FlightInput, type FlightModel } from '../drone/flight-model';
 import type { CrashReason } from '../physics/resolve';
 import { groundY } from '../world/terrain';
+import type { WaterEffects } from '../world/water-effects';
 import { CRASH_MESSAGES } from './crash-messages';
 import type { GameMode } from './modes/mode';
 import type { Pose } from './respawn';
@@ -19,6 +20,8 @@ export interface FlightSessionParts {
   showCrash(title: string, subtitle: string): void;
   hideBanner(): void;
   currentMode(): GameMode;
+  /** Spray and splash effects over water (optional). */
+  water?: WaterEffects;
 }
 
 /** The drone in play: stepping the physics, crash freeze and respawn, placing and landing checks. */
@@ -46,6 +49,7 @@ export class FlightSession {
 
   private startCrash(reason: CrashReason): void {
     this.crashTimerS = COLLISION.crashDurationS;
+    if (reason === 'water') this.parts.water?.splash(this.parts.flight.position);
     this.parts.flight.velocity.set(0, 0, 0);
     this.parts.showCrash('Crashed', `${CRASH_MESSAGES[reason]}. Respawning at the last gate…`);
   }
@@ -62,6 +66,7 @@ export class FlightSession {
 
   /** One frame of flying: run down the crash freeze, or step the physics with the pilot's input (ignored while locked). */
   advance(dtS: number, pilot: Readonly<FlightInput>): void {
+    this.parts.water?.update(dtS, this.parts.flight.position, this.parts.flight.velocity);
     if (this.crashTimerS > 0) {
       this.crashTimerS -= dtS;
       if (this.crashTimerS <= 0) this.respawnAtLastGate();

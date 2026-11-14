@@ -5,6 +5,7 @@ import { buildBoundary, type Boundary } from '../world/boundary';
 import { buildGates, type Gate } from '../world/gates';
 import { buildScenery, type Scenery } from '../world/scenery';
 import { buildCityScenery } from '../world/city/city-world';
+import { buildHarborScenery } from '../world/harbor/harbor-world';
 import { ACTIVE_TRACK_DEF } from '../config';
 import { buildSky, type SkyRig } from '../world/sky';
 import { buildTerrain, buildWater } from '../world/terrain';
@@ -25,6 +26,8 @@ export function buildWorldContent(scene: Scene, renderer: GameRenderer, collider
   let scenery: Scenery;
   if (ACTIVE_TRACK_DEF.family === 'city') {
     scenery = buildCityScenery(scene, colliders, textures, maxAnisotropy);
+  } else if (ACTIVE_TRACK_DEF.family === 'harbor') {
+    scenery = buildHarborScenery(scene, colliders, textures);
   } else {
     buildTerrain(scene, textures.detail);
     buildWater(scene);
