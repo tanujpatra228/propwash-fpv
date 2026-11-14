@@ -2,7 +2,7 @@ import { Matrix4, Vector3, type Mesh } from 'three';
 import { COLLISION } from '../config';
 
 /** What was hit. The game layer maps each kind to a crash reason. */
-export type ColliderKind = 'gate' | 'factory' | 'container' | 'building' | 'tree' | 'vehicle';
+export type ColliderKind = 'gate' | 'factory' | 'container' | 'building' | 'tree' | 'vehicle' | 'crane';
 
 /** A box that moves (a car, a bus). Call `place` each frame it moves. */
 export interface DynamicBox {

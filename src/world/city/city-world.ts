@@ -6,6 +6,7 @@ import type { Scenery } from '../scenery';
 import type { WorldTextures } from '../textures';
 import { buildBuildings } from './buildings';
 import { RENDER } from '../../config';
+import { sharedTimeS } from '../../core/shared-clock';
 import { createFacadeTexture, createWindowMask } from './facade';
 import { buildNeonSigns } from './neon-signs';
 import { buildStreetLamps } from './street-lamps';
@@ -31,7 +32,9 @@ export function buildCityScenery(scene: Scene, colliders: ColliderWorld, texture
   if (!RENDER.isNight) buildClouds(scene, textures);
   return {
     setDetail: (isOn) => life.setDetail(isOn),
-    update(timeS: number): void {
+    update(): void {
+      // The shared clock, so every player in a live room sees the same traffic.
+      const timeS = sharedTimeS();
       traffic.update(timeS);
       life.update(timeS);
     },

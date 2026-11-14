@@ -1,4 +1,4 @@
-import { Scene, Vector3 } from 'three';
+import { Scene } from 'three';
 import { GHOST, LOOP, TRACK } from '../config';
 import { MotorSound } from '../core/audio';
 import type { RemoteGhost } from '../net/api-client';
@@ -26,6 +26,7 @@ import { CameraRig } from './camera-rig';
 import { Presenter } from './presenter';
 import { FlightSession } from './flight-session';
 import { buildWorldContent } from './world-setup';
+import { WaterEffects } from '../world/water-effects';
 import { Simulation } from './simulation';
 import { createDebugApi, type DebugApi } from './debug-api';
 import { HudBridge } from './hud-bridge';
@@ -203,6 +204,7 @@ export class Game {
       showCrash: (title, subtitle) => this.banner.show(title, subtitle, 'crash'),
       hideBanner: () => this.banner.hide(),
       currentMode: () => this.mode,
+      water: new WaterEffects(this.scene),
     });
     this.presenter = new Presenter({
       renderer: this.renderer,
@@ -235,8 +237,6 @@ export class Game {
   }
 
   start = (): number => requestAnimationFrame(this.frame);
-
-  // ---- phases ----
 
   /** Back to the menu scene. Leaves the live-race room too, unless `keepRoom` (returning to its lobby). */
   private returnToMenu(keepRoom = false): void {
