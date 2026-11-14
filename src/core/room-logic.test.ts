@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { ROOMS, TRACK, WORLD } from '../config';
+import { CROWN, ROOMS, TRACK, WORLD } from '../config';
 import { EVERYONE, Room, type Step } from './room-logic';
 
 const GATES = TRACK.gateCount;
@@ -240,5 +240,89 @@ describe('tracks', () => {
     expect(city?.t === 'error' && city.message).toMatch(/Valley Sprint.*Switch track/);
     const stale = room.join('b', 'Bea', 999, 0).out.find((o) => o.message.t === 'error')?.message;
     expect(stale?.t === 'error' && stale.message).toMatch(/out of date/);
+  });
+});
+
+describe('crown chase', () => {
+  const pose = (x: number, y = 1000, z = 0) => ({ t: 'pose', x, y, z, yaw: 0, pitch: 0, roll: 0, dNextM: 0 });
+
+  /** A started crown match: host and guest, past GO. Returns the room and the time of GO. */
+  function crownMatch(): { room: Room; goMs: number } {
+    const room = lobby(['host', 'guest']);
+    send(room, 'host', { t: 'mode', mode: 'crown' }, 5);
+    send(room, 'guest', { t: 'ready', isReady: true }, 6);
+    send(room, 'host', { t: 'start' }, 1000);
+    const goMs = 1000 + ROOMS.countdownMs;
+    room.tick(goMs);
+    return { room, goMs };
+  }
+
+  it('only the host switches mode, and only in the lobby', () => {
+    const room = lobby(['host', 'guest']);
+    const modeOf = (s: Step): string | undefined => s.out.map((o) => o.message).find((m) => m.t === 'room')?.t === 'room' ? (s.out.map((o) => o.message).find((m) => m.t === 'room') as { mode: string }).mode : undefined;
+    expect(send(room, 'guest', { t: 'mode', mode: 'crown' }, 1).out).toHaveLength(0);
+    expect(modeOf(send(room, 'host', { t: 'mode', mode: 'crown' }, 2))).toBe('crown');
+    send(room, 'guest', { t: 'ready', isReady: true }, 3);
+    send(room, 'host', { t: 'start' }, 10);
+    expect(send(room, 'host', { t: 'mode', mode: 'race' }, 11).out).toHaveLength(0);
+  });
+  it('gives the crown to someone at GO and sends the crown state', () => {
+    const room = lobby(['host', 'guest']);
+    send(room, 'host', { t: 'mode', mode: 'crown' }, 5);
+    send(room, 'guest', { t: 'ready', isReady: true }, 6);
+    send(room, 'host', { t: 'start' }, 1000);
+    const go = room.tick(1000 + ROOMS.countdownMs);
+    const crown = go.out.map((o) => o.message).find((m) => m.t === 'crown');
+    expect(crown?.t === 'crown' && ['host', 'guest']).toContain(crown?.t === 'crown' ? crown.holderId : '');
+    expect(crown?.t === 'crown' && crown.remainingMs).toBe(CROWN.matchMs);
+  });
+  it('scores the king, lets a chaser dethrone by touching after the protection, and ranks by points', () => {
+    const { room, goMs } = crownMatch();
+    const first = room.snapshot().crown?.holderId ?? '';
+    const chaser = first === 'host' ? 'guest' : 'host';
+    let t = goMs;
+    let stolen = false;
+    for (; t < goMs + CROWN.protectMs + 2000; t += 100) {
+      const steps = [send(room, first, pose(0), t), send(room, chaser, pose(100), t)]; // the chaser is touching, 1 m away
+      if (steps.some((s) => s.out.some((o) => o.message.t === 'crown' && o.message.holderId === chaser))) stolen = true;
+    }
+    expect(stolen).toBe(true);
+    // Run out the match, with the pilots far apart so the crown stays put.
+    for (; t < goMs + CROWN.matchMs; t += 1000) {
+      send(room, first, pose(0), t);
+      send(room, chaser, pose(100_000), t);
+    }
+    const end = room.tick(goMs + CROWN.matchMs);
+    const results = end.out.map((o) => o.message).find((m) => m.t === 'results');
+    expect(results?.t === 'results' && results.rows).toHaveLength(2);
+    if (results?.t !== 'results') return;
+    expect(results.rows.map((r) => r.place)).toEqual([1, 2]);
+    expect(results.rows[0]?.score).toBeGreaterThan(results.rows[1]?.score ?? 0);
+    expect(room.getPhase()).toBe('results');
+  });
+  it('sleeps until the end of the match', () => {
+    const { room, goMs } = crownMatch();
+    expect(room.nextWakeMs()).toBe(goMs + CROWN.matchMs);
+  });
+  it('ends the match when only one pilot is left', () => {
+    const { room, goMs } = crownMatch();
+    const step = room.leave('guest', goMs + 5000);
+    expect(step.out.some((o) => o.message.t === 'results')).toBe(true);
+    expect(room.getPhase()).toBe('results');
+  });
+  it('a rematch goes back to the lobby in the same mode', () => {
+    const { room, goMs } = crownMatch();
+    room.tick(goMs + CROWN.matchMs);
+    send(room, 'host', { t: 'rematch' }, goMs + CROWN.matchMs + 100);
+    expect(room.getPhase()).toBe('lobby');
+  });
+  it('survives hibernation in the middle of a match', () => {
+    const { room, goMs } = crownMatch();
+    const first = room.snapshot().crown?.holderId ?? '';
+    send(room, first, pose(0), goMs + 100);
+    const copy = Room.restore(JSON.parse(JSON.stringify(room.snapshot())));
+    expect(copy.getPhase()).toBe('racing');
+    expect(copy.nextWakeMs()).toBe(goMs + CROWN.matchMs);
+    expect(copy.snapshot().crown?.holderId).toBe(first);
   });
 });

@@ -13,12 +13,14 @@ export interface PilotMarker {
   id: string;
   name: string;
   color: number;
+  /** Wears the crown in crown chase. */
+  isKing: boolean;
   x: number;
   y: number;
   z: number;
 }
 
-export type ModeId = 'free' | 'trial' | 'training' | 'live' | 'challenge';
+export type ModeId = 'free' | 'trial' | 'training' | 'live' | 'challenge' | 'crown';
 
 /** What a dialog button does. The game carries these out. */
 export type NextStep = 'menu' | 'trial' | 'restart' | 'stay';

@@ -111,8 +111,8 @@ export class RaceRoom extends DurableObject<Env> {
       const ws = this.socketOf(id);
       if (ws) await this.closeAndLeave(ws, id, room);
     }
-    // Poses change nothing worth saving; every other message does.
-    if (step.close.length > 0 || step.out.some((o) => o.message.t !== 'pose')) await this.persist(room);
+    // Poses and crown updates (several a second) are not saved; every other message is.
+    if (step.close.length > 0 || step.out.some((o) => o.message.t !== 'pose' && o.message.t !== 'crown')) await this.persist(room);
   }
 
   private async closeAndLeave(ws: WebSocket, id: string, room: Room): Promise<void> {

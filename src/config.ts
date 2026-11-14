@@ -779,6 +779,25 @@ export const CHALLENGES = {
   emptyBatteryGraceS: 3,
 } as const;
 
+/** Crown chase (the dethrone game mode). See docs/features/dethrone-crown-chase.md. */
+export const CROWN = {
+  matchMs: 180_000,
+  /**
+   * Touching the king takes the crown. Drones do not crash into each other; "touching" means passing within this
+   * distance, in metres, between two position updates (checked along the path between them, so a fast pass counts).
+   */
+  touchRangeM: 1.8,
+  /** A chaser inside this distance is reported as "close" so the king and the chaser can feel the chase. */
+  warnRangeM: 14,
+  /** A new king cannot be dethroned for this long. */
+  protectMs: 3000,
+  /** A position older than this is ignored (a frozen tab cannot steal or be stolen from). */
+  poseFreshMs: 1500,
+  pointsPerSecond: 1,
+  /** At most one `crown` update this often. */
+  broadcastEveryMs: 250,
+} as const;
+
 export const STORAGE_PREFIX = 'pw.';
 
 /** Stock-drone flight tuning. Units: metres, seconds, radians. */

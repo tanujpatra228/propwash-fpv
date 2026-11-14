@@ -1,6 +1,7 @@
 import { Euler, Quaternion, type Scene } from 'three';
 import { ROOMS } from '../config';
 import type { PoseFields, RosterEntry } from '../core/room-protocol';
+import { createCrown } from '../drone/crown';
 import { createDroneModel, type DroneModel } from '../drone/drone-model';
 import { SnapshotBuffer, type RemotePose } from '../net/snapshot-buffer';
 import type { PilotMarker } from './modes/mode';
@@ -19,6 +20,7 @@ export class RemoteDrones {
   private readonly remotes = new Map<string, Remote>();
   private readonly sampled: RemotePose = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0, roll: 0 };
   private readonly quaternion = new Quaternion();
+  private readonly crown = createCrown();
   /** Pilots currently drawn, rebuilt every `update`. Read by the HUD for the on-screen pins and the minimap. */
   readonly visible: PilotMarker[] = [];
 
@@ -34,7 +36,20 @@ export class RemoteDrones {
       const model = createDroneModel({ color });
       model.group.visible = false;
       this.scene.add(model.group);
-      this.remotes.set(pilot.id, { model, buffer: new SnapshotBuffer(), marker: { id: pilot.id, name: pilot.name, color, x: 0, y: 0, z: 0 } });
+      this.remotes.set(pilot.id, { model, buffer: new SnapshotBuffer(), marker: { id: pilot.id, name: pilot.name, color, isKing: false, x: 0, y: 0, z: 0 } });
+    }
+  }
+
+  /** Puts the crown on a pilot's drone (empty id for nobody) and marks them as the king on the HUD. */
+  setKing(id: string): void {
+    this.crown.removeFromParent();
+    this.crown.visible = false;
+    for (const [pilotId, remote] of this.remotes) {
+      remote.marker.isKing = pilotId === id;
+      if (pilotId === id) {
+        remote.model.group.add(this.crown);
+        this.crown.visible = true;
+      }
     }
   }
 
@@ -48,6 +63,7 @@ export class RemoteDrones {
   update(nowMs: number, dtS: number): void {
     const s = this.sampled;
     this.visible.length = 0;
+    this.crown.rotation.y += dtS * 1.5;
     for (const { model, buffer, marker } of this.remotes.values()) {
       const isShown = buffer.sample(nowMs, s);
       model.group.visible = isShown;

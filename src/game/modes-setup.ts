@@ -1,6 +1,7 @@
 import type { LiveController } from './live-controller';
 import { BatteryChallenge } from './modes/battery-challenge';
 import { FreeFlight } from './modes/free-flight';
+import { LiveCrown } from './modes/live-crown';
 import { LiveRace } from './modes/live-race';
 import type { GameMode, ModeHost, ModeId } from './modes/mode';
 import { TimeTrial } from './modes/time-trial';
@@ -19,12 +20,15 @@ export function createModes(host: ModeHost, live: LiveController, isFreeDrainOn:
   const trial = new TimeTrial(host);
   const challenge = new BatteryChallenge(host);
   const liveRace = new LiveRace(host, live);
+  const liveCrown = new LiveCrown(host, live);
   live.attachMode(liveRace);
+  live.attachCrownMode(liveCrown);
   return {
     trial,
     challenge,
     all: {
       live: liveRace,
+      crown: liveCrown,
       challenge,
       free: new FreeFlight(host, isFreeDrainOn),
       trial,

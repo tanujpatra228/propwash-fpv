@@ -150,8 +150,8 @@ export class Minimap {
     for (const other of state.others) {
       const [ox, oy] = this.toMap(other.x, other.z);
       c.beginPath();
-      c.arc(ox, oy, 7, 0, Math.PI * 2);
-      c.fillStyle = `#${other.color.toString(16).padStart(6, '0')}`;
+      c.arc(ox, oy, other.isKing ? 10 : 7, 0, Math.PI * 2);
+      c.fillStyle = other.isKing ? '#ffc83a' : `#${other.color.toString(16).padStart(6, '0')}`;
       c.fill();
       c.lineWidth = 2.5;
       c.strokeStyle = '#000';

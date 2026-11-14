@@ -129,7 +129,7 @@ export class Game {
       resumeInput: () => void (this.input.enabled = this.phase === 'playing' && !this.nextSteps.isOpen),
       notify: (title: string, subtitle: string) => this.banner.show(title, subtitle, 'info', 3),
     };
-    this.live = new LiveController({ ...dialogs, scene: this.scene, startRace: () => this.startMode('live'), returnToLobby: () => this.returnToMenu(true) });
+    this.live = new LiveController({ ...dialogs, scene: this.scene, playerModel: this.drone.group, startRace: (id) => this.startMode(id), returnToLobby: () => this.returnToMenu(true) });
     const modes = createModes(host, this.live, () => this.isFreeDrainOn);
     this.trial = modes.trial;
     this.challenges = new ChallengeMenu(modes.challenge, {

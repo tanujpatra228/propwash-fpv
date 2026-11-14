@@ -7,6 +7,8 @@ export interface StandingRow {
   finishedPlace: number;
   /** Laps completed out of the total, for the small progress note. */
   lap: number;
+  /** Replaces the small note on the right (crown chase shows seconds on the crown). */
+  detail?: string;
 }
 
 const ORDINALS = ['th', 'st', 'nd', 'rd'];
@@ -29,7 +31,7 @@ export class StandingsPanel {
   update(rows: readonly StandingRow[] | null | undefined): void {
     this.root.hidden = !rows || rows.length === 0;
     if (!rows) return;
-    const key = rows.map((r) => `${r.name}|${r.isMe ? 1 : 0}|${r.finishedPlace}|${r.lap}`).join('\n');
+    const key = rows.map((r) => `${r.name}|${r.isMe ? 1 : 0}|${r.finishedPlace}|${r.lap}|${r.detail ?? ''}`).join('\n');
     if (key === this.key) return;
     this.key = key;
     this.list.replaceChildren(
@@ -37,7 +39,7 @@ export class StandingsPanel {
         el('li', { class: row.isMe ? 'me' : undefined }, [
           el('b', { text: ordinal(row.finishedPlace || i + 1) }),
           el('span', { class: 'st-name', text: row.name }),
-          el('small', { text: row.finishedPlace ? 'Finished' : `Lap ${row.lap}` }),
+          el('small', { text: row.detail ?? (row.finishedPlace ? 'Finished' : `Lap ${row.lap}`) }),
         ]),
       ),
     );

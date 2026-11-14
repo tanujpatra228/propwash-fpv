@@ -3,11 +3,13 @@
  * connections, text frames and the current time; it returns who should be sent what and who to disconnect.
  */
 import { ROOMS, TRACK, TRACK_DEFS, TRACK_IDS } from '../config';
+import { CrownGame, type CrownEvent, type CrownSnapshot } from './crown-game';
 import { checkPilotName } from './pilot-name';
 import {
   parseClientMessage,
   type ClientMessage,
   type ResultRow,
+  type RoomMode,
   type RoomPhase,
   type RosterEntry,
   type ServerMessage,
@@ -20,6 +22,8 @@ export interface RoomSnapshot {
   phase: RoomPhase;
   hostId: string;
   laps: number;
+  mode?: RoomMode;
+  crown?: CrownSnapshot | null;
   raceStartMs: number;
   firstFinishMs: number;
   finishedCount: number;
@@ -73,6 +77,8 @@ export class Room {
   private phase: RoomPhase = 'lobby';
   private hostId = '';
   private laps: number = ROOMS.defaultLaps;
+  private mode: RoomMode = 'race';
+  private crown: CrownGame | null = null;
   private readonly pilots = new Map<string, Pilot>();
   private raceStartMs = 0;
   private firstFinishMs = 0;
@@ -85,7 +91,7 @@ export class Room {
   /** Everything needed to rebuild the room after the server's memory was dropped (hibernation). */
   snapshot(): RoomSnapshot {
     return {
-      code: this.code, worldVersion: this.worldVersion, phase: this.phase, hostId: this.hostId, laps: this.laps,
+      code: this.code, worldVersion: this.worldVersion, phase: this.phase, hostId: this.hostId, laps: this.laps, mode: this.mode, crown: this.crown?.snapshot() ?? null,
       raceStartMs: this.raceStartMs, firstFinishMs: this.firstFinishMs, finishedCount: this.finishedCount,
       pilots: [...this.pilots.values()],
     };
@@ -96,6 +102,8 @@ export class Room {
     room.phase = snapshot.phase;
     room.hostId = snapshot.hostId;
     room.laps = snapshot.laps;
+    room.mode = snapshot.mode ?? 'race';
+    room.crown = snapshot.crown ? CrownGame.restore(snapshot.crown) : null;
     room.raceStartMs = snapshot.raceStartMs;
     room.firstFinishMs = snapshot.firstFinishMs;
     room.finishedCount = snapshot.finishedCount;
@@ -126,7 +134,7 @@ export class Room {
   }
 
   private roomMessage(): ServerMessage {
-    return { t: 'room', phase: this.phase, hostId: this.hostId, laps: this.laps, pilots: this.roster() };
+    return { t: 'room', phase: this.phase, mode: this.mode, hostId: this.hostId, laps: this.laps, pilots: this.roster() };
   }
 
   private broadcastRoom(step: Step): void {
@@ -190,7 +198,11 @@ export class Room {
       return step;
     }
     if (this.hostId === id) this.hostId = this.longestPresent();
-    if (this.phase === 'racing') this.finishIfDone(step);
+    if (this.phase === 'racing' && this.crown) {
+      this.crown.remove(id, nowMs);
+      step.out.push({ to: EVERYONE, message: this.crownMessage(nowMs) });
+      if (this.connected().length < ROOMS.minPilotsToStart) this.endRace(step);
+    } else if (this.phase === 'racing') this.finishIfDone(step);
     this.broadcastRoom(step);
     return step;
   }
@@ -225,11 +237,12 @@ export class Room {
     switch (message.t) {
       case 'ready': return this.setReady(pilot, message.isReady);
       case 'laps': return this.setLaps(pilot, message.laps);
+      case 'mode': return this.setMode(pilot, message.mode);
       case 'start': return this.start(pilot, nowMs);
       case 'rematch': return this.rematch(pilot);
       case 'chat': return this.chat(pilot, message.text, nowMs);
       case 'gate': return this.gate(pilot, message.index, nowMs);
-      case 'pose': return this.pose(pilot, message);
+      case 'pose': return this.pose(pilot, message, nowMs);
     }
   }
 
@@ -253,9 +266,17 @@ export class Room {
     return step;
   }
 
+  private setMode(pilot: Pilot, mode: RoomMode): Step {
+    if (this.phase !== 'lobby' || pilot.id !== this.hostId) return emptyStep();
+    this.mode = mode;
+    const step = emptyStep();
+    this.broadcastRoom(step);
+    return step;
+  }
+
   private start(pilot: Pilot, nowMs: number): Step {
     if (this.phase !== 'lobby') return emptyStep();
-    if (pilot.id !== this.hostId) return this.notice(pilot.id, 'Only the host can start the race.');
+    if (pilot.id !== this.hostId) return this.notice(pilot.id, 'Only the host can start the game.');
     const here = this.connected();
     if (here.length < ROOMS.minPilotsToStart) return this.notice(pilot.id, 'You need at least two pilots to race.');
     if (here.some((p) => p.id !== this.hostId && !p.isReady)) return this.notice(pilot.id, 'Everyone must be ready.');
@@ -264,6 +285,7 @@ export class Room {
     this.firstFinishMs = 0;
     this.finishedCount = 0;
     for (const p of here) this.resetProgress(p);
+    this.crown = null;
     const step = emptyStep();
     this.broadcastRoom(step);
     step.out.push({ to: EVERYONE, message: { t: 'countdown', startsInMs: ROOMS.countdownMs } });
@@ -286,11 +308,38 @@ export class Room {
     return { out: [{ to: EVERYONE, message: { t: 'chat', from: pilot.id, text } }], close: [] };
   }
 
-  private pose(pilot: Pilot, m: Extract<ClientMessage, { t: 'pose' }>): Step {
+  private pose(pilot: Pilot, m: Extract<ClientMessage, { t: 'pose' }>, nowMs: number): Step {
     if (this.phase !== 'racing' && this.phase !== 'countdown') return emptyStep();
     pilot.dNextM = m.dNextM;
     const { x, y, z, yaw, pitch, roll } = m;
-    return { out: [{ to: EVERYONE, except: pilot.id, message: { t: 'pose', id: pilot.id, x, y, z, yaw, pitch, roll } }], close: [] };
+    const step: Step = { out: [{ to: EVERYONE, except: pilot.id, message: { t: 'pose', id: pilot.id, x, y, z, yaw, pitch, roll } }], close: [] };
+    if (this.phase === 'racing' && this.crown) {
+      // Positions arrive in whole centimetres; the engine works in metres.
+      this.crown.setPose(pilot.id, x / 100, y / 100, z / 100, nowMs);
+      this.advanceCrown(nowMs, step);
+    }
+    return step;
+  }
+
+  /** Moves the crown match forward and sends an update when the king changed or it is time for one. */
+  private advanceCrown(nowMs: number, step: Step): void {
+    const game = this.crown;
+    if (!game) return;
+    const events: CrownEvent[] = game.advance(nowMs);
+    if (events.length > 0 || game.shouldBroadcast(nowMs)) step.out.push({ to: EVERYONE, message: this.crownMessage(nowMs) });
+  }
+
+  private crownMessage(nowMs: number): ServerMessage {
+    const game = this.crown;
+    const threat = game?.threat() ?? { id: '', progress01: 0 };
+    return {
+      t: 'crown',
+      holderId: game?.holder ?? '',
+      scores: game?.scores() ?? [],
+      threatId: threat.id,
+      threat01: threat.progress01,
+      remainingMs: game?.remainingMs(nowMs) ?? 0,
+    };
   }
 
   private gate(pilot: Pilot, index: number, nowMs: number): Step {
@@ -347,20 +396,33 @@ export class Room {
     const step = emptyStep();
     if (this.phase === 'countdown' && nowMs >= this.raceStartMs) {
       this.phase = 'racing';
+      if (this.mode === 'crown') this.startCrown(nowMs);
       step.out.push({ to: EVERYONE, message: { t: 'go' } });
       this.broadcastRoom(step);
+      if (this.crown) step.out.push({ to: EVERYONE, message: this.crownMessage(nowMs) });
     }
-    if (this.phase === 'racing') {
+    if (this.phase === 'racing' && this.crown) {
+      this.advanceCrown(nowMs, step);
+      if (this.crown.isOver(nowMs)) this.endRace(step);
+    } else if (this.phase === 'racing') {
       const graceOver = this.firstFinishMs > 0 && nowMs - this.firstFinishMs >= ROOMS.graceAfterFirstFinishMs;
       if (graceOver || nowMs - this.raceStartMs >= ROOMS.raceHardStopMs) this.endRace(step);
     }
     return step;
   }
 
+  /** The crown goes to a pilot picked from the clock, at the moment of GO. */
+  private startCrown(nowMs: number): void {
+    const ids = this.connected().sort((a, b) => a.slot - b.slot).map((p) => p.id);
+    this.crown = new CrownGame();
+    this.crown.start(ids, ids[nowMs % Math.max(1, ids.length)] ?? '', this.raceStartMs);
+  }
+
   /** When the server should next call `tick`, or 0 when nothing is pending. */
   nextWakeMs(): number {
     if (this.phase === 'countdown') return this.raceStartMs;
     if (this.phase !== 'racing') return 0;
+    if (this.crown) return this.crown.matchEndMs;
     const hardStop = this.raceStartMs + ROOMS.raceHardStopMs;
     return this.firstFinishMs > 0 ? Math.min(hardStop, this.firstFinishMs + ROOMS.graceAfterFirstFinishMs) : hardStop;
   }
@@ -378,9 +440,16 @@ export class Room {
   }
 
   private results(): ResultRow[] {
+    if (this.crown) {
+      // Crown chase: ranked by seconds on the crown. Pilots who left keep their score.
+      return this.crown.scores().flatMap((s, i) => {
+        const p = this.pilots.get(s.id);
+        return p ? [{ id: p.id, name: p.name, place: i + 1, timeS: 0, bestLapS: 0, score: Math.round(s.points * 10) / 10 }] : [];
+      });
+    }
     return this.standings().flatMap((id) => {
       const p = this.pilots.get(id);
-      return p ? [{ id: p.id, name: p.name, place: p.place, timeS: p.finishTimeS, bestLapS: p.bestLapS }] : [];
+      return p ? [{ id: p.id, name: p.name, place: p.place, timeS: p.finishTimeS, bestLapS: p.bestLapS, score: 0 }] : [];
     });
   }
 
@@ -389,6 +458,7 @@ export class Room {
     if (pilot.id !== this.hostId) return this.notice(pilot.id, 'Only the host can start a rematch.');
     for (const p of [...this.pilots.values()]) if (!p.isConnected) this.pilots.delete(p.id);
     for (const p of this.pilots.values()) p.isReady = false;
+    this.crown = null;
     this.phase = 'lobby';
     const step = emptyStep();
     this.broadcastRoom(step);
@@ -400,5 +470,7 @@ export class Room {
     this.hostId = '';
     this.phase = 'lobby';
     this.laps = ROOMS.defaultLaps;
+    this.mode = 'race';
+    this.crown = null;
   }
 }

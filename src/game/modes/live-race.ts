@@ -1,10 +1,11 @@
-import { Euler, Quaternion, Vector3 } from 'three';
+import { Vector3, type Quaternion } from 'three';
 import { ROOMS, TRACK, TRIAL } from '../../config';
 import { formatLapTime } from '../../core/format';
 import type { PoseFields, ResultRow, RosterEntry, StandingEntry } from '../../core/room-protocol';
 import { ordinal, type StandingRow } from '../../ui/standings-panel';
 import { gridPose } from '../grid';
 import { respawnPose, type Pose } from '../respawn';
+import { quantisePose } from './pose-report';
 import type { GameMode, ModeFrame, ModeHost, ModeHud, PilotMarker, RaceHud } from './mode';
 
 /** What the live race needs from the room connection. The real one is the room client; tests use a fake. */
@@ -27,9 +28,6 @@ export interface LiveSession {
 type State = 'countdown' | 'running' | 'over';
 
 const HINT = 'Fly all 12 gates in order, every lap. Crash or reset and you restart at the last gate.';
-const euler = new Euler(0, 0, 0, 'YXZ');
-const cm = (m: number): number => Math.round(m * 100);
-const rad100 = (r: number): number => Math.round(r * 100);
 
 /** A race against friends. The server decides who finished where; this mode flies, reports gates and shows the order. */
 export class LiveRace implements GameMode {
@@ -45,7 +43,7 @@ export class LiveRace implements GameMode {
   private poseTimerS = 0;
   private myPlace = 0;
   private readonly finished = new Map<string, number>();
-  private readonly poseSource = new Quaternion();
+  private readonly pose: PoseFields = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0, roll: 0 };
 
   constructor(
     private readonly host: ModeHost,
@@ -137,18 +135,9 @@ export class LiveRace implements GameMode {
 
   private sendPose(): void {
     const { position, quaternion } = this.host.flight;
-    this.poseSource.copy(quaternion);
-    euler.setFromQuaternion(this.poseSource, 'YXZ');
     const next = this.host.gates[this.host.tracker.nextGate];
-    this.session.sendPose({
-      x: cm(position.x),
-      y: cm(position.y),
-      z: cm(position.z),
-      yaw: rad100(euler.y),
-      pitch: rad100(euler.x),
-      roll: rad100(euler.z),
-      dNextM: next ? Math.min(100_000, Math.round(position.distanceTo(next.position))) : 0,
-    });
+    quantisePose(position, quaternion, this.pose);
+    this.session.sendPose({ ...this.pose, dNextM: next ? Math.min(100_000, Math.round(position.distanceTo(next.position))) : 0 });
   }
 
   private refreshHud(): void {

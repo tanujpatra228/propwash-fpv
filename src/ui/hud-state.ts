@@ -8,6 +8,8 @@ export interface HudOther {
   name: string;
   /** 0xRRGGBB. */
   color: number;
+  /** Wears the crown (crown chase): drawn gold. */
+  isKing: boolean;
   x: number;
   z: number;
   /** Normalised device coordinates of the tag, a little above the drone. */
