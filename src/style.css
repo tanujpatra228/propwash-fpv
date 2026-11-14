@@ -1231,3 +1231,16 @@ kbd {
 .ms-best { font: 14px/1 var(--osd); color: var(--gate-hi); padding: 0 12px; }
 .ms-picture { height: 110px; overflow: hidden; }
 .ms-picture svg { width: 100%; height: 100%; display: block; }
+
+/* ---------- wind gauge */
+.wind-row { display: flex; align-items: center; gap: 10px; }
+.wind-arrow {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-left: 9px solid transparent;
+  border-right: 9px solid transparent;
+  border-bottom: 22px solid var(--sky);
+  transform-origin: 50% 70%;
+  transition: opacity 0.2s;
+}

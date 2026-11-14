@@ -20,6 +20,8 @@ export interface FlightSessionParts {
   showCrash(title: string, subtitle: string): void;
   hideBanner(): void;
   currentMode(): GameMode;
+  /** The Settings choice for wind in free flight and training. */
+  isWindSetting(): boolean;
   /** Spray and splash effects over water (optional). */
   water?: WaterEffects;
 }
@@ -56,7 +58,9 @@ export class FlightSession {
 
   simulate(input: Readonly<FlightInput>, dtS: number): CrashReason | null {
     const mode = this.parts.currentMode();
-    return this.parts.simulation.step(input, dtS, mode.drainsBattery, (index) => mode.onGateCrossed(index));
+    // Races, time trials and challenges always have wind so times stay comparable; the setting is for practice.
+    const isWindOn = this.parts.isWindSetting() || (mode.id !== 'free' && mode.id !== 'training');
+    return this.parts.simulation.step(input, dtS, mode.drainsBattery, isWindOn, (index) => mode.onGateCrossed(index));
   }
 
   isLanded(): boolean {

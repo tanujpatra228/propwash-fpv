@@ -39,6 +39,7 @@ export class MainMenu {
   private readonly drainButtons = new Map<boolean, HTMLButtonElement>();
   private readonly invertButtons = new Map<boolean, HTMLButtonElement>();
   private readonly unitButtons = new Map<Units, HTMLButtonElement>();
+  private readonly windButtons = new Map<boolean, HTMLButtonElement>();
   private pilot: PilotSettings;
 
   constructor(private readonly callbacks: MenuCallbacks, initial: MenuSettings) {
@@ -123,6 +124,8 @@ export class MainMenu {
         this.toggleSeg(this.invertButtons, [[false, 'Normal', 'Mouse right turns right.'], [true, 'Inverted', 'Mouse right turns left.']], (isOn) => ({ ...this.pilot, isTurnInverted: isOn })),
         el('h2', { text: 'Units' }),
         this.toggleSeg(this.unitButtons, [['metric', 'Metric', 'km/h and metres.'], ['imperial', 'Imperial', 'mph and feet.']], (units) => ({ ...this.pilot, units })),
+        el('h2', { text: 'Wind (free flight and training)' }),
+        this.toggleSeg(this.windButtons, [[true, 'On', 'Gusts push you on windy maps.'], [false, 'Off', 'Calm air. Races always have wind.']], (isOn) => ({ ...this.pilot, isWindOn: isOn })),
         el('h2', { text: 'Battery drain in free flight' }),
         drainSeg,
         el('div', { class: 'settings-actions' }, [controls, done]),
@@ -172,6 +175,7 @@ export class MainMenu {
   private markPilotButtons(): void {
     for (const [key, button] of this.invertButtons) button.classList.toggle('on', key === this.pilot.isTurnInverted);
     for (const [key, button] of this.unitButtons) button.classList.toggle('on', key === this.pilot.units);
+    for (const [key, button] of this.windButtons) button.classList.toggle('on', key === this.pilot.isWindOn);
   }
 
   private setQuality(id: QualityId): void {

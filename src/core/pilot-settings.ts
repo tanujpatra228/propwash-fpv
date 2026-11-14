@@ -12,6 +12,8 @@ export interface PilotSettings {
   /** Flip the mouse turn direction. */
   isTurnInverted: boolean;
   units: Units;
+  /** Wind in Free flight and Training on maps that have wind. Races and time trials always have it. */
+  isWindOn: boolean;
 }
 
 export const PILOT_RANGES = {
@@ -24,6 +26,7 @@ export const DEFAULT_PILOT_SETTINGS: Readonly<PilotSettings> = {
   uptiltDeg: CAMERA.goggles.uptiltDeg,
   isTurnInverted: false,
   units: 'metric',
+  isWindOn: true,
 };
 
 const KEY = 'pilot.v1';
@@ -42,6 +45,7 @@ export function sanitizePilotSettings(raw: unknown): PilotSettings {
     uptiltDeg: number(r['uptiltDeg'], d.uptiltDeg, PILOT_RANGES.uptiltDeg.min, PILOT_RANGES.uptiltDeg.max),
     isTurnInverted: typeof r['isTurnInverted'] === 'boolean' ? r['isTurnInverted'] : d.isTurnInverted,
     units: r['units'] === 'imperial' || r['units'] === 'metric' ? r['units'] : d.units,
+    isWindOn: typeof r['isWindOn'] === 'boolean' ? r['isWindOn'] : d.isWindOn,
   };
 }
 

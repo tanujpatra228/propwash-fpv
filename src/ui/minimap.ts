@@ -1,4 +1,5 @@
 import { ACTIVE_TRACK_DEF, CITY, HARBOR, VALLEY } from '../config';
+import { glacierHeight, isIce } from '../world/glacier/terrain-fn';
 import { el } from '../core/dom';
 import { track } from '../world/track';
 import type { HudState } from './hud-state';
@@ -61,6 +62,7 @@ export class Minimap {
     c.stroke();
     if (ACTIVE_TRACK_DEF.family === 'city') this.drawCity(c);
     else if (ACTIVE_TRACK_DEF.family === 'harbor') this.drawHarbor(c);
+    else if (ACTIVE_TRACK_DEF.family === 'glacier') this.drawGlacier(c);
     else this.drawValley(c);
     const start = track.positions[0];
     if (start) {
@@ -79,6 +81,23 @@ export class Minimap {
     const [bx, by] = this.toMap(VALLEY.bando.x, VALLEY.bando.z);
     c.fillStyle = 'rgba(200,190,170,.45)';
     c.fillRect(bx - 7, by - 7, 14, 14);
+  }
+
+  /** A shaded relief of the mountains: darker low, lighter high, the lake in blue. Sampled coarsely, drawn once. */
+  private drawGlacier(c: CanvasRenderingContext2D): void {
+    const step = 10;
+    const half = SIZE_PX / 2;
+    const unit = Math.max(1, Math.round(step * this.pixelsPerM));
+    for (let py = 0; py < SIZE_PX; py += unit) {
+      for (let pz = 0; pz < SIZE_PX; pz += unit) {
+        const x = (pz + unit / 2 - half) / this.pixelsPerM + this.centerX;
+        const z = (py + unit / 2 - half) / this.pixelsPerM + this.centerZ;
+        const h = glacierHeight(x, z);
+        const tone = Math.max(30, Math.min(235, 40 + h * 0.9));
+        c.fillStyle = isIce(x, z) ? 'rgba(150,200,225,.75)' : `rgba(${tone},${tone + 6},${tone + 14},.7)`;
+        c.fillRect(pz, py, unit, unit);
+      }
+    }
   }
 
   /** Water behind, land in grey, the ship and warehouse darker. Drawn before the track line so the line stays on top. */

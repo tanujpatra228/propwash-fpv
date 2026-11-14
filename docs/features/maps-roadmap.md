@@ -1,6 +1,6 @@
 # Plan: New Maps
 
-Status: Approved. Steps A (map screen), B (night city) and C (Harbor Run) built; Glacier Pass is next
+Status: Approved. Steps A to D built (map screen, night city, Harbor Run, Glacier Pass); Foundry is next
 Phase: 6
 Last updated: 2026-11-08
 
