@@ -11,4 +11,5 @@ export const CRASH_MESSAGES: Readonly<Record<CrashReason, string>> = {
   tree: 'Hit a tree',
   vehicle: 'Hit a vehicle',
   crane: 'Hit a crane',
+  rock: 'Hit the rock',
 };

@@ -64,8 +64,11 @@ export class FlightModel {
     this.updateQuaternion();
   }
 
-  /** Advances one frame. Returns effort 0..1, the battery's input for current draw. */
-  step(rawInput: FlightInput, stats: DroneStats, powerFactor: number, rawDtS: number): number {
+  /**
+   * Advances one frame. `windMps` is how fast the air itself is moving (it carries the drone along, and the drift assist
+   * does not fight it, so the pilot has to steer into it). Returns effort 0..1, the battery's input for current draw.
+   */
+  step(rawInput: FlightInput, stats: DroneStats, powerFactor: number, rawDtS: number, windMps?: Readonly<{ x: number; z: number }>): number {
     const dtS = clamp(Number.isFinite(rawDtS) ? rawDtS : 0, LOOP.minDtS, LOOP.maxDtS);
     this.clockS += dtS;
     const isPowered = powerFactor > 0;
@@ -137,6 +140,10 @@ export class FlightModel {
     }
 
     this.position.addScaledVector(this.velocity, dtS);
+    if (windMps) {
+      this.position.x += windMps.x * dtS;
+      this.position.z += windMps.z * dtS;
+    }
 
     const tiltRad = Math.acos(clamp(upY, -1, 1));
     const speedRatio = Math.min(1.5, speed / FLIGHT.topSpeedMps);

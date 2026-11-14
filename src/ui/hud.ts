@@ -12,6 +12,7 @@ import type { HudState } from './hud-state';
 import { Minimap } from './minimap';
 import { ModeTag } from './mode-tag';
 import { PilotMarkers } from './pilot-markers';
+import { WindGauge } from './wind-gauge';
 import { StandingsPanel } from './standings-panel';
 import { Osd } from './osd';
 import { RacePanel } from './race-panel';
@@ -34,6 +35,7 @@ export class Hud {
   private readonly height: HeightGauge;
   private readonly speed: SpeedGauge;
   private readonly battery: BatteryGauge;
+  private readonly windGauge: WindGauge;
   private readonly flightMenu: FlightMenu;
   private readonly helpBar = new HelpBar(this.root);
   private frameCount = 0;
@@ -43,6 +45,7 @@ export class Hud {
     this.height = new HeightGauge(this.gauges);
     this.battery = new BatteryGauge(this.gauges);
     this.speed = new SpeedGauge(this.gauges);
+    this.windGauge = new WindGauge(this.gauges);
     this.flightMenu = new FlightMenu(this.root, callbacks);
     document.body.append(this.root);
   }
@@ -70,6 +73,7 @@ export class Hud {
     this.lessonPanel.update(state.mode.lesson);
     this.standings.update(state.mode.standings);
     this.countdown.update(state.mode.countdown);
+    this.windGauge.update(state.wind, state.units, isTextFrame);
     this.pilotMarkers.update(state.others, state.units, isTextFrame);
     this.ghostTag.update(state.ghost.isVisible, state.ghost.x, state.ghost.y);
     this.gateMarker.update(state.nextGate.x, state.nextGate.y, state.nextGate.distM, state.units, isTextFrame);

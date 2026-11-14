@@ -1,4 +1,5 @@
 import type { StandingRow } from './standings-panel';
+import type { WindState } from './wind-gauge';
 import type { LessonPanelState } from './lesson-panel';
 import type { RacePanelState } from './race-panel';
 
@@ -47,6 +48,8 @@ export interface HudState {
   nextGate: { x: number; y: number; distM: number };
   /** Drone on the minimap: world X, Z and heading (rotation about Y). */
   map: { x: number; z: number; yawRad: number };
+  /** The wind gauge. Hidden on maps without wind. */
+  wind: WindState;
   /** Other pilots in a live race (empty otherwise). */
   others: HudOther[];
   /** The best-lap ghost on screen (NDC), when it is shown and visible. */

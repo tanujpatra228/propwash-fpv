@@ -204,6 +204,7 @@ export class Game {
       showCrash: (title, subtitle) => this.banner.show(title, subtitle, 'crash'),
       hideBanner: () => this.banner.hide(),
       currentMode: () => this.mode,
+      isWindSetting: () => this.pilot.isWindOn,
       water: new WaterEffects(this.scene),
     });
     this.presenter = new Presenter({

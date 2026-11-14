@@ -76,3 +76,5 @@ Chase camera field of view, vertical mouse axis, key remapping (Controls panel),
 ## Changelog
 
 - 2026-11-01: Created.
+
+- 2026-11-14: Added the Wind setting (on or off) for Free flight and Training on maps with wind (Glacier Pass). Races, time trials and challenges always have wind.

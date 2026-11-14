@@ -6,6 +6,8 @@ import { clampToScreenEdge } from '../ui/gate-marker';
 import { isOnScreen } from '../ui/ghost-tag';
 import type { HudOther } from '../ui/hud-state';
 import { ROOMS } from '../config';
+import { feltWind } from './simulation';
+import { ACTIVE_WIND_ZONES } from '../world/wind';
 import { Hud } from '../ui/hud';
 import type { HudState } from '../ui/hud-state';
 import type { FlightMenuCallbacks } from '../ui/flight-menu';
@@ -70,6 +72,7 @@ export class HudBridge {
     gateCount: TRACK.gateCount,
     nextGate: { x: 0, y: 0, distM: 0 },
     map: { x: 0, z: 0, yawRad: 0 },
+    wind: { isVisible: ACTIVE_WIND_ZONES.length > 0, angleRad: 0, speedMps: 0 },
     others: [],
     ghost: { isVisible: false, x: 0, y: 0 },
     mode: { label: '', hint: '', race: null, countdown: '', swapProgress01: 0, lesson: null, standings: null },
@@ -131,6 +134,9 @@ export class HudBridge {
     s.map.x = position.x;
     s.map.z = position.z;
     s.map.yawRad = flight.yawRad;
+    s.wind.speedMps = Math.hypot(feltWind.x, feltWind.z);
+    // The air moves toward bearing atan2(x, -z); the nose points at bearing -yaw, so relative to the nose it is bearing + yaw.
+    s.wind.angleRad = Math.atan2(feltWind.x, -feltWind.z) + flight.yawRad;
     this.projectGhost(frame, s.ghost);
     this.projectOthers(frame);
     s.mode.label = frame.mode.hud.modeLabel;

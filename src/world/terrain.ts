@@ -9,10 +9,12 @@ import {
   type Texture,
 } from 'three';
 import { ACTIVE_TRACK_DEF, HARBOR, VALLEY } from '../config';
+import { glacierHeight } from './glacier/terrain-fn';
 import { isLand } from './harbor/plan';
 
 const IS_CITY = ACTIVE_TRACK_DEF.family === 'city';
 const IS_HARBOR = ACTIVE_TRACK_DEF.family === 'harbor';
+const IS_GLACIER = ACTIVE_TRACK_DEF.family === 'glacier';
 import { fbm, smoothstep } from '../core/math';
 
 const { lake, bando } = VALLEY;
@@ -35,6 +37,7 @@ export const BANDO_FLOOR_Y = baseHeight(bando.x, bando.z);
 export function heightAt(x: number, z: number): number {
   if (IS_CITY) return 0; // the city is flat
   if (IS_HARBOR) return isLand(x, z) ? HARBOR.quayY : 0; // the quay, or the water level
+  if (IS_GLACIER) return glacierHeight(x, z);
   let h = baseHeight(x, z);
   const lakeDistance = Math.hypot(x - lake.x, z - lake.z);
   if (lakeDistance < lake.radiusM * 1.7) {
@@ -53,6 +56,7 @@ export function heightAt(x: number, z: number): number {
 export function groundY(x: number, z: number): number {
   if (IS_CITY) return 0;
   if (IS_HARBOR) return isLand(x, z) ? HARBOR.quayY : 0;
+  if (IS_GLACIER) return glacierHeight(x, z);
   const h = heightAt(x, z);
   return Math.hypot(x - lake.x, z - lake.z) < lake.radiusM ? Math.max(h, LAKE_SURFACE_Y) : h;
 }
@@ -69,6 +73,11 @@ export function surfaceAt(x: number, z: number, out: Surface): Surface {
   if (IS_CITY) {
     out.isWater = false;
     out.y = 0;
+    return out;
+  }
+  if (IS_GLACIER) {
+    out.isWater = false;
+    out.y = glacierHeight(x, z); // the frozen lake is ice, not water
     return out;
   }
   if (IS_HARBOR) {

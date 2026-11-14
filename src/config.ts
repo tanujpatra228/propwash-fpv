@@ -21,15 +21,15 @@ const WORLD_BASE = {
   },
 } as const;
 
-export type TrackId = 'valley' | 'city' | 'night' | 'harbor';
-export const TRACK_IDS: readonly TrackId[] = ['valley', 'city', 'night', 'harbor'];
+export type TrackId = 'valley' | 'city' | 'night' | 'harbor' | 'glacier';
+export const TRACK_IDS: readonly TrackId[] = ['valley', 'city', 'night', 'harbor', 'glacier'];
 
 /** Which world a track is built from. A track is a world plus an atmosphere (`night` is the city after dark). */
-export type WorldFamily = 'valley' | 'city' | 'harbor';
-export type AtmosphereId = 'day' | 'night' | 'dusk';
+export type WorldFamily = 'valley' | 'city' | 'harbor' | 'glacier';
+export type AtmosphereId = 'day' | 'night' | 'dusk' | 'alpine';
 
 export function isTrackId(value: unknown): value is TrackId {
-  return value === 'valley' || value === 'city' || value === 'night' || value === 'harbor';
+  return value === 'valley' || value === 'city' || value === 'night' || value === 'harbor' || value === 'glacier';
 }
 
 /**
@@ -41,6 +41,7 @@ export const TRACK_DEFS = {
   city: { family: 'city' as WorldFamily, atmosphere: 'day' as AtmosphereId, isNight: false, name: 'Downtown Dash', blurb: 'Streets, traffic, towers and windows to fly through.', worldVersion: 101, start: [0, 190], halfSizeM: 320, ceilingM: 170 },
   night: { family: 'city' as WorldFamily, atmosphere: 'night' as AtmosphereId, isNight: true, name: 'Downtown Dash: Night', blurb: 'The same city after dark: neon, street lights and glowing windows.', worldVersion: 102, start: [0, 190], halfSizeM: 320, ceilingM: 170 },
   harbor: { family: 'harbor' as WorldFamily, atmosphere: 'dusk' as AtmosphereId, isNight: false, name: 'Harbor Run', blurb: 'Container yard, cranes, a cargo ship and open water at golden hour.', worldVersion: 103, start: [-230, -128], halfSizeM: 360, ceilingM: 130 },
+  glacier: { family: 'glacier' as WorldFamily, atmosphere: 'alpine' as AtmosphereId, isNight: false, name: 'Glacier Pass', blurb: 'Snowy peaks, a tight canyon, a frozen lake and wind that pushes you around.', worldVersion: 104, start: [0, 240], halfSizeM: 500, ceilingM: 400 },
 } as const;
 
 /** The track chosen at start-up: `?track=` first, then the saved choice, else the valley. Changing it reloads the page. */
@@ -76,6 +77,55 @@ export const VALLEY = {
   mountainRingRadiusM: 460,
   lake: { x: -40, z: 74, radiusM: 44, depthBelowShoreM: 2.2 },
   bando: { x: 112, z: 100, innerRadiusM: 24, outerRadiusM: 42 },
+} as const;
+
+/**
+ * Glacier Pass: the race route carved through the mountains, the wind zones, the arch, the lodge and the trees.
+ * `route` points are [x, z, floorY, halfWidthM, clearanceM]: the valley floor height there, how wide the carved floor is,
+ * and how far above the floor the race line flies. See docs/features/glacier-pass.md.
+ */
+export const GLACIER = {
+  seed: 20_251,
+  route: [
+    [0, 240, 10, 30, 7], [0, 180, 10, 30, 7], [0, 140, 12, 30, 8], [10, 90, 20, 32, 8],
+    [40, 40, 32, 34, 8], [85, -10, 45, 45, 10], [115, -70, 55, 50, 12], [110, -130, 62, 50, 14], [70, -180, 68, 40, 14],
+    [20, -215, 62, 25, 12], [-25, -245, 52, 9, 8], [-70, -270, 46, 9, 8], [-120, -290, 42, 9, 8], [-165, -300, 38, 12, 8],
+    [-215, -285, 22, 60, 10], [-260, -230, 15, 90, 7], [-270, -160, 15, 90, 6], [-250, -90, 16, 70, 8], [-200, -20, 20, 50, 9],
+    [-160, 60, 18, 45, 9], [-110, 140, 14, 40, 8], [-60, 210, 12, 34, 7], [-58, 252, 12, 34, 7],
+    [-38, 282, 11, 32, 7], [-8, 284, 10, 30, 7], [2, 262, 10, 30, 7],
+  ],
+  /** Gates, as [x, z] anchors along the route. */
+  gateAnchors: [[0, 240], [0, 190], [0, 140], [40, 40], [115, -70], [70, -180], [-25, -245], [-95, -280], [-165, -300], [-260, -230], [-200, -20], [-60, 210]],
+  /** Terrain: how far past the carved floor the walls take to reach full mountain height. */
+  wallTransitionM: 28,
+  /** Mountain height: base plus noise, rising toward the world edge. */
+  mountain: { baseM: 110, noiseM: 140, edgeStartM: 380, edgeEndM: 560, edgeM: 190 },
+  /** Heights above which the slopes turn to snow, and the slope that turns them to rock. */
+  snowLineM: 48,
+  rockSlope: 0.55,
+  /** The frozen lake: ice where the route floor is this wide or wider and below this height. */
+  lake: { minHalfWidthM: 60, maxFloorM: 30 },
+  arch: { x: 0, z: 140, pillarX: 7.5, pillarWidthM: 3, lintelBottomM: 16, lintelTopM: 22, depthM: 8 },
+  lodge: { x: 52, z: 268, widthM: 26, depthM: 14, wallHeightM: 7, roofHeightM: 4 },
+  pines: { count: 650, maxHeightM: 62, minGapFromFloorM: 8, areaHalfM: 460 },
+  /**
+   * Wind: zones with a centre, radius, direction (degrees, 0 = blowing toward -Z, clockwise on the map), strength in
+   * m/s² and a gust period. Strength falls to zero at the edge; gusts swing between 65 and 100 percent.
+   */
+  wind: {
+    zones: [
+      { x: 0, z: 200, radiusM: 120, directionDeg: 270, strength: 1.2, gustPeriodS: 9, gustPhase: 0 },
+      { x: 100, z: -60, radiusM: 110, directionDeg: 300, strength: 2.6, gustPeriodS: 7, gustPhase: 1.3 },
+      { x: 80, z: -165, radiusM: 100, directionDeg: 330, strength: 3.4, gustPeriodS: 11, gustPhase: 2.1 },
+      { x: -60, z: -260, radiusM: 90, directionDeg: 245, strength: 2.8, gustPeriodS: 6, gustPhase: 0.7 },
+      { x: -250, z: -190, radiusM: 130, directionDeg: 90, strength: 1.6, gustPeriodS: 5, gustPhase: 3.4 },
+    ],
+    gustMin: 0.65,
+    /** How fast the air moves for each unit of zone strength: 3 m/s² of strength is about 6.6 m/s of air. */
+    metresPerSecondPerStrength: 2.2,
+    /** Strongest push the field can give, whatever the zones add up to. */
+    maxAccelMps2: 4,
+  },
 } as const;
 
 type ControlPoint = readonly [x: number, z: number, clearanceM: number | 'bando' | 'lake'];
@@ -117,6 +167,7 @@ const TRACK_POINTS: Record<WorldFamily, readonly ControlPoint[]> = {
     [-162, -30, 4.2], [-180, -30, 4.2], [-198, -38, 5], [-218, -52, 6], [-240, -68, 7], [-250, -90, 7], [-246, -106, 7],
     [-243, -120, 7],
   ],
+  glacier: GLACIER.route.map(([x, z, , , clearance]): ControlPoint => [x, z, clearance]),
 };
 
 /**
@@ -125,6 +176,7 @@ const TRACK_POINTS: Record<WorldFamily, readonly ControlPoint[]> = {
  */
 const GATE_ANCHORS: Partial<Record<WorldFamily, ReadonlyArray<readonly [number, number]>>> = {
   city: [[0, 190], [0, 100], [0, 38], [0, -75], [82, -155], [82, -205], [170, -246], [244, -170], [190, -60], [126, -60], [120, 0], [50, 240]],
+  glacier: GLACIER.gateAnchors,
   harbor: [[-230, -128], [-195, -128], [-160, -128], [-90, -128], [-20, -175], [-20, -240], [45, -262], [110, -205], [35, -102], [-45, -102], [-100, -40], [-170, -30]],
 };
 
@@ -457,7 +509,27 @@ const ATMOSPHERE_DUSK: Atmosphere = {
   shadowExtentM: 130,
 };
 
-const ATMOSPHERES: Record<AtmosphereId, Atmosphere> = { day: ATMOSPHERE_DAY, night: ATMOSPHERE_NIGHT, dusk: ATMOSPHERE_DUSK };
+/** Bright cold alpine daylight: a high white sun, pale blue haze, light bounced up from the snow. */
+const ATMOSPHERE_ALPINE: Atmosphere = {
+  ...ATMOSPHERE_DAY,
+  toneMappingExposure: 0.5,
+  sunIntensity: 2.3,
+  hemisphereIntensity: 0.5,
+  environmentIntensity: 0.55,
+  sky: { turbidity: 2, rayleigh: 2.4, mieCoefficient: 0.002, mieDirectionalG: 0.8 },
+  fogDensity: 0.0006,
+  fogColor: 0xbcd0e6,
+  sunElevationDeg: 38,
+  sunAzimuthDeg: 140,
+  lightColor: 0xfff6e6,
+  lightElevationDeg: 38,
+  lightAzimuthDeg: 140,
+  hemisphereSky: 0xcfe3ff,
+  hemisphereGround: 0xdfe8f2,
+  shadowExtentM: 140,
+};
+
+const ATMOSPHERES: Record<AtmosphereId, Atmosphere> = { day: ATMOSPHERE_DAY, night: ATMOSPHERE_NIGHT, dusk: ATMOSPHERE_DUSK, alpine: ATMOSPHERE_ALPINE };
 
 /** The atmosphere of the active track. */
 export const RENDER: Atmosphere = ATMOSPHERES[ACTIVE_TRACK_DEF.atmosphere];

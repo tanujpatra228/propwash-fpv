@@ -3,7 +3,7 @@ import { DEFAULT_PILOT_SETTINGS, loadPilotSettings, sanitizePilotSettings, saveP
 
 describe('sanitizePilotSettings', () => {
   it('keeps valid values', () => {
-    const s = { fovDeg: 95, uptiltDeg: 30, isTurnInverted: true, units: 'imperial' as const };
+    const s = { fovDeg: 95, uptiltDeg: 30, isTurnInverted: true, units: 'imperial' as const, isWindOn: false };
     expect(sanitizePilotSettings(s)).toEqual(s);
   });
 
@@ -37,9 +37,17 @@ describe('storage', () => {
 
   it('round-trips and survives corrupt data', () => {
     expect(loadPilotSettings()).toEqual(DEFAULT_PILOT_SETTINGS);
-    savePilotSettings({ fovDeg: 100, uptiltDeg: 10, isTurnInverted: true, units: 'imperial' });
+    savePilotSettings({ fovDeg: 100, uptiltDeg: 10, isTurnInverted: true, units: 'imperial', isWindOn: false });
     expect(loadPilotSettings().fovDeg).toBe(100);
     data.set('pw.pilot.v1', '{oops');
     expect(loadPilotSettings()).toEqual(DEFAULT_PILOT_SETTINGS);
+  });
+});
+
+describe('wind setting', () => {
+  it('defaults to on and falls back to on for junk', () => {
+    expect(sanitizePilotSettings({}).isWindOn).toBe(true);
+    expect(sanitizePilotSettings({ isWindOn: 'yes' }).isWindOn).toBe(true);
+    expect(sanitizePilotSettings({ isWindOn: false }).isWindOn).toBe(false);
   });
 });
