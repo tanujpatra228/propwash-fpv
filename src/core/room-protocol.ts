@@ -6,6 +6,9 @@ import { ROOMS } from '../config';
 
 export type RoomPhase = 'lobby' | 'countdown' | 'racing' | 'results';
 
+/** What the room plays: a race through the gates, or crown chase (dethrone). */
+export type RoomMode = 'race' | 'crown';
+
 /** Positions in whole centimetres, angles in hundredths of a radian. */
 export interface PoseFields {
   x: number;
@@ -19,6 +22,7 @@ export interface PoseFields {
 export type ClientMessage =
   | { t: 'ready'; isReady: boolean }
   | { t: 'laps'; laps: number }
+  | { t: 'mode'; mode: RoomMode }
   | { t: 'start' }
   | { t: 'rematch' }
   | { t: 'chat'; text: string }
@@ -40,6 +44,12 @@ export interface StandingEntry {
   gates: number;
 }
 
+/** One pilot's points in crown chase. */
+export interface CrownScoreEntry {
+  id: string;
+  points: number;
+}
+
 export interface ResultRow {
   id: string;
   name: string;
@@ -47,11 +57,14 @@ export interface ResultRow {
   place: number;
   timeS: number;
   bestLapS: number;
+  /** Crown chase: seconds on the crown. Zero in races. */
+  score: number;
 }
 
 export type ServerMessage =
   | { t: 'welcome'; you: string; code: string }
-  | { t: 'room'; phase: RoomPhase; hostId: string; laps: number; pilots: RosterEntry[] }
+  | { t: 'room'; phase: RoomPhase; mode: RoomMode; hostId: string; laps: number; pilots: RosterEntry[] }
+  | { t: 'crown'; holderId: string; scores: CrownScoreEntry[]; threatId: string; threat01: number; remainingMs: number }
   | { t: 'countdown'; startsInMs: number }
   | { t: 'go' }
   | { t: 'chat'; from: string; text: string }
@@ -118,6 +131,8 @@ export function parseClientMessage(frame: unknown): ParseResult {
       return typeof o['isReady'] === 'boolean' ? { ok: true, message: { t: 'ready', isReady: o['isReady'] } } : { ok: false, reason: 'bad ready' };
     case 'laps':
       return isInt(o['laps'], ROOMS.minLaps, ROOMS.maxLaps) ? { ok: true, message: { t: 'laps', laps: o['laps'] } } : { ok: false, reason: 'bad laps' };
+    case 'mode':
+      return o['mode'] === 'race' || o['mode'] === 'crown' ? { ok: true, message: { t: 'mode', mode: o['mode'] } } : { ok: false, reason: 'bad mode' };
     case 'start':
       return { ok: true, message: { t: 'start' } };
     case 'rematch':

@@ -79,7 +79,7 @@ describe('LiveRace', () => {
     expect(mode.hud.standings?.map((r) => r.lap)).toEqual([2, 1]);
   });
   it('offers a rematch to the host only', () => {
-    const rows = [{ id: 'bea', name: 'Bea', place: 1, timeS: 80, bestLapS: 40 }, { id: 'me', name: 'Arjun', place: 0, timeS: 0, bestLapS: 0 }];
+    const rows = [{ id: 'bea', name: 'Bea', place: 1, timeS: 80, bestLapS: 40, score: 0 }, { id: 'me', name: 'Arjun', place: 0, timeS: 0, bestLapS: 0, score: 0 }];
     const host = setup(true);
     host.mode.onResults(rows);
     expect(host.offers[0]?.choices).toEqual(['restart', 'menu']);

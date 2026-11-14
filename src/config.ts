@@ -779,6 +779,23 @@ export const CHALLENGES = {
   emptyBatteryGraceS: 3,
 } as const;
 
+/** Crown chase (the dethrone game mode). See docs/features/dethrone-crown-chase.md. */
+export const CROWN = {
+  matchMs: 180_000,
+  /** Distance between two drones, in metres, within which a chaser makes progress. */
+  stealRangeM: 7,
+  /** Time within range needed to take the crown; progress drains at `drainFactor` times the speed it filled. */
+  stealMs: 2000,
+  drainFactor: 2,
+  /** A new king cannot be dethroned for this long. */
+  protectMs: 3000,
+  /** A position older than this is ignored (a frozen tab cannot steal or be stolen from). */
+  poseFreshMs: 1500,
+  pointsPerSecond: 1,
+  /** At most one `crown` update this often. */
+  broadcastEveryMs: 250,
+} as const;
+
 export const STORAGE_PREFIX = 'pw.';
 
 /** Stock-drone flight tuning. Units: metres, seconds, radians. */
