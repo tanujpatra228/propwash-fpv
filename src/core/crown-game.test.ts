@@ -2,32 +2,33 @@ import { describe, expect, it } from 'vitest';
 import { CROWN } from '../config';
 import { CrownGame } from './crown-game';
 
-/** A match with the king at the origin and a chaser `chaserAtM` metres away, started at t = 0. */
-function match(chaserAtM = 3): CrownGame {
+const PROTECT = CROWN.protectMs;
+
+/** A match started at t = 0: the king at the origin (10 m up), a chaser and a third pilot placed by the caller. */
+function match(): CrownGame {
   const g = new CrownGame();
   g.start(['king', 'chaser', 'third'], 'king', 0);
-  g.setPose('king', 0, 10, 0, 0);
-  g.setPose('chaser', chaserAtM, 10, 0, 0);
-  g.setPose('third', 500, 10, 0, 0);
+  place(g, 0, { king: [0, 0], chaser: [500, 0], third: [900, 0] });
   return g;
 }
 
-/** Runs the clock forward in 100 ms steps, refreshing poses like the real 10 Hz updates. */
-function run(g: CrownGame, fromMs: number, toMs: number, chaserAtM: number): CrownGame {
-  for (let t = fromMs; t < toMs; t += 100) {
-    g.setPose('king', 0, 10, 0, t);
-    g.setPose('chaser', chaserAtM, 10, 0, t);
-    g.setPose('third', 500, 10, 0, t);
-    g.advance(t + 100);
-  }
-  return g;
+/** Sets positions (x, z in metres, 10 m up) at time `t` for the named pilots, then advances the clock. */
+function place(g: CrownGame, t: number, at: Record<string, [number, number]>): void {
+  for (const [id, [x, z]] of Object.entries(at)) g.setPose(id, x, 10, z, t);
+  g.advance(t);
 }
 
-const PROTECT = CROWN.protectMs;
+/** Everyone refreshes at 10 Hz from `from` to `to`; positions come from `where(t)`. */
+function run(g: CrownGame, from: number, to: number, where: (t: number) => Record<string, [number, number]>): void {
+  for (let t = from; t <= to; t += 100) place(g, t, where(t));
+}
+
+const apart = { king: [0, 0], chaser: [500, 0], third: [900, 0] } as Record<string, [number, number]>;
 
 describe('CrownGame scoring', () => {
   it('gives the king a point per second and nobody else', () => {
-    const g = run(match(100), 0, 10_000, 100);
+    const g = match();
+    run(g, 100, 10_000, () => apart);
     const scores = Object.fromEntries(g.scores().map((s) => [s.id, s.points]));
     expect(scores['king']).toBeCloseTo(10, 5);
     expect(scores['chaser']).toBe(0);
@@ -41,97 +42,108 @@ describe('CrownGame scoring', () => {
   });
 });
 
-describe('CrownGame dethroning', () => {
-  it('is protected at the start, so a chaser in range gets no progress at first', () => {
-    const g = run(match(3), 0, PROTECT - 100, 3);
-    expect(g.threat().progress01).toBe(0);
-  });
-  it('a chaser in range for the full time takes the crown', () => {
-    const g = run(match(3), 0, PROTECT, 3);
-    run(g, PROTECT, PROTECT + CROWN.stealMs + 200, 3);
+describe('CrownGame dethroning by touching', () => {
+  it('a touch takes the crown at once, after the protection', () => {
+    const g = match();
+    run(g, 100, PROTECT, () => apart);
+    place(g, PROTECT + 100, { king: [0, 0], chaser: [1, 0], third: [900, 0] });
     expect(g.holder).toBe('chaser');
   });
-  it('not quite enough time in range does not steal, and progress drains outside range', () => {
-    const g = run(match(3), 0, PROTECT, 3);
-    run(g, PROTECT, PROTECT + CROWN.stealMs - 400, 3);
+  it('nothing happens while the king is protected at the start', () => {
+    const g = match();
+    run(g, 100, PROTECT - 200, () => ({ king: [0, 0], chaser: [1, 0], third: [900, 0] }));
     expect(g.holder).toBe('king');
-    expect(g.threat().progress01).toBeGreaterThan(0.7);
-    run(g, PROTECT + CROWN.stealMs - 400, PROTECT + CROWN.stealMs + 600, 50);
-    expect(g.threat().progress01).toBe(0);
   });
-  it('range is 3D: directly above the king counts, far above does not', () => {
-    const g = match(3);
-    g.setPose('chaser', 0, 10 + CROWN.stealRangeM - 1, 0, 0);
-    run(g, 0, PROTECT, 100);
-    for (let t = PROTECT; t < PROTECT + CROWN.stealMs + 200; t += 100) {
-      g.setPose('king', 0, 10, 0, t);
-      g.setPose('chaser', 0, 10 + CROWN.stealRangeM - 1, 0, t);
-      g.advance(t + 100);
-    }
-    expect(g.holder).toBe('chaser');
-    const far = run(match(3), 0, PROTECT, 100);
-    for (let t = PROTECT; t < PROTECT + 5000; t += 100) {
-      far.setPose('king', 0, 10, 0, t);
-      far.setPose('chaser', 0, 10 + CROWN.stealRangeM + 3, 0, t);
-      far.advance(t + 100);
-    }
-    expect(far.holder).toBe('king');
+  it('a near miss does not count', () => {
+    const g = match();
+    run(g, 100, PROTECT + 3000, () => ({ king: [0, 0], chaser: [CROWN.touchRangeM + 1.5, 0], third: [900, 0] }));
+    expect(g.holder).toBe('king');
   });
-  it('a new king is protected, so the old one cannot take it straight back', () => {
-    const g = run(match(3), 0, PROTECT + CROWN.stealMs + 200, 3);
+  it('a fast pass through the king between two updates counts, even though neither update is close', () => {
+    const g = match();
+    run(g, 100, PROTECT, () => apart);
+    place(g, PROTECT + 100, { king: [0, 0], chaser: [-12, 0], third: [900, 0] });
+    place(g, PROTECT + 200, { king: [0, 0], chaser: [12, 0], third: [900, 0] }); // flew straight through the king
     expect(g.holder).toBe('chaser');
-    run(g, PROTECT + CROWN.stealMs + 200, PROTECT + CROWN.stealMs + 200 + PROTECT - 300, 3);
+  });
+  it('a pass that stays clear of the king does not count', () => {
+    const g = match();
+    run(g, 100, PROTECT, () => apart);
+    place(g, PROTECT + 100, { king: [0, 0], chaser: [-12, 6], third: [900, 0] });
+    place(g, PROTECT + 200, { king: [0, 0], chaser: [12, 6], third: [900, 0] });
+    expect(g.holder).toBe('king');
+  });
+  it('two drones moving side by side do not touch', () => {
+    const g = match();
+    run(g, 100, PROTECT, () => apart);
+    run(g, PROTECT + 100, PROTECT + 3000, (t) => ({ king: [t / 100, 0], chaser: [t / 100, 4], third: [900, 0] }));
+    expect(g.holder).toBe('king');
+  });
+  it('a new king is protected, so the old one cannot touch it straight back', () => {
+    const g = match();
+    run(g, 100, PROTECT, () => apart);
+    place(g, PROTECT + 100, { king: [0, 0], chaser: [1, 0], third: [900, 0] });
     expect(g.holder).toBe('chaser');
+    run(g, PROTECT + 200, PROTECT + 100 + PROTECT - 300, () => ({ king: [0, 0], chaser: [1, 0], third: [900, 0] }));
+    expect(g.holder).toBe('chaser');
+    place(g, PROTECT + 100 + PROTECT + 200, { king: [0, 0], chaser: [1, 0], third: [900, 0] });
+    expect(g.holder).toBe('king');
   });
   it('points follow the crown', () => {
-    const g = run(match(3), 0, PROTECT + CROWN.stealMs + 200 + 5000, 3);
+    const g = match();
+    run(g, 100, PROTECT, () => apart);
+    place(g, PROTECT + 100, { king: [0, 0], chaser: [1, 0], third: [900, 0] });
+    run(g, PROTECT + 200, PROTECT + 5200, () => ({ king: [100, 0], chaser: [1, 0], third: [900, 0] }));
     const scores = Object.fromEntries(g.scores().map((s) => [s.id, s.points]));
-    expect(scores['king']).toBeGreaterThan(4);
+    expect(scores['king']).toBeGreaterThan(3);
     expect(scores['chaser']).toBeGreaterThan(4);
   });
-  it('ignores a stale position (a frozen tab)', () => {
-    const g = run(match(3), 0, PROTECT, 3);
-    // The chaser's position stops updating; only the king's does.
-    for (let t = PROTECT; t < PROTECT + 6000; t += 100) {
-      g.setPose('king', 0, 10, 0, t);
-      g.advance(t + 100);
-    }
+  it('ignores a stale position (a frozen tab cannot touch or be touched)', () => {
+    const g = match();
+    run(g, 100, PROTECT, () => apart);
+    // The chaser sits on the king's spot but stops sending; only the king keeps updating, far later.
+    g.setPose('chaser', 0, 10, 0, PROTECT);
+    for (let t = PROTECT + CROWN.poseFreshMs + 500; t < PROTECT + 8000; t += 100) place(g, t, { king: [0, 0] });
     expect(g.holder).toBe('king');
   });
-  it('only one pilot takes it when two are in range: the first to reach the time', () => {
-    const g = match(3);
-    g.setPose('third', -4, 10, 0, 0);
-    run(g, 0, PROTECT, 100);
-    let events = 0;
-    for (let t = PROTECT; t < PROTECT + 4000; t += 100) {
-      for (const [id, x] of [['king', 0], ['chaser', 3], ['third', -4]] as const) g.setPose(id, x, 10, 0, t);
-      events += g.advance(t + 100).length;
-    }
-    expect(events).toBe(1);
-    expect(g.threat().progress01).toBeLessThan(1);
+  it('the closest drone takes it when two touch at once', () => {
+    const g = match();
+    run(g, 100, PROTECT, () => apart);
+    place(g, PROTECT + 100, { king: [0, 0], chaser: [1.5, 0], third: [0.5, 0] });
+    expect(g.holder).toBe('third');
   });
 });
 
-describe('CrownGame leaving and saving', () => {
+describe('CrownGame warnings, leaving and saving', () => {
+  it('reports how close the nearest chaser is, from nothing at the warning range to full at touching distance', () => {
+    const g = match();
+    expect(g.threat()).toEqual({ id: '', progress01: 0 });
+    place(g, 100, { king: [0, 0], chaser: [CROWN.warnRangeM + 5, 0], third: [900, 0] });
+    expect(g.threat().progress01).toBe(0);
+    place(g, 200, { king: [0, 0], chaser: [(CROWN.warnRangeM + CROWN.touchRangeM) / 2, 0], third: [900, 0] });
+    expect(g.threat().id).toBe('chaser');
+    expect(g.threat().progress01).toBeCloseTo(0.5, 5);
+  });
   it('passes the crown to the top scorer when the king leaves', () => {
-    const g = run(match(100), 0, 4000, 100);
-    g.setPose('chaser', 100, 10, 0, 4000);
+    const g = match();
+    run(g, 100, 4000, () => apart);
     const events = g.remove('king', 4000);
     expect(events[0]).toMatchObject({ type: 'stolen', from: 'king' });
     expect(['chaser', 'third']).toContain(g.holder);
     expect(g.pilotCount).toBe(2);
   });
   it('removing a chaser changes nothing about the crown', () => {
-    const g = run(match(100), 0, 1000, 100);
+    const g = match();
+    run(g, 100, 1000, () => apart);
     expect(g.remove('chaser', 1000)).toEqual([]);
     expect(g.holder).toBe('king');
   });
   it('survives a round trip through JSON in the middle of a match', () => {
-    const g = run(match(3), 0, PROTECT + 800, 3);
+    const g = match();
+    run(g, 100, PROTECT + 1000, () => apart);
     const copy = CrownGame.restore(JSON.parse(JSON.stringify(g.snapshot())));
-    expect(copy.holder).toBe(g.holder);
-    expect(copy.threat().progress01).toBeCloseTo(g.threat().progress01, 5);
-    run(copy, PROTECT + 800, PROTECT + CROWN.stealMs + 400, 3);
+    expect(copy.holder).toBe('king');
+    place(copy, PROTECT + 1100, { king: [0, 0], chaser: [1, 0], third: [900, 0] });
     expect(copy.holder).toBe('chaser');
   });
   it('throttles broadcasts', () => {

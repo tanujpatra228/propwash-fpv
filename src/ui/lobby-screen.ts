@@ -196,7 +196,7 @@ export class LobbyScreen {
       button.classList.toggle('on', mode === view.mode);
       button.disabled = !isHost;
     }
-    this.modeNote.textContent = view.mode === 'crown' ? '3 minutes. Stay close to the king for 2 seconds to take the crown.' : isHost ? '' : 'The host chooses the game.';
+    this.modeNote.textContent = view.mode === 'crown' ? '3 minutes. Touch the king to take the crown. No crashes between drones.' : isHost ? '' : 'The host chooses the game.';
     this.pilots.replaceChildren(
       ...view.pilots.filter((p) => p.isConnected).map((p) =>
         el('li', { class: p.id === view.myId ? 'me' : undefined }, [

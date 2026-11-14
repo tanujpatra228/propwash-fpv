@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CROWN, ROOMS } from '../../config';
+import { ROOMS } from '../../config';
 import type { RosterEntry } from '../../core/room-protocol';
 import { LiveCrown, type CrownSession, type CrownUpdate } from './live-crown';
 import { makeHost } from './test-host';
@@ -54,18 +54,18 @@ describe('LiveCrown', () => {
     expect(mode.hud.standings?.map((r) => [r.name, r.isMe, r.detail])).toEqual([['♛ Bea', false, '40 s'], ['Arjun', true, '12 s']]);
     expect(mode.hud.modeLabel).toMatch(/1:35 left/);
   });
-  it('tells the king they are being dethroned and a chaser their progress', () => {
+  it('warns the king when a chaser is close and tells the chaser to touch the king', () => {
     const { mode, state } = setup();
     mode.onGo();
     state.crown = update('me', 'bea', 0.6);
     mode.update(0.01, frame);
-    expect(mode.hud.hint).toMatch(/Being dethroned: 60%/);
-    state.crown = update('bea', 'me', 0.4);
+    expect(mode.hud.hint).toMatch(/chaser is close/);
+    state.crown = update('bea', 'me', 0.6);
     mode.update(0.01, frame);
-    expect(mode.hud.hint).toMatch(/Dethroning: 40%/);
+    expect(mode.hud.hint).toMatch(/Touch the king/);
     state.crown = update('bea');
     mode.update(0.01, frame);
-    expect(mode.hud.hint).toMatch(new RegExp(`${CROWN.stealRangeM} m`));
+    expect(mode.hud.hint).toMatch(/Touch the king to take the crown/);
   });
   it('flashes a banner when the crown changes hands, and not for the first king', () => {
     const { mode, banners } = setup();

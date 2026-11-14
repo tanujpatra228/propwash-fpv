@@ -24,7 +24,7 @@ export interface CrownSession {
 
 type State = 'countdown' | 'running' | 'over';
 
-const HINT = `Stay within ${CROWN.stealRangeM} m of the king for ${CROWN.stealMs / 1000} s to take the crown. Hold it to score.`;
+const HINT = 'Touch the king to take the crown. Hold it to score.';
 
 function clock(ms: number): string {
   const s = Math.max(0, Math.ceil(ms / 1000));
@@ -90,7 +90,7 @@ export class LiveCrown implements GameMode {
     const holder = update.holderId;
     if (this.lastHolder !== '' && holder !== this.lastHolder) {
       const name = this.session.roster.find((p) => p.id === holder)?.name ?? 'A pilot';
-      if (holder === this.session.myId) this.host.flashBanner('You have the crown', `Hold it. Protected for ${CROWN.protectMs / 1000} seconds.`, 'info', 3);
+      if (holder === this.session.myId) this.host.flashBanner('You have the crown', `Hold it. Safe for ${CROWN.protectMs / 1000} seconds.`, 'info', 3);
       else if (this.lastHolder === this.session.myId) this.host.flashBanner('Dethroned', `${name} took the crown. Chase them down.`, 'crash', 3);
       else this.host.flashBanner(`${name} took the crown`, '', 'info', 2);
     }
@@ -137,9 +137,9 @@ export class LiveCrown implements GameMode {
       return [{ name: s.id === crown.holderId ? `♛ ${name}` : name, isMe: s.id === myId, finishedPlace: 0, lap: 0, detail: `${Math.floor(s.points)} s` }];
     });
     if (this.state === 'over') return;
-    const percent = Math.round(crown.threat01 * 100);
-    if (crown.holderId === myId) this.hud.hint = percent > 4 ? `Being dethroned: ${percent}%. Get away!` : 'You are the king. Score every second you hold it.';
-    else if (crown.threatId === myId && percent > 4) this.hud.hint = `Dethroning: ${percent}%. Stay close!`;
+    const isClose = crown.threat01 > 0.25;
+    if (crown.holderId === myId) this.hud.hint = isClose ? 'A chaser is close! Get away!' : 'You are the king. Score every second you hold it.';
+    else if (crown.threatId === myId && isClose) this.hud.hint = 'Close! Touch the king!';
     else this.hud.hint = HINT;
   }
 

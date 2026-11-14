@@ -1,7 +1,8 @@
 /**
  * The crown chase match engine. Pure: no sockets, no timers, no clock of its own. The room feeds it pilot positions and
  * the current time; it keeps score and decides who wears the crown. Time only moves when `advance` is called with a
- * later time, so it needs no timers (positions arrive ten times a second and drive it).
+ * later time, so it needs no timers (positions arrive ten times a second and drive it). A pilot takes the crown by
+ * touching the king: passing within `touchRangeM`, judged along the path each drone flew between its last two updates.
  */
 import { CROWN } from '../config';
 
@@ -11,9 +12,9 @@ export interface CrownScore {
 }
 
 export interface CrownThreat {
-  /** The pilot closest to taking the crown, or '' when nobody is making progress. */
+  /** The chaser closest to the king, or '' when nobody is within the warning range. */
   id: string;
-  /** 0..1 of the time needed. */
+  /** 0 at the warning range, 1 at touching distance. */
   progress01: number;
 }
 
@@ -34,7 +35,11 @@ interface PilotState {
   y: number;
   z: number;
   poseAtMs: number;
-  stealMs: number;
+  /** The update before the latest one, to check the path between them. */
+  px: number;
+  py: number;
+  pz: number;
+  prevAtMs: number;
 }
 
 export type CrownEvent = { type: 'stolen'; from: string; to: string };
@@ -63,7 +68,7 @@ export class CrownGame {
   /** Begins a match at `nowMs` with the crown on `holderId`. */
   start(ids: readonly string[], holderId: string, nowMs: number): void {
     this.pilots.clear();
-    for (const id of ids) this.pilots.set(id, { id, points: 0, x: 0, y: 0, z: 0, poseAtMs: -Infinity, stealMs: 0 });
+    for (const id of ids) this.pilots.set(id, { id, points: 0, x: 0, y: 0, z: 0, poseAtMs: -Infinity, px: 0, py: 0, pz: 0, prevAtMs: -Infinity });
     this.holderId = this.pilots.has(holderId) ? holderId : (ids[0] ?? '');
     this.protectedUntilMs = nowMs + CROWN.protectMs;
     this.lastAdvanceMs = nowMs;
@@ -79,6 +84,10 @@ export class CrownGame {
   setPose(id: string, x: number, y: number, z: number, nowMs: number): void {
     const p = this.pilots.get(id);
     if (!p) return;
+    p.px = p.x;
+    p.py = p.y;
+    p.pz = p.z;
+    p.prevAtMs = p.poseAtMs;
     p.x = x;
     p.y = y;
     p.z = z;
@@ -94,12 +103,7 @@ export class CrownGame {
     const event: CrownEvent[] = next ? [{ type: 'stolen', from: id, to: next }] : [];
     this.holderId = next;
     this.protectedUntilMs = nowMs + CROWN.protectMs;
-    this.resetSteals();
     return event;
-  }
-
-  private resetSteals(): void {
-    for (const p of this.pilots.values()) p.stealMs = 0;
   }
 
   private isFresh(p: PilotState, nowMs: number): boolean {
@@ -115,20 +119,40 @@ export class CrownGame {
     const king = this.pilots.get(this.holderId);
     if (king) king.points += (dt / 1000) * CROWN.pointsPerSecond;
     if (!king) return [];
-    const isProtected = to < this.protectedUntilMs;
+    if (to < this.protectedUntilMs || !this.isFresh(king, to)) return [];
+    // The closest chaser that touched the king takes the crown.
+    let taker: PilotState | null = null;
+    let takerDistance = Infinity;
     for (const p of this.pilots.values()) {
-      if (p === king) continue;
-      const near = !isProtected && this.isFresh(p, to) && this.isFresh(king, to) && Math.hypot(p.x - king.x, p.y - king.y, p.z - king.z) <= CROWN.stealRangeM;
-      p.stealMs = near ? p.stealMs + dt : Math.max(0, p.stealMs - dt * CROWN.drainFactor);
-      if (p.stealMs >= CROWN.stealMs) {
-        const event: CrownEvent = { type: 'stolen', from: king.id, to: p.id };
-        this.holderId = p.id;
-        this.protectedUntilMs = to + CROWN.protectMs;
-        this.resetSteals();
-        return [event];
+      if (p === king || !this.isFresh(p, to)) continue;
+      const d = this.distance(p, king);
+      if (d <= CROWN.touchRangeM && d < takerDistance) {
+        taker = p;
+        takerDistance = d;
       }
     }
-    return [];
+    if (!taker) return [];
+    const event: CrownEvent = { type: 'stolen', from: king.id, to: taker.id };
+    this.holderId = taker.id;
+    this.protectedUntilMs = to + CROWN.protectMs;
+    return [event];
+  }
+
+  /** The closest the two drones came to each other along the paths they flew between their last two updates. */
+  private distance(a: PilotState, b: PilotState): number {
+    const hasPathA = Number.isFinite(a.prevAtMs);
+    const hasPathB = Number.isFinite(b.prevAtMs);
+    // Offset of a from b at the earlier update and at the latest one (a missing earlier update falls back to the latest).
+    const x0 = (hasPathA ? a.px : a.x) - (hasPathB ? b.px : b.x);
+    const y0 = (hasPathA ? a.py : a.y) - (hasPathB ? b.py : b.y);
+    const z0 = (hasPathA ? a.pz : a.z) - (hasPathB ? b.pz : b.z);
+    const dx = a.x - b.x - x0;
+    const dy = a.y - b.y - y0;
+    const dz = a.z - b.z - z0;
+    const lengthSq = dx * dx + dy * dy + dz * dz;
+    // The offset moves in a straight line from (x0, y0, z0) to the latest one; find the closest point on it to zero.
+    const t = lengthSq === 0 ? 0 : Math.max(0, Math.min(1, -(x0 * dx + y0 * dy + z0 * dz) / lengthSq));
+    return Math.hypot(x0 + dx * t, y0 + dy * t, z0 + dz * t);
   }
 
   /** Everyone's points, highest first. Ties keep the earlier-joined pilot first. */
@@ -136,13 +160,16 @@ export class CrownGame {
     return [...this.pilots.values()].map((p) => ({ id: p.id, points: p.points })).sort((a, b) => b.points - a.points);
   }
 
-  /** Who is closest to taking the crown. */
+  /** The chaser closest to the king, as how near they are inside the warning range (0 far, 1 touching). */
   threat(): CrownThreat {
+    const king = this.pilots.get(this.holderId);
     let best: CrownThreat = { id: '', progress01: 0 };
+    if (!king) return best;
     for (const p of this.pilots.values()) {
-      if (p.id === this.holderId) continue;
-      const progress01 = Math.min(1, p.stealMs / CROWN.stealMs);
-      if (progress01 > best.progress01) best = { id: p.id, progress01 };
+      if (p === king) continue;
+      const d = Math.hypot(p.x - king.x, p.y - king.y, p.z - king.z);
+      const closeness = Math.max(0, Math.min(1, (CROWN.warnRangeM - d) / (CROWN.warnRangeM - CROWN.touchRangeM)));
+      if (closeness > best.progress01) best = { id: p.id, progress01: closeness };
     }
     return best;
   }

@@ -276,14 +276,14 @@ describe('crown chase', () => {
     expect(crown?.t === 'crown' && ['host', 'guest']).toContain(crown?.t === 'crown' ? crown.holderId : '');
     expect(crown?.t === 'crown' && crown.remainingMs).toBe(CROWN.matchMs);
   });
-  it('scores the king, lets a chaser dethrone after the protection and the time, and ranks by points', () => {
+  it('scores the king, lets a chaser dethrone by touching after the protection, and ranks by points', () => {
     const { room, goMs } = crownMatch();
     const first = room.snapshot().crown?.holderId ?? '';
     const chaser = first === 'host' ? 'guest' : 'host';
     let t = goMs;
     let stolen = false;
-    for (; t < goMs + CROWN.protectMs + CROWN.stealMs + 2000; t += 100) {
-      const steps = [send(room, first, pose(0), t), send(room, chaser, pose(300), t)]; // the chaser is 3 m away
+    for (; t < goMs + CROWN.protectMs + 2000; t += 100) {
+      const steps = [send(room, first, pose(0), t), send(room, chaser, pose(100), t)]; // the chaser is touching, 1 m away
       if (steps.some((s) => s.out.some((o) => o.message.t === 'crown' && o.message.holderId === chaser))) stolen = true;
     }
     expect(stolen).toBe(true);
