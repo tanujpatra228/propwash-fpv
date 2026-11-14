@@ -1,10 +1,12 @@
-import type { Scene } from 'three';
+import type { Group, Scene } from 'three';
 import { ACTIVE_TRACK_ID, ROOMS } from '../config';
-import { normaliseRoomCode, type PoseFields, type RosterEntry, type RoomPhase, type ServerMessage, type StandingEntry } from '../core/room-protocol';
+import { normaliseRoomCode, type PoseFields, type RosterEntry, type RoomMode, type RoomPhase, type ServerMessage, type StandingEntry } from '../core/room-protocol';
+import { createCrown } from '../drone/crown';
 import { loadPilotName, savePilotName } from '../net/pilot-identity';
 import { createRoom, RoomClient } from '../net/room-client';
 import { LobbyScreen } from '../ui/lobby-screen';
 import { askPilotName } from '../ui/name-prompt';
+import type { CrownSession, CrownUpdate, LiveCrown } from './modes/live-crown';
 import type { LiveRace, LiveSession } from './modes/live-race';
 import type { PilotMarker } from './modes/mode';
 import { RemoteDrones } from './remote-drones';
@@ -12,21 +14,29 @@ import { RemoteDrones } from './remote-drones';
 /** What the controller asks of the game. */
 export interface LiveHost {
   scene: Scene;
+  /** The player's own drone model, which wears the crown when the player is king. */
+  playerModel: Group;
   pauseInput(): void;
   resumeInput(): void;
-  /** Start flying the live race mode now. */
-  startRace(): void;
+  /** Start flying the race or crown chase mode now. */
+  startRace(id: 'live' | 'crown'): void;
   /** Go back to the menu scene but stay in the room. */
   returnToLobby(): void;
   notify(title: string, subtitle: string): void;
 }
 
 /** Owns the room connection, the lobby screen and the other pilots' drones. Feeds server events to the live race mode. */
-export class LiveController implements LiveSession {
+const NO_CROWN: CrownUpdate = { t: 'crown', holderId: '', scores: [], threatId: '', threat01: 0, remainingMs: 0 };
+
+export class LiveController implements LiveSession, CrownSession {
   private readonly lobby: LobbyScreen;
   private readonly drones: RemoteDrones;
   private client: RoomClient | null = null;
   private mode: LiveRace | null = null;
+  private crownMode: LiveCrown | null = null;
+  private roomMode: RoomMode = 'race';
+  private readonly playerCrown = createCrown();
+  crown: CrownUpdate = NO_CROWN;
   private name = '';
   private code = '';
   private phase: RoomPhase = 'lobby';
@@ -44,11 +54,13 @@ export class LiveController implements LiveSession {
 
   constructor(private readonly host: LiveHost) {
     this.drones = new RemoteDrones(host.scene);
+    host.playerModel.add(this.playerCrown);
     this.lobby = new LobbyScreen({
       onCreate: () => void this.create(),
       onJoin: (code) => this.connect(code),
       onReady: (isReady) => this.client?.send({ t: 'ready', isReady }),
       onLaps: (laps) => this.client?.send({ t: 'laps', laps }),
+      onMode: (mode) => this.client?.send({ t: 'mode', mode }),
       onStart: () => this.client?.send({ t: 'start' }),
       onChat: (text) => this.client?.send({ t: 'chat', text }),
       onCopyLink: () => this.copyLink(),
@@ -58,6 +70,15 @@ export class LiveController implements LiveSession {
 
   attachMode(mode: LiveRace): void {
     this.mode = mode;
+  }
+
+  attachCrownMode(mode: LiveCrown): void {
+    this.crownMode = mode;
+  }
+
+  /** Whichever mode the room is playing. */
+  private get active(): LiveRace | LiveCrown | null {
+    return this.roomMode === 'crown' ? this.crownMode : this.mode;
   }
 
   get isHost(): boolean {
@@ -126,6 +147,9 @@ export class LiveController implements LiveSession {
     this.roster = [];
     this.order = [];
     this.laps = ROOMS.defaultLaps;
+    this.roomMode = 'race';
+    this.crown = NO_CROWN;
+    this.playerCrown.visible = false;
     this.drones.clear();
   }
 
@@ -143,12 +167,13 @@ export class LiveController implements LiveSession {
       case 'welcome': this.myId = m.you; break;
       case 'room': this.onRoom(m); break;
       case 'chat': this.lobby.addChat(this.roster.find((p) => p.id === m.from)?.name ?? '?', m.text); break;
-      case 'countdown': this.mode?.onCountdown(m.startsInMs); break;
-      case 'go': this.mode?.onGo(); break;
+      case 'countdown': this.active?.onCountdown(m.startsInMs); break;
+      case 'go': this.active?.onGo(); break;
+      case 'crown': this.onCrown(m); break;
       case 'pose': this.drones.push(m.id, m, performance.now()); break;
       case 'standings': this.order = m.rows; break;
       case 'finish': this.mode?.onFinish(m.id, m.place); break;
-      case 'results': this.mode?.onResults(m.rows); break;
+      case 'results': this.active?.onResults(m.rows); break;
       case 'error': this.lastError = m.message; if (this.phase !== 'lobby') this.host.notify('Live race', m.message); break;
     }
   }
@@ -158,20 +183,32 @@ export class LiveController implements LiveSession {
     this.phase = m.phase;
     this.hostId = m.hostId;
     this.laps = m.laps;
+    this.roomMode = m.mode;
     this.roster = m.pilots;
     this.mySlot = m.pilots.find((p) => p.id === this.myId)?.slot ?? 0;
     this.drones.setRoster(m.pilots, this.myId);
     if (m.phase === 'lobby') {
       if (previous !== 'lobby') this.host.returnToLobby();
       this.order = [];
-      this.lobby.showRoom({ code: this.code, myId: this.myId, hostId: m.hostId, laps: m.laps, pilots: m.pilots, pingMs: this.client?.pingMs ?? 0 });
+      this.crown = NO_CROWN;
+      this.playerCrown.visible = false;
+      this.drones.setKing('');
+      this.lobby.showRoom({ code: this.code, myId: this.myId, hostId: m.hostId, laps: m.laps, mode: m.mode, pilots: m.pilots, pingMs: this.client?.pingMs ?? 0 });
     } else if (m.phase === 'countdown' && previous === 'lobby') {
       this.order = [];
       this.drones.reset();
       this.lobby.hide();
       this.host.resumeInput();
-      this.host.startRace();
+      this.host.startRace(m.mode === 'crown' ? 'crown' : 'live');
     }
+  }
+
+  /** The server's crown state: who is king, the scores and how close the nearest chaser is. */
+  private onCrown(m: CrownUpdate): void {
+    this.crown = m;
+    this.drones.setKing(m.holderId);
+    this.playerCrown.visible = m.holderId !== '' && m.holderId === this.myId;
+    this.crownMode?.onCrown(m);
   }
 
   private copyLink(): void {

@@ -1244,3 +1244,6 @@ kbd {
   transform-origin: 50% 70%;
   transition: opacity 0.2s;
 }
+
+.pilot-tag.king b { color: #ffd34d; font-size: 20px; }
+.pilot-tag.king small { color: #ffe9a0; }

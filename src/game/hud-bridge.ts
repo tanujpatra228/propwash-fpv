@@ -79,7 +79,7 @@ export class HudBridge {
   };
 
   /** One reusable record per possible pilot, so a live race allocates nothing per frame. */
-  private readonly otherPool: HudOther[] = Array.from({ length: ROOMS.maxPilots }, () => ({ name: '', color: 0, x: 0, z: 0, ndcX: 0, ndcY: 0, distM: 0, isOnScreen: false, opacity01: 1 }));
+  private readonly otherPool: HudOther[] = Array.from({ length: ROOMS.maxPilots }, () => ({ name: '', color: 0, isKing: false, x: 0, z: 0, ndcX: 0, ndcY: 0, distM: 0, isOnScreen: false, opacity01: 1 }));
 
   constructor(scene: Scene, callbacks: FlightMenuCallbacks) {
     this.hud = new Hud(callbacks);
@@ -165,6 +165,7 @@ export class HudBridge {
       const { position } = frame.flight;
       out.name = m.name;
       out.color = m.color;
+      out.isKing = m.isKing;
       out.x = m.x;
       out.z = m.z;
       out.ndcX = projected.x;

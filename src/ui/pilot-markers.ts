@@ -36,8 +36,10 @@ export class PilotMarkers {
       if (!other || !isShown) continue;
       tag.root.style.transform = `translate(${(other.ndcX * 0.5 + 0.5) * window.innerWidth}px, ${(-other.ndcY * 0.5 + 0.5) * window.innerHeight}px) translate(-50%, -100%)`;
       tag.root.style.opacity = String(other.opacity01);
+      tag.root.classList.toggle('king', other.isKing);
       if (isTextFrame) {
-        if (tag.name.textContent !== other.name) tag.name.textContent = other.name;
+        const label = other.isKing ? `♛ ${other.name}` : other.name;
+        if (tag.name.textContent !== label) tag.name.textContent = label;
         tag.distance.textContent = formatDistance(other.distM, units);
       }
     }
