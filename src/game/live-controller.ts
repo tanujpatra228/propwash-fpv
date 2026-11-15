@@ -47,6 +47,7 @@ export class LiveController implements LiveSession, CrownSession {
   private hostId = '';
   private laps: number = ROOMS.defaultLaps;
   private lastError = '';
+  private isSwitching = false;
   /** How many times in a row we have reloaded to follow the room's map (stored in the page, so it resets on a fresh visit). */
   private get mapSwitches(): number {
     try {
@@ -242,6 +243,8 @@ export class LiveController implements LiveSession, CrownSession {
 
   /** Tells the server to hold our place, then reloads into the room's map. Gives up after two tries (a blocked reload loop). */
   private switchMap(track: TrackId): boolean {
+    if (this.isSwitching) return true; // the reload is already on its way; further room updates must not start another
+    this.isSwitching = true;
     if (this.mapSwitches >= 2) {
       this.lobby.showEntry(`Could not switch to ${TRACK_DEFS[track].name}. Pick it in the Maps menu, then join again.`);
       return false;

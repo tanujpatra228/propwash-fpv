@@ -46,6 +46,18 @@ export class RaceRoom extends DurableObject<Env> {
     const rawKey = url.searchParams.get('key') ?? '';
     const key = /^[A-Za-z0-9-]{8,64}$/.test(rawKey) ? rawKey : '';
     const step = room.join(id, url.searchParams.get('name'), Number(url.searchParams.get('world')), Date.now(), key);
+    // A pilot taking over their old place: drop the old connection first, and make sure its late close event is ignored.
+    if (step.joinedAs) {
+      for (const old of this.ctx.getWebSockets()) {
+        if (this.idOf(old) !== step.joinedAs) continue;
+        old.serializeAttachment({ id: '' });
+        try {
+          old.close(1000, 'Replaced by a new connection');
+        } catch {
+          // Already closed.
+        }
+      }
+    }
     this.ctx.acceptWebSocket(server);
     server.serializeAttachment({ id: step.joinedAs ?? id });
     await this.dispatch(step, room);
@@ -89,7 +101,7 @@ export class RaceRoom extends DurableObject<Env> {
 
   private idOf(ws: WebSocket): string | null {
     const attachment = ws.deserializeAttachment() as { id?: unknown } | null;
-    return typeof attachment?.id === 'string' ? attachment.id : null;
+    return typeof attachment?.id === 'string' && attachment.id !== '' ? attachment.id : null;
   }
 
   private socketOf(id: string): WebSocket | undefined {

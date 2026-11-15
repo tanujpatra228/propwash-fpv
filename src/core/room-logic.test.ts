@@ -485,3 +485,20 @@ describe('battery race rules', () => {
     expect(rulesOf(send(copy, 'host', { t: 'ready', isReady: true }, 2))).toEqual({ drain: true, loadout: 'hangar' });
   });
 });
+
+describe('the same tab coming back', () => {
+  it('takes over its own place even if the old connection is still listed, so a reload never duplicates a pilot', () => {
+    const room = new Room('ABCDE', 1);
+    room.join('first', 'Stone', 1, 0, 'stonekey-12345');
+    // The page reloads; the new connection arrives before the old one is noticed as closed.
+    const again = room.join('second', 'Stone', 1, 5000, 'stonekey-12345');
+    expect(again.joinedAs).toBe('first');
+    expect(room.pilotCount()).toBe(1);
+  });
+  it('a different tab (a different key) is a different pilot, even with the same name', () => {
+    const room = new Room('ABCDE', 1);
+    room.join('first', 'Stone', 1, 0, 'stonekey-12345');
+    room.join('second', 'Stone', 1, 5000, 'otherkey-12345');
+    expect(room.pilotCount()).toBe(2);
+  });
+});
