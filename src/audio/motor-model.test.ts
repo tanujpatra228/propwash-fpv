@@ -115,6 +115,15 @@ describe('crash sounds', () => {
     for (const metal of ['container', 'gate', 'crane'] as const) expect(crashProfile(metal).ringsHz.length).toBeGreaterThan(0);
     for (const soft of ['ground', 'tree', 'building', 'factory'] as const) expect(crashProfile(soft).ringsHz).toHaveLength(0);
   });
+  it('trees rustle like leaves: soft noise taps, a gentle thump, no ringing metal and no ringing in the ears', () => {
+    const tree = crashProfile('tree');
+    expect(tree.extra).toBe('rustle');
+    expect(tree.ringsHz).toHaveLength(0);
+    expect(tree.hasEarRinging).toBe(false);
+    expect(tree.thumpVolume).toBeLessThan(crashProfile('ground').thumpVolume);
+    expect(tree.noiseS).toBeGreaterThan(crashProfile('rock').noiseS);
+    expect(crashProfile('rock').hasEarRinging).toBe(true);
+  });
   it('buildings thud lower than rocks, and water glides down', () => {
     expect(crashProfile('building').thumpHz).toBeLessThan(crashProfile('rock').thumpHz);
     expect(crashProfile('water').noiseGlideToHz).toBeLessThan(crashProfile('water').noiseHz);
