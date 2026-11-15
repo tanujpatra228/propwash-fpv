@@ -637,6 +637,8 @@ export interface CrashProfile {
   extra: 'none' | 'horn' | 'bubbles' | 'rustle';
   /** A hard crash on this surface also leaves a ringing in the ears (not for soft things like leaves or water). */
   hasEarRinging: boolean;
+  /** A soft, muffled surface (leaves, water): everything stays low, the noise is low-passed, and there is no bright whine or chirp. */
+  isSoft: boolean;
 }
 
 /** Synthesised sound (Web Audio). Nothing is downloaded. */
@@ -693,24 +695,26 @@ export const AUDIO = {
     minVolume: 0.35,
     /** The motors cutting out: a falling whine under every crash. */
     cutWhine: { fromHz: 520, toHz: 60, durationS: 0.45, volume: 0.1 },
+    /** What the motors cutting out sounds like against a soft surface: a low, muffled fall instead of a buzzy whine. */
+    softCutWhine: { fromHz: 170, toHz: 40, durationS: 0.5, volume: 0.1 },
     /** A hard crash (this much of full intensity) also leaves a ringing in the ears. */
     ringingFrom01: 0.6,
     ringing: { hz: 3300, durationS: 1, volume: 0.04 },
     horn: { hz: [420, 530], delayS: 0.15, durationS: 0.3, volume: 0.1 },
     /** Leaves and branches: quick soft noise taps after the first hit, each quieter than the last. */
-    rustle: { delaysS: [0.06, 0.15, 0.25, 0.38, 0.52], hz: 1700, q: 0.5, durationS: 0.13, volume: 0.32, fade: 0.78 },
-    bubbles: { delaysS: [0.15, 0.3, 0.42], fromHz: 400, toHz: 900, durationS: 0.08, volume: 0.1 },
+    rustle: { delaysS: [0.06, 0.15, 0.25, 0.38, 0.52], hz: 650, q: 0.4, durationS: 0.16, volume: 0.35, fade: 0.78 },
+    bubbles: { delaysS: [0.2, 0.38, 0.52], fromHz: 140, toHz: 300, durationS: 0.12, volume: 0.14 },
     profiles: {
-      ground: { thumpHz: 90, thumpS: 0.22, thumpVolume: 0.7, noiseHz: 700, noiseGlideToHz: 0, noiseQ: 0.8, noiseS: 0.18, noiseVolume: 0.35, ringsHz: [], ringS: 0, ringVolume: 0, extra: 'none', hasEarRinging: true },
-      water: { thumpHz: 70, thumpS: 0.3, thumpVolume: 0.4, noiseHz: 2800, noiseGlideToHz: 500, noiseQ: 0.7, noiseS: 0.7, noiseVolume: 0.5, ringsHz: [], ringS: 0, ringVolume: 0, extra: 'bubbles', hasEarRinging: false },
-      gate: { thumpHz: 140, thumpS: 0.12, thumpVolume: 0.35, noiseHz: 3500, noiseGlideToHz: 0, noiseQ: 1.5, noiseS: 0.07, noiseVolume: 0.25, ringsHz: [880, 1320, 2105], ringS: 0.55, ringVolume: 0.16, extra: 'none', hasEarRinging: true },
-      factory: { thumpHz: 60, thumpS: 0.35, thumpVolume: 0.8, noiseHz: 500, noiseGlideToHz: 0, noiseQ: 0.6, noiseS: 0.3, noiseVolume: 0.4, ringsHz: [], ringS: 0, ringVolume: 0, extra: 'none', hasEarRinging: true },
-      container: { thumpHz: 110, thumpS: 0.2, thumpVolume: 0.5, noiseHz: 1800, noiseGlideToHz: 0, noiseQ: 1, noiseS: 0.15, noiseVolume: 0.3, ringsHz: [340, 560, 870, 1190], ringS: 0.7, ringVolume: 0.14, extra: 'none', hasEarRinging: true },
-      building: { thumpHz: 55, thumpS: 0.4, thumpVolume: 0.85, noiseHz: 450, noiseGlideToHz: 0, noiseQ: 0.6, noiseS: 0.35, noiseVolume: 0.45, ringsHz: [], ringS: 0, ringVolume: 0, extra: 'none', hasEarRinging: true },
-      tree: { thumpHz: 130, thumpS: 0.12, thumpVolume: 0.15, noiseHz: 2300, noiseGlideToHz: 700, noiseQ: 0.35, noiseS: 0.75, noiseVolume: 0.6, ringsHz: [], ringS: 0, ringVolume: 0, extra: 'rustle', hasEarRinging: false },
-      vehicle: { thumpHz: 100, thumpS: 0.2, thumpVolume: 0.55, noiseHz: 2200, noiseGlideToHz: 0, noiseQ: 0.9, noiseS: 0.25, noiseVolume: 0.4, ringsHz: [420, 690], ringS: 0.4, ringVolume: 0.1, extra: 'horn', hasEarRinging: true },
-      crane: { thumpHz: 65, thumpS: 0.3, thumpVolume: 0.7, noiseHz: 1200, noiseGlideToHz: 0, noiseQ: 1, noiseS: 0.2, noiseVolume: 0.3, ringsHz: [150, 237, 410, 655], ringS: 1, ringVolume: 0.2, extra: 'none', hasEarRinging: true },
-      rock: { thumpHz: 80, thumpS: 0.25, thumpVolume: 0.65, noiseHz: 4200, noiseGlideToHz: 0, noiseQ: 0.8, noiseS: 0.12, noiseVolume: 0.5, ringsHz: [], ringS: 0, ringVolume: 0, extra: 'none', hasEarRinging: true },
+      ground: { thumpHz: 90, thumpS: 0.22, thumpVolume: 0.7, noiseHz: 700, noiseGlideToHz: 0, noiseQ: 0.8, noiseS: 0.18, noiseVolume: 0.35, ringsHz: [], ringS: 0, ringVolume: 0, extra: 'none', hasEarRinging: true, isSoft: false },
+      water: { thumpHz: 42, thumpS: 0.5, thumpVolume: 0.7, noiseHz: 1000, noiseGlideToHz: 160, noiseQ: 0.5, noiseS: 0.9, noiseVolume: 0.6, ringsHz: [], ringS: 0, ringVolume: 0, extra: 'bubbles', hasEarRinging: false, isSoft: true },
+      gate: { thumpHz: 140, thumpS: 0.12, thumpVolume: 0.35, noiseHz: 3500, noiseGlideToHz: 0, noiseQ: 1.5, noiseS: 0.07, noiseVolume: 0.25, ringsHz: [880, 1320, 2105], ringS: 0.55, ringVolume: 0.16, extra: 'none', hasEarRinging: true, isSoft: false },
+      factory: { thumpHz: 60, thumpS: 0.35, thumpVolume: 0.8, noiseHz: 500, noiseGlideToHz: 0, noiseQ: 0.6, noiseS: 0.3, noiseVolume: 0.4, ringsHz: [], ringS: 0, ringVolume: 0, extra: 'none', hasEarRinging: true, isSoft: false },
+      container: { thumpHz: 110, thumpS: 0.2, thumpVolume: 0.5, noiseHz: 1800, noiseGlideToHz: 0, noiseQ: 1, noiseS: 0.15, noiseVolume: 0.3, ringsHz: [340, 560, 870, 1190], ringS: 0.7, ringVolume: 0.14, extra: 'none', hasEarRinging: true, isSoft: false },
+      building: { thumpHz: 55, thumpS: 0.4, thumpVolume: 0.85, noiseHz: 450, noiseGlideToHz: 0, noiseQ: 0.6, noiseS: 0.35, noiseVolume: 0.45, ringsHz: [], ringS: 0, ringVolume: 0, extra: 'none', hasEarRinging: true, isSoft: false },
+      tree: { thumpHz: 48, thumpS: 0.4, thumpVolume: 0.65, noiseHz: 800, noiseGlideToHz: 220, noiseQ: 0.5, noiseS: 0.8, noiseVolume: 0.6, ringsHz: [], ringS: 0, ringVolume: 0, extra: 'rustle', hasEarRinging: false, isSoft: true },
+      vehicle: { thumpHz: 100, thumpS: 0.2, thumpVolume: 0.55, noiseHz: 2200, noiseGlideToHz: 0, noiseQ: 0.9, noiseS: 0.25, noiseVolume: 0.4, ringsHz: [420, 690], ringS: 0.4, ringVolume: 0.1, extra: 'horn', hasEarRinging: true, isSoft: false },
+      crane: { thumpHz: 65, thumpS: 0.3, thumpVolume: 0.7, noiseHz: 1200, noiseGlideToHz: 0, noiseQ: 1, noiseS: 0.2, noiseVolume: 0.3, ringsHz: [150, 237, 410, 655], ringS: 1, ringVolume: 0.2, extra: 'none', hasEarRinging: true, isSoft: false },
+      rock: { thumpHz: 80, thumpS: 0.25, thumpVolume: 0.65, noiseHz: 4200, noiseGlideToHz: 0, noiseQ: 0.8, noiseS: 0.12, noiseVolume: 0.5, ringsHz: [], ringS: 0, ringVolume: 0, extra: 'none', hasEarRinging: true, isSoft: false },
     } satisfies Record<CrashSoundId, CrashProfile>,
   },
   /** Other pilots' motors in live rooms, placed in 3D around the camera. */

@@ -84,13 +84,14 @@ export class Sfx {
     const c = AUDIO.crash;
     const p = crashProfile(reason);
     const loud = crashVolume(speedMps);
-    this.sweep(c.cutWhine.fromHz, c.cutWhine.toHz, 0, c.cutWhine.durationS, c.cutWhine.volume, 'sawtooth');
+    const whine = p.isSoft ? c.softCutWhine : c.cutWhine;
+    this.sweep(whine.fromHz, whine.toHz, 0, whine.durationS, whine.volume, p.isSoft ? 'sine' : 'sawtooth');
     this.sweep(p.thumpHz * 1.6, p.thumpHz * 0.6, 0, p.thumpS, p.thumpVolume * loud, 'sine');
-    this.noise(p.noiseHz, p.noiseGlideToHz, p.noiseQ, p.noiseS, p.noiseVolume * loud);
+    this.noise(p.noiseHz, p.noiseGlideToHz, p.noiseQ, p.noiseS, p.noiseVolume * loud, 0, p.isSoft);
     for (const hz of p.ringsHz) this.tone(hz, 0, p.ringS, (p.ringVolume * loud) / p.ringsHz.length, 'sine');
     if (p.extra === 'horn') for (const hz of c.horn.hz) this.tone(hz, c.horn.delayS, c.horn.durationS, c.horn.volume * loud, 'sawtooth');
     if (p.extra === 'bubbles') for (const delay of c.bubbles.delaysS) this.sweep(c.bubbles.fromHz, c.bubbles.toHz, delay, c.bubbles.durationS, c.bubbles.volume * loud, 'sine');
-    if (p.extra === 'rustle') for (const [i, delay] of c.rustle.delaysS.entries()) this.noise(c.rustle.hz, 0, c.rustle.q, c.rustle.durationS, c.rustle.volume * loud * c.rustle.fade ** i, delay);
+    if (p.extra === 'rustle') for (const [i, delay] of c.rustle.delaysS.entries()) this.noise(c.rustle.hz, 0, c.rustle.q, c.rustle.durationS, c.rustle.volume * loud * c.rustle.fade ** i, delay, true);
     if (p.hasEarRinging && crashIntensity(speedMps) >= c.ringingFrom01) this.tone(c.ringing.hz, 0.05, c.ringing.durationS, c.ringing.volume, 'sine');
   }
 
@@ -111,14 +112,14 @@ export class Sfx {
     oscillator.stop(start + durationS + 0.02);
   }
 
-  /** A burst of band-passed noise that fades out, optionally gliding to another band. */
-  private noise(hz: number, glideToHz: number, q: number, durationS: number, volume: number, delayS = 0): void {
+  /** A burst of noise that fades out, optionally gliding to another band. Band-passed, or low-passed (muffled) when `isMuffled`. */
+  private noise(hz: number, glideToHz: number, q: number, durationS: number, volume: number, delayS = 0, isMuffled = false): void {
     const { context, effects } = this.bus;
     const start = context.currentTime + delayS;
     const source = this.bus.createNoise();
     const band = context.createBiquadFilter();
-    band.type = 'bandpass';
-    band.Q.value = q;
+    band.type = isMuffled ? 'lowpass' : 'bandpass';
+    band.Q.value = isMuffled ? 0.5 : q;
     band.frequency.setValueAtTime(hz, start);
     if (glideToHz > 0) band.frequency.exponentialRampToValueAtTime(glideToHz, start + durationS);
     const gain = context.createGain();

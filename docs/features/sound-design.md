@@ -19,7 +19,7 @@ A proper audio layer: one mixer (bus) with volume sliders, a four-motor drone so
 - **Countdown:** a tick per number and a higher tone on GO.
 - **Laps:** a two-note chime for a lap, a three-note rising chime for a personal best.
 - **Crashes:** what you hit decides the sound, how fast you were going decides the loudness (a slow bump still thuds). Under every crash the motors cut with a falling whine. Hard crashes leave a short ringing in the ears.
-  - Ground: dull thud. Water: splash that glides down, with a few bubbles. Tree: a soft bushy rustle (a hush of leaves with a few quieter taps, a gentle thump, nothing metallic). Building and factory: heavy low thump. Rock: sharp crack.
+  - Ground: dull thud. Soft surfaces (water and trees) stay low and muffled: a deep 45 Hz thump, low-passed noise, a low falling hum where the motors cut, no ringing and nothing bright. Water adds three low bubbles. Trees add a hush of leaves, soft low taps that fade out. Building and factory: heavy low thump. Rock: sharp crack.
   - Gate, container and crane: ringing metal (gate bright, container mid, crane deep and long). Vehicle: crunch, then a short car horn.
 - **Other pilots (live rooms):** every other drone has its own motor voice placed in 3D around you. You hear it come from the left or right, in front or behind (HRTF panning), get louder as it nears and duller as it recedes (distance and air absorption), and its pitch bends as it passes (Doppler: higher as it flies toward you, lower as it flies away). Its pitch also follows how hard it is flying (speed and climbing). The "listener" is the camera, so goggles, chase and seat each hear it from where they are. Beyond 250 m a drone is silent.
 - **Crown chase:**
@@ -42,7 +42,7 @@ A proper audio layer: one mixer (bus) with volume sliders, a four-motor drone so
 | Gate ping | 660 Hz, +1 semitone per gate in a row, capped at 12. 0.25 s decay |
 | Countdown | 880 Hz tick, 1320 Hz GO |
 | Battery low | Beep at 2.8 kHz. Interval 1.2 s at the low threshold, down to 0.25 s near empty |
-| Crash | Per surface profile in `AUDIO.crash.profiles` (thump, noise burst, ringing partials, optional horn or bubbles). Loudness 35% at 3 m/s impact speed up to 100% at 25 m/s. Motor-cut whine 520 to 60 Hz in 0.45 s. Ringing in the ears above 60% intensity, only on hard surfaces (not trees or water) |
+| Crash | Per surface profile in `AUDIO.crash.profiles` (thump, noise burst, ringing partials, optional horn, bubbles or rustle; `isSoft` surfaces use low-passed noise and a low motor-cut hum). Loudness 35% at 3 m/s impact speed up to 100% at 25 m/s. Motor-cut whine 520 to 60 Hz in 0.45 s. Ringing in the ears above 60% intensity, only on hard surfaces (not trees or water) |
 | Crown beacon | Two detuned sines (1568 Hz and 1975 Hz) with a 5 Hz shimmer. Volume rises with closeness inside 220 m; pan is the beacon's side relative to the drone heading |
 | Crown heartbeat | Lub-dub every 1.0 s at the start of the hold, down to 0.38 s at the end (accelerating) |
 | Crown pulse | Beep every 0.8 s at the edge of the warning range, 0.12 s when touching |
@@ -117,3 +117,4 @@ A proper audio layer: one mixer (bus) with volume sliders, a four-motor drone so
 - 2026-11-15: The seat camera exists now. Its mix entry is in place; positional sound for other pilots (part 4) can be tuned against it.
 - 2026-11-15: Trees sounded like a metal ping (the ear ringing played for every hard crash). Ringing is now per surface and off for trees and water; trees got a rustle of soft noise taps instead.
 - 2026-11-15: Part 4: positional motor sound for other pilots with Doppler, listener on the camera.
+- 2026-11-15: Trees and water still clinked (the buzzy sawtooth motor-cut whine, the 2.3 to 2.8 kHz noise and the bright bubbles were all high). Soft surfaces are now a separate class: deep thump (about 45 Hz), low-passed noise, a low sine hum instead of the sawtooth whine, low bubbles, soft leaf taps. Measured offline: the early zero-crossing rate of a tree crash fell from about 6,000 to about 550 Hz, water from about 5,500 to about 475 Hz.
