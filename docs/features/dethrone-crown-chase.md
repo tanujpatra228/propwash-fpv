@@ -87,6 +87,8 @@ If the king leaves, the crown passes to the pilot with the most points. If only 
 - Not verified: how touching feels with real latency (1.8 m is a first guess), whether 3 s protection is right, the crown's look from the chase camera, a full 3 minute match with 4 to 8 pilots, results screen in a real match.
 - Drones were never solid to each other, so "no crashes between drones" needed no physics change.
 
+- 2026-11-15 bug fixed: in the first release the other pilots' drones, name tags and minimap dots were never updated in Crown chase (only in races), so pilots could not see each other. `isRoomMode` now decides which modes move the remote drones, with a test.
+
 ## Out of scope
 
 Power-ups, hitting or pushing drones, teams, a solo version against bots (later), spectators.
