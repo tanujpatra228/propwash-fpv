@@ -1,0 +1,89 @@
+# Feature: Sound Design
+
+Status: In progress (part 1: bus, motors, race and battery sounds)
+Phase: 8
+Branch: `feat/sound-design`
+Last updated: 2026-11-15
+
+## Summary
+
+A proper audio layer: one mixer (bus) with volume sliders, a four-motor drone sound with prop wash and wind, and sound feedback for gates, laps, the countdown and a low battery. Everything is synthesised in the browser with Web Audio: no files, no download, no Cloudflare cost. This replaces the Phase 1 `MotorSound` (see `motor-sound.md`).
+
+## Player experience
+
+- **Settings** gets a Sound section: Master, Motors, Effects and Ambience sliders. They are saved.
+- **Motors:** four slightly detuned motors. Throttle raises the pitch, banking and pitching shift load between motors, so the sound moves and beats like a real quad. Diving or punching the throttle adds a rough prop-wash buzz.
+- **Wind:** rushing air that gets louder and brighter with speed.
+- **Camera changes what you hear:** goggles sit on the drone (loudest, brightest). The chase camera is further away (quieter, duller, less wind). The broadcast camera is far. A future closer third-person "seat" camera will sit between goggles and chase: add one line to `AUDIO.cameraMix` for it.
+- **Gates:** a clean ping. Each gate in a row (no crash) is one semitone higher, up to an octave. A crash or respawn resets the streak.
+- **Countdown:** a tick per number and a higher tone on GO.
+- **Laps:** a two-note chime for a lap, a three-note rising chime for a personal best.
+- **Battery low:** short beeps that speed up as the pack drains, like a real low-voltage buzzer.
+- Sound is still off until the player turns it on (M or the flight menu button), because browsers need a click first. The on/off choice is saved as before.
+
+## Behavior and rules (values in `config.ts` `AUDIO`)
+
+| Part | Rule |
+|---|---|
+| Motor tone | Per motor: a sawtooth plus a square at 1.502 times (the Phase 1 timbre), through a low-pass filter. Pitch 120 Hz + 360 Hz x that motor's load |
+| Motor load | Throttle plus a mix: nose down loads the rear motors, a bank loads the opposite side, turning loads one diagonal pair. Tilt gives a steady offset, tilt change rate gives the quick correction |
+| Detune | Each motor is a few cents off the others, so they beat |
+| Prop wash | Noise through a band-pass with a 24 Hz tremolo. Level rises with sink rate (from 2 m/s, full at 10 m/s) and with how fast throttle changes |
+| Wind | Noise through a band-pass at 700 Hz + 15 Hz per m/s. Volume as before (speed / 30 m/s) |
+| Gate ping | 660 Hz, +1 semitone per gate in a row, capped at 12. 0.25 s decay |
+| Countdown | 880 Hz tick, 1320 Hz GO |
+| Battery low | Beep at 2.8 kHz. Interval 1.2 s at the low threshold, down to 0.25 s near empty |
+| Mixer | Motors and prop wash on the Motors bus, wind on Ambience, all one-shot sounds on Effects. All feed Master, then a limiter so stacked sounds never clip |
+| Slider curve | Slider 0 to 100, gain is the square of slider / 100 (feels even to the ear) |
+
+## Technical design
+
+- `src/audio/` is a new layer (config, core only; it never imports the game): 
+  - `audio-bus.ts`: context, master and group gains, limiter, level changes.
+  - `motor-model.ts`: pure functions (`motorLoads`, `washLevel`, `windTone`, `batteryBeepIntervalS`, `gatePitchHz`), unit tested.
+  - `motor-voice.ts`: the four motors. `wind-voice.ts`: wind and prop wash. `sfx.ts`: one-shot sounds.
+  - `sound-system.ts`: the one object the game holds. Same API as the old `MotorSound` (`toggle`, `enabled`, `available`) plus `update(frame)`, `play(event)` and `setLevels`.
+- `core/audio-settings.ts`: the four sliders, sanitised and saved under `pw.audio.v1` (pure, tested).
+- `game/audio-director.ts`: watches each presented frame (the countdown text, the lap tracker, the battery, crashes) and turns changes into sound events. No game rule knows about sound.
+- The old `core/audio.ts` is removed.
+
+## Edge cases
+
+- Web Audio blocked or missing: the menu button says unavailable, the game carries on, no errors.
+- Tab hidden: the browser suspends audio and it resumes on return.
+- Motors cut (empty battery): motors fade over 0.3 s, wind keeps going, the low-battery beep stops.
+- Crash freeze: motors silent, wash silent, wind continues.
+- Main menu background flyby: silent, as before.
+
+## Acceptance criteria
+
+- [ ] Four sliders in Settings change the volume live and are remembered.
+- [ ] Motor pitch rises with throttle and the sound shifts when banking and pitching.
+- [ ] Diving or a throttle punch is audibly rougher (prop wash).
+- [ ] Goggles are louder than chase, and chase louder than broadcast.
+- [ ] Gate pings rise in a streak and reset after a crash.
+- [ ] Countdown ticks, GO tone, lap chime and personal-best chime play in the matching modes.
+- [ ] Low-battery beeps speed up as charge drops and stop when empty.
+- [ ] No console errors where audio is blocked.
+
+## Test cases
+
+| # | Steps | Expected result | Type |
+|---|---|---|---|
+| 1 | Unit: `motorLoads` nose down, bank, yaw | Rear > front when nose down; opposite side loaded in a bank; diagonal pair in yaw | Unit |
+| 2 | Unit: `washLevel` | Zero when level, rises with sink and throttle change, capped at 1 | Unit |
+| 3 | Unit: `gatePitchHz` | One semitone per step, capped at an octave | Unit |
+| 4 | Unit: `batteryBeepIntervalS` | Long when full, short near empty, clamped | Unit |
+| 5 | Unit: audio settings | Bad values clamped, missing keys default, round trip | Unit |
+| 6 | Unit: director | Gate, lap, best lap, countdown, battery events fire once; streak resets on crash | Unit |
+| 7 | Manual: fly, bank, dive, change camera | See the acceptance criteria | Manual |
+
+## Verification and known gaps
+
+- Verified: 506 tests (model, settings, director). In headless Chrome with a measuring analyser on the limiter: the menu is silent, free flight and time trial produce a signal, the context runs, and there are no console errors.
+- Headless browsers have no audio output, so only logic and absence of errors can be tested here. Every tone value is a first guess and needs ears: please listen and tell me what to change.
+- Not in this part: crash sounds per surface, Crown chase audio, 3D positioned sound and Doppler for other pilots, per-map ambience (parts 4 to 6 of the plan).
+
+## Changelog
+
+- 2026-11-15: Created. Part 1 (bus, four motors, prop wash, wind, gate, countdown, lap and battery sounds, sliders).

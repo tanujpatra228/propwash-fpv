@@ -1,6 +1,6 @@
 import { Quaternion, Vector3 } from 'three';
 import type { PilotSettings } from '../core/pilot-settings';
-import type { MotorSound } from '../core/audio';
+import type { SoundSystem } from '../audio/sound-system';
 import type { GameRenderer } from '../core/renderer';
 import type { Battery } from '../drone/battery';
 import type { DroneModel } from '../drone/drone-model';
@@ -10,6 +10,7 @@ import type { Gate } from '../world/gates';
 import type { Scenery } from '../world/scenery';
 import type { SkyRig } from '../world/sky';
 import type { CameraRig } from './camera-rig';
+import { AudioDirector } from './audio-director';
 import { frameLens, lensFor } from './fpv-static';
 import type { HudBridge } from './hud-bridge';
 import type { LapTracker } from './lap-tracker';
@@ -36,6 +37,7 @@ export interface PresentFrame {
 export class Presenter {
   private readonly ghostPosition = new Vector3();
   private readonly ghostQuaternion = new Quaternion();
+  private readonly director = new AudioDirector();
 
   constructor(
     private readonly parts: {
@@ -47,7 +49,7 @@ export class Presenter {
       drone: DroneModel;
       ghostDrone: DroneModel;
       hud: HudBridge;
-      sound: MotorSound;
+      sound: SoundSystem;
     },
   ) {}
 
@@ -76,7 +78,15 @@ export class Presenter {
     rig.setAspect(renderer.aspect);
     rig.update(f.dtS, { position: flight.position, yawRad: flight.yawRad, quaternion: flight.quaternion });
     renderer.setLens(frameLens({ isGoggles, isAnalogOn: f.isAnalogOn, position: flight.position, crashRemainingS: f.crashRemainingS }));
-    sound.update(flight.throttle01, flight.velocity.length(), !isCrashed, f.battery.isEmpty);
+    sound.update({
+      camera: rig.currentMode, dtS: f.dtS, isActive: !isCrashed, areMotorsCut: f.battery.isEmpty, throttle01: flight.throttle01, speedMps: flight.velocity.length(),
+      sinkRateMps: -flight.velocity.y, pitchRad: flight.pitchRad, rollRad: flight.rollRad, yawRateRadps: flight.yawRateRadps,
+    });
+    for (const event of this.director.update({
+      dtS: f.dtS, countdownText: f.mode.hud.countdown, lastPassedGate: f.tracker.lastPassedGate, completedLaps: f.tracker.completedLaps,
+      isLastLapBest: f.tracker.lastLapS !== null && f.tracker.lastLapS === f.tracker.best?.lapTimeS, charge01: f.battery.charge01,
+      isLow: f.battery.isLow, isEmpty: f.battery.isEmpty, isCrashed, isActive: true,
+    })) sound.play(event);
     hud.update({
       flight,
       battery: f.battery,
@@ -103,6 +113,7 @@ export class Presenter {
     sky.followFocus(director.cameraLookAt);
     boundary.update(director.cameraPosition);
     renderer.setLens(lensFor(false, false, 0));
-    sound.update(0, 0, false, false);
+    sound.update({ camera: rig.currentMode, dtS, isActive: false, areMotorsCut: false, throttle01: 0, speedMps: 0, sinkRateMps: 0, pitchRad: 0, rollRad: 0, yawRateRadps: 0 });
+    this.director.reset();
   }
 }

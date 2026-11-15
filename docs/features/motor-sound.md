@@ -1,6 +1,6 @@
 # Feature: Motor Sound
 
-Status: In progress
+Status: Superseded by [sound-design.md](sound-design.md) (the `MotorSound` class was replaced by `SoundSystem`; the behavior below is the Phase 1 original)
 Phase: 1
 Branch: `feat/phase-1` (milestone M7)
 Last updated: 2026-11-01
