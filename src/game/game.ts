@@ -353,7 +353,7 @@ export class Game {
 
   private refreshLabels(): void {
     this.hud.setControlsInfo(this.bindings, {
-      isChaseCamera: this.rig.currentMode === 'chase',
+      camera: this.rig.currentMode,
       isAnalogOn: this.isAnalogOn,
       isSoundAvailable: this.sound.available,
       isSoundOn: this.sound.enabled,
