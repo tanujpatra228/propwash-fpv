@@ -90,7 +90,8 @@ export class Sfx {
     for (const hz of p.ringsHz) this.tone(hz, 0, p.ringS, (p.ringVolume * loud) / p.ringsHz.length, 'sine');
     if (p.extra === 'horn') for (const hz of c.horn.hz) this.tone(hz, c.horn.delayS, c.horn.durationS, c.horn.volume * loud, 'sawtooth');
     if (p.extra === 'bubbles') for (const delay of c.bubbles.delaysS) this.sweep(c.bubbles.fromHz, c.bubbles.toHz, delay, c.bubbles.durationS, c.bubbles.volume * loud, 'sine');
-    if (crashIntensity(speedMps) >= c.ringingFrom01) this.tone(c.ringing.hz, 0.05, c.ringing.durationS, c.ringing.volume, 'sine');
+    if (p.extra === 'rustle') for (const [i, delay] of c.rustle.delaysS.entries()) this.noise(c.rustle.hz, 0, c.rustle.q, c.rustle.durationS, c.rustle.volume * loud * c.rustle.fade ** i, delay);
+    if (p.hasEarRinging && crashIntensity(speedMps) >= c.ringingFrom01) this.tone(c.ringing.hz, 0.05, c.ringing.durationS, c.ringing.volume, 'sine');
   }
 
   /** A tone gliding from one pitch to another. */
@@ -111,9 +112,9 @@ export class Sfx {
   }
 
   /** A burst of band-passed noise that fades out, optionally gliding to another band. */
-  private noise(hz: number, glideToHz: number, q: number, durationS: number, volume: number): void {
+  private noise(hz: number, glideToHz: number, q: number, durationS: number, volume: number, delayS = 0): void {
     const { context, effects } = this.bus;
-    const start = context.currentTime;
+    const start = context.currentTime + delayS;
     const source = this.bus.createNoise();
     const band = context.createBiquadFilter();
     band.type = 'bandpass';
