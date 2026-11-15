@@ -1,7 +1,7 @@
 import { Vector3, type Quaternion } from 'three';
 import { ROOMS, TRACK, TRIAL } from '../../config';
 import { formatLapTime } from '../../core/format';
-import type { PoseFields, ResultRow, RosterEntry, StandingEntry } from '../../core/room-protocol';
+import type { PoseFields, ResultRow, RoomRules, RosterEntry, StandingEntry } from '../../core/room-protocol';
 import { ordinal, type StandingRow } from '../../ui/standings-panel';
 import { gridPose } from '../grid';
 import { respawnPose, type Pose } from '../respawn';
@@ -15,6 +15,8 @@ export interface LiveSession {
   readonly mySlot: number;
   readonly isHost: boolean;
   readonly totalLaps: number;
+  /** Battery race and loadout, as the host set them. */
+  readonly rules: RoomRules;
   readonly roster: readonly RosterEntry[];
   /** Race order as last reported by the server, with each pilot's gates passed. */
   readonly order: readonly StandingEntry[];
@@ -22,6 +24,8 @@ export interface LiveSession {
   readonly others: readonly PilotMarker[];
   sendGate(index: number): void;
   sendPose(pose: PoseFields & { dNextM: number }): void;
+  /** Tell the room our battery ran out (battery race). */
+  sendOut(): void;
   requestRematch(): void;
 }
 
@@ -32,8 +36,6 @@ const HINT = 'Fly all 12 gates in order, every lap. Crash or reset and you resta
 /** A race against friends. The server decides who finished where; this mode flies, reports gates and shows the order. */
 export class LiveRace implements GameMode {
   readonly id = 'live' as const;
-  readonly usesSetup = false;
-  readonly drainsBattery = false;
   readonly race: RaceHud = { lap: 1, lapTimeS: 0, lastLapS: null, bestLapS: null, splitDeltaS: null };
   readonly hud: ModeHud = { modeLabel: 'Live race', hint: HINT, race: this.race, countdown: '', swapProgress01: 0, lesson: null, standings: [], others: [], ghostLabel: '' };
   private state: State = 'countdown';
@@ -42,6 +44,9 @@ export class LiveRace implements GameMode {
   private timeS = 0;
   private poseTimerS = 0;
   private myPlace = 0;
+  private emptyForS = 0;
+  private isOut = false;
+  private readonly outIds = new Set<string>();
   private readonly finished = new Map<string, number>();
   private readonly pose: PoseFields = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0, roll: 0 };
 
@@ -49,6 +54,16 @@ export class LiveRace implements GameMode {
     private readonly host: ModeHost,
     private readonly session: LiveSession,
   ) {}
+
+  /** Each pilot flies their own Hangar setup only when the host chose that; otherwise everyone is on the stock drone. */
+  get usesSetup(): boolean {
+    return this.session.rules.loadout === 'hangar';
+  }
+
+  /** Battery race: the battery drains, and running out before the finish puts you out. */
+  get drainsBattery(): boolean {
+    return this.session.rules.drain;
+  }
 
   get isInputLocked(): boolean {
     return this.state === 'countdown';
@@ -69,6 +84,9 @@ export class LiveRace implements GameMode {
     this.timeS = 0;
     this.poseTimerS = 0;
     this.myPlace = 0;
+    this.emptyForS = 0;
+    this.isOut = false;
+    this.outIds.clear();
     this.finished.clear();
     Object.assign(this.race, { lap: 1, lapTimeS: 0, lastLapS: null, bestLapS: null, splitDeltaS: null });
     this.host.placeDrone(this.startPose());
@@ -104,6 +122,14 @@ export class LiveRace implements GameMode {
     }
   }
 
+  /** Another pilot ran out of battery. */
+  onOut(id: string): void {
+    this.outIds.add(id);
+    if (id === this.session.myId) return;
+    const name = this.session.roster.find((p) => p.id === id)?.name ?? 'A pilot';
+    if (!this.isOut) this.host.flashBanner(`${name} is out`, 'Out of battery.', 'info', 2);
+  }
+
   onResults(rows: readonly ResultRow[]): void {
     this.state = 'over';
     const lines = rows.map((r) => (r.place > 0 ? `${ordinal(r.place)}  ${r.name}  ${formatLapTime(r.timeS)}` : `DNF  ${r.name}`));
@@ -115,7 +141,7 @@ export class LiveRace implements GameMode {
     this.hud.hint = 'Race over.';
   }
 
-  update(dtS: number, _frame: ModeFrame): void {
+  update(dtS: number, frame: ModeFrame): void {
     if (this.state === 'countdown') {
       this.countdownLeftS = Math.max(0, this.countdownLeftS - dtS);
       this.hud.countdown = String(Math.max(1, Math.ceil(this.countdownLeftS)));
@@ -124,6 +150,7 @@ export class LiveRace implements GameMode {
       this.hud.countdown = this.goShownLeftS > 0 ? 'GO' : '';
       this.timeS += dtS;
       this.race.lapTimeS = this.host.tracker.currentLapTimeS(this.timeS);
+      this.checkBattery(dtS, frame);
     }
     this.poseTimerS += dtS;
     if (this.poseTimerS >= 1 / ROOMS.poseHz) {
@@ -131,6 +158,17 @@ export class LiveRace implements GameMode {
       this.sendPose();
     }
     this.refreshHud();
+  }
+
+  /** Battery race: out of battery and down (or after a few seconds of falling), we are out of the race. */
+  private checkBattery(dtS: number, frame: ModeFrame): void {
+    if (!this.drainsBattery || this.isOut || this.myPlace > 0 || !this.host.battery.isEmpty) return;
+    this.emptyForS += dtS;
+    if (!frame.isLanded && this.emptyForS < TRIAL.emptyBatteryGraceS) return;
+    this.isOut = true;
+    this.outIds.add(this.session.myId);
+    this.session.sendOut();
+    this.host.flashBanner('Out of battery', 'You are out of this race. Watch the others finish.', 'crash', 4);
   }
 
   private sendPose(): void {
@@ -150,12 +188,12 @@ export class LiveRace implements GameMode {
       const name = names.get(entry.id);
       if (name === undefined) return [];
       const lap = Math.min(this.session.totalLaps, Math.floor(Math.max(0, entry.gates - 1) / TRACK.gateCount) + 1);
-      return [{ name, isMe: entry.id === this.session.myId, finishedPlace: this.finished.get(entry.id) ?? 0, lap }];
+      return [{ name, isMe: entry.id === this.session.myId, finishedPlace: this.finished.get(entry.id) ?? 0, lap, detail: this.outIds.has(entry.id) ? 'Out' : undefined }];
     });
   }
 
   onGateCrossed(index: number): void {
-    if (this.state !== 'running' || this.myPlace > 0) return;
+    if (this.state !== 'running' || this.myPlace > 0 || this.isOut) return;
     const event = this.host.tracker.onGateCrossed(index, this.timeS);
     if (!event) return;
     this.session.sendGate(index);

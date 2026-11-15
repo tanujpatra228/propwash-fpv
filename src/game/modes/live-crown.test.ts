@@ -17,7 +17,7 @@ function setup(isHost = true) {
   const poses: number[][] = [];
   const state = { crown: update('bea') };
   const session: CrownSession = {
-    myId: 'me', mySlot: 1, isHost, roster, others: [],
+    myId: 'me', mySlot: 1, isHost, roster, others: [], rules: { drain: false, loadout: 'stock' },
     get crown() { return state.crown; },
     sendPose: (p) => void poses.push([p.x, p.y, p.z]),
     requestRematch: () => undefined,

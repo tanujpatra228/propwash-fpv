@@ -10,6 +10,7 @@ import {
   type ClientMessage,
   type ResultRow,
   type RoomMode,
+  type RoomRules,
   type RoomPhase,
   type RosterEntry,
   type ServerMessage,
@@ -23,6 +24,7 @@ export interface RoomSnapshot {
   hostId: string;
   laps: number;
   mode?: RoomMode;
+  rules?: RoomRules;
   crown?: CrownSnapshot | null;
   raceStartMs: number;
   firstFinishMs: number;
@@ -72,6 +74,8 @@ export interface Pilot {
   key: string;
   /** While in the future, a disconnected pilot keeps their place (they are reloading into another map). */
   holdUntilMs: number;
+  /** Battery race: ran out of battery before the finish. */
+  isOut: boolean;
 }
 
 const GATES_PER_LAP = TRACK.gateCount;
@@ -86,6 +90,7 @@ export class Room {
   private hostId = '';
   private laps: number = ROOMS.defaultLaps;
   private mode: RoomMode = 'race';
+  private rules: RoomRules = { drain: false, loadout: 'stock' };
   private crown: CrownGame | null = null;
   private readonly pilots = new Map<string, Pilot>();
   private raceStartMs = 0;
@@ -104,7 +109,7 @@ export class Room {
   /** Everything needed to rebuild the room after the server's memory was dropped (hibernation). */
   snapshot(): RoomSnapshot {
     return {
-      code: this.code, worldVersion: this.worldVersion, phase: this.phase, hostId: this.hostId, laps: this.laps, mode: this.mode, crown: this.crown?.snapshot() ?? null,
+      code: this.code, worldVersion: this.worldVersion, phase: this.phase, hostId: this.hostId, laps: this.laps, mode: this.mode, rules: this.rules, crown: this.crown?.snapshot() ?? null,
       raceStartMs: this.raceStartMs, firstFinishMs: this.firstFinishMs, finishedCount: this.finishedCount,
       pilots: [...this.pilots.values()],
     };
@@ -116,11 +121,12 @@ export class Room {
     room.hostId = snapshot.hostId;
     room.laps = snapshot.laps;
     room.mode = snapshot.mode ?? 'race';
+    room.rules = snapshot.rules ?? { drain: false, loadout: 'stock' };
     room.crown = snapshot.crown ? CrownGame.restore(snapshot.crown) : null;
     room.raceStartMs = snapshot.raceStartMs;
     room.firstFinishMs = snapshot.firstFinishMs;
     room.finishedCount = snapshot.finishedCount;
-    for (const p of snapshot.pilots) room.pilots.set(p.id, { ...p, worldVersion: p.worldVersion ?? snapshot.worldVersion, key: p.key ?? '', holdUntilMs: p.holdUntilMs ?? 0 });
+    for (const p of snapshot.pilots) room.pilots.set(p.id, { ...p, worldVersion: p.worldVersion ?? snapshot.worldVersion, key: p.key ?? '', holdUntilMs: p.holdUntilMs ?? 0, isOut: p.isOut ?? false });
     return room;
   }
 
@@ -147,7 +153,7 @@ export class Room {
   }
 
   private roomMessage(): ServerMessage {
-    return { t: 'room', phase: this.phase, mode: this.mode, track: this.track, hostId: this.hostId, laps: this.laps, pilots: this.roster() };
+    return { t: 'room', phase: this.phase, mode: this.mode, track: this.track, rules: this.rules, hostId: this.hostId, laps: this.laps, pilots: this.roster() };
   }
 
   private broadcastRoom(step: Step): void {
@@ -206,7 +212,7 @@ export class Room {
     return {
       id, name, isReady: false, slot, joinedAtMs: nowMs, isConnected: true, gatesPassed: 0, lastGateAtMs: 0, lapStartedAtMs: 0,
       bestLapS: 0, finishTimeS: 0, place: 0, dNextM: 0, lastChatAtMs: 0, windowStartMs: nowMs, windowCount: 0, badFrames: 0,
-      worldVersion: this.worldVersion, key: '', holdUntilMs: 0,
+      worldVersion: this.worldVersion, key: '', holdUntilMs: 0, isOut: false,
     };
   }
 
@@ -274,6 +280,8 @@ export class Room {
       case 'laps': return this.setLaps(pilot, message.laps);
       case 'mode': return this.setMode(pilot, message.mode);
       case 'track': return this.setTrack(pilot, message.track);
+      case 'rules': return this.setRules(pilot, message);
+      case 'out': return this.out(pilot);
       case 'hold': return this.hold(pilot, nowMs);
       case 'start': return this.start(pilot, nowMs);
       case 'rematch': return this.rematch(pilot);
@@ -323,6 +331,25 @@ export class Room {
     return step;
   }
 
+  /** The host sets the battery and loadout rules. Draining only applies to races. */
+  private setRules(pilot: Pilot, m: Extract<ClientMessage, { t: 'rules' }>): Step {
+    if (this.phase !== 'lobby' || pilot.id !== this.hostId) return emptyStep();
+    this.rules = { drain: m.drain, loadout: m.loadout };
+    const step = emptyStep();
+    this.broadcastRoom(step);
+    return step;
+  }
+
+  /** A pilot's battery ran out before the finish (battery race): they are out of this race. */
+  private out(pilot: Pilot): Step {
+    if (this.phase !== 'racing' || this.crown || !this.rules.drain || pilot.place > 0 || pilot.isOut) return emptyStep();
+    pilot.isOut = true;
+    const step = emptyStep();
+    step.out.push({ to: EVERYONE, message: { t: 'out', id: pilot.id } });
+    this.finishIfDone(step);
+    return step;
+  }
+
   /** A pilot says they are about to reload into another map: keep their place for a while. */
   private hold(pilot: Pilot, nowMs: number): Step {
     if (this.phase === 'lobby') pilot.holdUntilMs = nowMs + ROOMS.holdMs;
@@ -357,6 +384,7 @@ export class Room {
     p.finishTimeS = 0;
     p.place = 0;
     p.dNextM = 0;
+    p.isOut = false;
   }
 
   private chat(pilot: Pilot, text: string, nowMs: number): Step {
@@ -401,7 +429,7 @@ export class Room {
 
   private gate(pilot: Pilot, index: number, nowMs: number): Step {
     const step = emptyStep();
-    if (this.phase !== 'racing' || pilot.place > 0) return step;
+    if (this.phase !== 'racing' || pilot.place > 0 || pilot.isOut) return step;
     if (index !== pilot.gatesPassed % GATES_PER_LAP) return step;
     if (nowMs - pilot.lastGateAtMs < ROOMS.minGateGapMs) return step;
     pilot.gatesPassed++;
@@ -505,7 +533,7 @@ export class Room {
   private finishIfDone(step: Step): void {
     if (this.phase !== 'racing') return;
     const racers = this.connected();
-    if (racers.length === 0 || racers.every((p) => p.place > 0)) this.endRace(step);
+    if (racers.length === 0 || racers.every((p) => p.place > 0 || p.isOut)) this.endRace(step);
   }
 
   private endRace(step: Step): void {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ROOMS } from '../../config';
-import type { RosterEntry } from '../../core/room-protocol';
+import type { RoomRules, RosterEntry } from '../../core/room-protocol';
 import { LiveRace, type LiveSession } from './live-race';
 import { makeHost, testGates } from './test-host';
 
@@ -9,11 +9,12 @@ const roster: RosterEntry[] = [
   { id: 'bea', name: 'Bea', isReady: true, slot: 1, isConnected: true, isOnMap: true },
 ];
 
-function setup(isHost = true) {
-  const sent = { gates: [] as number[], poses: [] as number[][], rematches: 0 };
+function setup(isHost = true, rules: RoomRules = { drain: false, loadout: 'stock' }) {
+  const sent = { gates: [] as number[], poses: [] as number[][], rematches: 0, outs: 0 };
   const session: LiveSession = {
-    myId: 'me', mySlot: 1, isHost, totalLaps: 2, roster, others: [], order: [{ id: 'bea', gates: 14 }, { id: 'me', gates: 3 }],
+    myId: 'me', mySlot: 1, isHost, rules, totalLaps: 2, roster, others: [], order: [{ id: 'bea', gates: 14 }, { id: 'me', gates: 3 }],
     sendGate: (i) => void sent.gates.push(i),
+    sendOut: () => void sent.outs++,
     sendPose: (p) => void sent.poses.push([p.x, p.y, p.z, p.dNextM]),
     requestRematch: () => void sent.rematches++,
   };
@@ -101,3 +102,48 @@ describe('LiveRace', () => {
     expect(Math.abs(out.position.z - testGates[1]!.position.z)).toBeLessThan(5);
   });
 });
+
+describe('LiveRace battery race and loadouts', () => {
+  const battery = { drain: true, loadout: 'stock' } as const;
+
+  it('follows the room rules for the battery and the loadout', () => {
+    expect(setup(true, { drain: false, loadout: 'stock' }).mode).toMatchObject({ drainsBattery: false, usesSetup: false });
+    expect(setup(true, { drain: true, loadout: 'hangar' }).mode).toMatchObject({ drainsBattery: true, usesSetup: true });
+  });
+  it('running out of battery on the ground puts you out once: it tells the room and stops counting gates', () => {
+    const { mode, sent, battery: pack, banners } = setup(true, battery);
+    mode.onGo();
+    mode.update(0.1, frame);
+    pack.charge01 = 0;
+    mode.update(0.1, { isLanded: true });
+    mode.update(0.1, { isLanded: true });
+    expect(sent.outs).toBe(1);
+    expect(banners).toContain('Out of battery');
+    mode.onGateCrossed(0);
+    expect(sent.gates).toEqual([]);
+  });
+  it('gives a falling drone a few seconds before it is out', () => {
+    const { mode, sent, battery: pack } = setup(true, battery);
+    mode.onGo();
+    pack.charge01 = 0;
+    mode.update(1, frame);
+    expect(sent.outs).toBe(0);
+    mode.update(3, frame);
+    expect(sent.outs).toBe(1);
+  });
+  it('an empty battery is ignored when the host switched the drain off', () => {
+    const { mode, sent, battery: pack } = setup(true);
+    mode.onGo();
+    pack.charge01 = 0;
+    mode.update(5, { isLanded: true });
+    expect(sent.outs).toBe(0);
+  });
+  it('shows other pilots who are out in the standings', () => {
+    const { mode, banners } = setup(true, battery);
+    mode.onOut('bea');
+    mode.update(0.01, frame);
+    expect(mode.hud.standings?.find((r) => r.name === 'Bea')?.detail).toBe('Out');
+    expect(banners).toContain('Bea is out');
+  });
+});
+

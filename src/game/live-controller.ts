@@ -2,7 +2,7 @@ import type { Group, Scene } from 'three';
 import { ACTIVE_TRACK_ID, ROOMS, TRACK_DEFS, type TrackId } from '../config';
 import { reloadIntoRoomMap } from '../core/track-switch';
 import { getRoomKey } from '../net/room-key';
-import { normaliseRoomCode, type PoseFields, type RosterEntry, type RoomMode, type RoomPhase, type ServerMessage, type StandingEntry } from '../core/room-protocol';
+import { normaliseRoomCode, type PoseFields, type RosterEntry, type RoomMode, type RoomPhase, type RoomRules, type ServerMessage, type StandingEntry } from '../core/room-protocol';
 import { createCrown } from '../drone/crown';
 import { loadPilotName, savePilotName } from '../net/pilot-identity';
 import { createRoom, RoomClient } from '../net/room-client';
@@ -38,6 +38,7 @@ export class LiveController implements LiveSession, CrownSession {
   private crownMode: LiveCrown | null = null;
   private roomMode: RoomMode = 'race';
   private roomTrack: TrackId = ACTIVE_TRACK_ID;
+  rules: RoomRules = { drain: false, loadout: 'stock' };
   private readonly playerCrown = createCrown();
   crown: CrownUpdate = NO_CROWN;
   private name = '';
@@ -81,6 +82,7 @@ export class LiveController implements LiveSession, CrownSession {
       onLaps: (laps) => this.client?.send({ t: 'laps', laps }),
       onMode: (mode) => this.client?.send({ t: 'mode', mode }),
       onTrack: (track) => this.client?.send({ t: 'track', track }),
+      onRules: (drain, loadout) => this.client?.send({ t: 'rules', drain, loadout }),
       onStart: () => this.client?.send({ t: 'start' }),
       onChat: (text) => this.client?.send({ t: 'chat', text }),
       onCopyLink: () => this.copyLink(),
@@ -168,6 +170,7 @@ export class LiveController implements LiveSession, CrownSession {
     this.order = [];
     this.laps = ROOMS.defaultLaps;
     this.roomMode = 'race';
+    this.rules = { drain: false, loadout: 'stock' };
     this.crown = NO_CROWN;
     this.playerCrown.visible = false;
     this.drones.clear();
@@ -193,6 +196,7 @@ export class LiveController implements LiveSession, CrownSession {
       case 'pose': this.drones.push(m.id, m, performance.now()); break;
       case 'standings': this.order = m.rows; break;
       case 'finish': this.mode?.onFinish(m.id, m.place); break;
+      case 'out': this.mode?.onOut(m.id); break;
       case 'results': this.active?.onResults(m.rows); break;
       case 'error': this.lastError = m.message; if (this.phase !== 'lobby') this.host.notify('Live race', m.message); break;
     }
@@ -205,6 +209,7 @@ export class LiveController implements LiveSession, CrownSession {
     this.laps = m.laps;
     this.roomMode = m.mode;
     this.roomTrack = m.track;
+    this.rules = m.rules;
     this.roster = m.pilots;
     this.mySlot = m.pilots.find((p) => p.id === this.myId)?.slot ?? 0;
     this.drones.setRoster(m.pilots, this.myId);
@@ -217,7 +222,7 @@ export class LiveController implements LiveSession, CrownSession {
       this.crown = NO_CROWN;
       this.playerCrown.visible = false;
       this.drones.setKing('');
-      this.lobby.showRoom({ code: this.code, myId: this.myId, hostId: m.hostId, laps: m.laps, mode: m.mode, track: m.track, pilots: m.pilots, pingMs: this.client?.pingMs ?? 0 });
+      this.lobby.showRoom({ code: this.code, myId: this.myId, hostId: m.hostId, laps: m.laps, mode: m.mode, track: m.track, rules: m.rules, pilots: m.pilots, pingMs: this.client?.pingMs ?? 0 });
     } else if (m.phase === 'countdown' && previous === 'lobby') {
       this.order = [];
       this.drones.reset();
@@ -262,6 +267,10 @@ export class LiveController implements LiveSession, CrownSession {
 
   sendPose(pose: PoseFields & { dNextM: number }): void {
     this.client?.send({ t: 'pose', ...pose });
+  }
+
+  sendOut(): void {
+    this.client?.send({ t: 'out' });
   }
 
   requestRematch(): void {

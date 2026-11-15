@@ -1,6 +1,6 @@
 import { ROOMS, TRACK_DEFS, TRACK_IDS, type TrackId } from '../config';
 import { el } from '../core/dom';
-import { normaliseRoomCode, type RoomMode, type RosterEntry } from '../core/room-protocol';
+import { normaliseRoomCode, type Loadout, type RoomMode, type RoomRules, type RosterEntry } from '../core/room-protocol';
 
 export interface LobbyHandlers {
   onCreate(): void;
@@ -9,6 +9,7 @@ export interface LobbyHandlers {
   onLaps(laps: number): void;
   onMode(mode: RoomMode): void;
   onTrack(track: TrackId): void;
+  onRules(drain: boolean, loadout: Loadout): void;
   onStart(): void;
   onChat(text: string): void;
   onCopyLink(): void;
@@ -23,6 +24,7 @@ export interface LobbyView {
   mode: RoomMode;
   /** The map the room is playing. */
   track: TrackId;
+  rules: RoomRules;
   pilots: readonly RosterEntry[];
   pingMs: number;
 }
@@ -57,6 +59,10 @@ export class LobbyScreen {
   private readonly modeNote = el('small', { class: 'cd-sub' });
   private readonly mapButtons = new Map<TrackId, HTMLButtonElement>();
   private readonly mapNote = el('small', { class: 'cd-sub' });
+  private rules: RoomRules = { drain: false, loadout: 'stock' };
+  private readonly drainButtons = new Map<boolean, HTMLButtonElement>();
+  private readonly loadoutButtons = new Map<Loadout, HTMLButtonElement>();
+  private readonly rulesRow = el('div', { class: 'lobby-rules' });
   private readonly readyButton = el('button', { type: 'button', class: 'btn', text: 'Ready' });
   private readonly startButton = el('button', { type: 'button', class: 'btn', text: 'Start race' });
   private readonly startHint = el('small', { class: 'cd-sub' });
@@ -126,12 +132,32 @@ export class LobbyScreen {
       this.pilots,
       this.buildModeRow(),
       this.buildMapRow(),
+      this.buildRulesRow(),
       this.lapsRow,
       this.lapsNote,
       this.chatLog,
       this.chatInput,
       el('div', { class: 'cd-buttons' }, [this.readyButton, this.startButton, this.startHint, copy, leave]),
     ]);
+  }
+
+  private buildRulesRow(): HTMLElement {
+    const drain = el('div', { class: 'seg two' });
+    for (const [isOn, label, description] of [[false, 'Off', 'Battery never ends the race.'], [true, 'On', 'Run out before the finish and you are out.']] as const) {
+      const button = el('button', { type: 'button' }, [el('b', { text: label }), el('small', { text: description })]);
+      button.addEventListener('click', () => this.handlers.onRules(isOn, this.rules.loadout));
+      this.drainButtons.set(isOn, button);
+      drain.append(button);
+    }
+    const loadout = el('div', { class: 'seg two' });
+    for (const [id, label, description] of [['stock', 'Stock drones', 'Everyone flies the same drone.'], ['hangar', 'Hangar setups', 'Everyone flies their own parts.']] as const) {
+      const button = el('button', { type: 'button' }, [el('b', { text: label }), el('small', { text: description })]);
+      button.addEventListener('click', () => this.handlers.onRules(this.rules.drain, id));
+      this.loadoutButtons.set(id, button);
+      loadout.append(button);
+    }
+    this.rulesRow.append(el('span', { text: 'Battery race' }), drain, el('span', { text: 'Drones' }), loadout);
+    return this.rulesRow;
   }
 
   private buildMapRow(): HTMLElement {
@@ -216,6 +242,21 @@ export class LobbyScreen {
     });
     this.lapsNote.textContent = isHost || view.mode === 'crown' ? '' : 'The host chooses the number of laps.';
     this.lapsRow.hidden = view.mode === 'crown';
+    this.rules = view.rules;
+    // The battery only matters in races; the drones matter in both modes.
+    for (const [isOn, button] of this.drainButtons) {
+      button.classList.toggle('on', isOn === view.rules.drain);
+      button.disabled = !isHost;
+      button.hidden = false;
+    }
+    for (const [id, button] of this.loadoutButtons) {
+      button.classList.toggle('on', id === view.rules.loadout);
+      button.disabled = !isHost;
+    }
+    const drainRow = this.rulesRow.children[0];
+    const drainSeg = this.rulesRow.children[1];
+    if (drainRow instanceof HTMLElement) drainRow.hidden = view.mode === 'crown';
+    if (drainSeg instanceof HTMLElement) drainSeg.hidden = view.mode === 'crown';
     for (const [id, button] of this.mapButtons) {
       button.classList.toggle('on', id === view.track);
       button.disabled = !isHost;
