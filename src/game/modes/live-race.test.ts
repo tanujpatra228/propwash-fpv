@@ -5,8 +5,8 @@ import { LiveRace, type LiveSession } from './live-race';
 import { makeHost, testGates } from './test-host';
 
 const roster: RosterEntry[] = [
-  { id: 'me', name: 'Arjun', isReady: true, slot: 0, isConnected: true },
-  { id: 'bea', name: 'Bea', isReady: true, slot: 1, isConnected: true },
+  { id: 'me', name: 'Arjun', isReady: true, slot: 0, isConnected: true, isOnMap: true },
+  { id: 'bea', name: 'Bea', isReady: true, slot: 1, isConnected: true, isOnMap: true },
 ];
 
 function setup(isHost = true) {

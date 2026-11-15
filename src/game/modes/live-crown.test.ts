@@ -5,8 +5,8 @@ import { LiveCrown, type CrownSession, type CrownUpdate } from './live-crown';
 import { makeHost } from './test-host';
 
 const roster: RosterEntry[] = [
-  { id: 'me', name: 'Arjun', isReady: true, slot: 1, isConnected: true },
-  { id: 'bea', name: 'Bea', isReady: true, slot: 0, isConnected: true },
+  { id: 'me', name: 'Arjun', isReady: true, slot: 1, isConnected: true, isOnMap: true },
+  { id: 'bea', name: 'Bea', isReady: true, slot: 0, isConnected: true, isOnMap: true },
 ];
 const update = (holderId: string, threatId = '', threat01 = 0): CrownUpdate => ({
   t: 'crown', holderId, threatId, threat01, remainingMs: 95_000,

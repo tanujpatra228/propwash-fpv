@@ -1247,3 +1247,7 @@ kbd {
 
 .pilot-tag.king b { color: #ffd34d; font-size: 20px; }
 .pilot-tag.king small { color: #ffe9a0; }
+
+.lobby-map { display: flex; flex-direction: column; gap: 6px; }
+.map-seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.map-seg button b { font-size: 15px; }

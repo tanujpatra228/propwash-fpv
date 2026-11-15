@@ -48,7 +48,7 @@ function handleRoomSocket(request: Request, rawCode: string, url: URL, env: Env)
   const target = new URL(request.url);
   target.search = '';
   target.searchParams.set('code', code);
-  for (const key of ['name', 'world', 'track']) target.searchParams.set(key, url.searchParams.get(key) ?? '');
+  for (const key of ['name', 'world', 'track', 'key']) target.searchParams.set(key, url.searchParams.get(key) ?? '');
   return env.ROOMS.get(env.ROOMS.idFromName(code)).fetch(new Request(target, request));
 }
 

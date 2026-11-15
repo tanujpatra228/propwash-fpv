@@ -1,5 +1,7 @@
 import type { Group, Scene } from 'three';
-import { ACTIVE_TRACK_ID, ROOMS } from '../config';
+import { ACTIVE_TRACK_ID, ROOMS, TRACK_DEFS, type TrackId } from '../config';
+import { reloadIntoRoomMap } from '../core/track-switch';
+import { getRoomKey } from '../net/room-key';
 import { normaliseRoomCode, type PoseFields, type RosterEntry, type RoomMode, type RoomPhase, type ServerMessage, type StandingEntry } from '../core/room-protocol';
 import { createCrown } from '../drone/crown';
 import { loadPilotName, savePilotName } from '../net/pilot-identity';
@@ -35,6 +37,7 @@ export class LiveController implements LiveSession, CrownSession {
   private mode: LiveRace | null = null;
   private crownMode: LiveCrown | null = null;
   private roomMode: RoomMode = 'race';
+  private roomTrack: TrackId = ACTIVE_TRACK_ID;
   private readonly playerCrown = createCrown();
   crown: CrownUpdate = NO_CROWN;
   private name = '';
@@ -43,6 +46,22 @@ export class LiveController implements LiveSession, CrownSession {
   private hostId = '';
   private laps: number = ROOMS.defaultLaps;
   private lastError = '';
+  /** How many times in a row we have reloaded to follow the room's map (stored in the page, so it resets on a fresh visit). */
+  private get mapSwitches(): number {
+    try {
+      return Number(window.sessionStorage.getItem('pw.mapSwitches') ?? 0);
+    } catch {
+      return 0;
+    }
+  }
+
+  private set mapSwitches(count: number) {
+    try {
+      window.sessionStorage.setItem('pw.mapSwitches', String(count));
+    } catch {
+      // Blocked storage: no loop guard, but also no loop (the reload keeps the room's map in the link).
+    }
+  }
   myId = '';
   mySlot = 0;
   roster: readonly RosterEntry[] = [];
@@ -61,6 +80,7 @@ export class LiveController implements LiveSession, CrownSession {
       onReady: (isReady) => this.client?.send({ t: 'ready', isReady }),
       onLaps: (laps) => this.client?.send({ t: 'laps', laps }),
       onMode: (mode) => this.client?.send({ t: 'mode', mode }),
+      onTrack: (track) => this.client?.send({ t: 'track', track }),
       onStart: () => this.client?.send({ t: 'start' }),
       onChat: (text) => this.client?.send({ t: 'chat', text }),
       onCopyLink: () => this.copyLink(),
@@ -128,7 +148,7 @@ export class LiveController implements LiveSession, CrownSession {
     this.lobby.setMessage('Connecting…');
     this.code = code;
     this.client = new RoomClient({ onMessage: (m) => this.onMessage(m), onClose: (reason) => this.onClose(reason) });
-    this.client.connect(code, this.name);
+    this.client.connect(code, this.name, getRoomKey());
   }
 
   /** Leaves the room and closes every live-race screen. Safe to call at any time. */
@@ -184,16 +204,20 @@ export class LiveController implements LiveSession, CrownSession {
     this.hostId = m.hostId;
     this.laps = m.laps;
     this.roomMode = m.mode;
+    this.roomTrack = m.track;
     this.roster = m.pilots;
     this.mySlot = m.pilots.find((p) => p.id === this.myId)?.slot ?? 0;
     this.drones.setRoster(m.pilots, this.myId);
+    // The room plays another map than this page loaded: reload into it (the server holds our place meanwhile).
+    if (m.phase === 'lobby' && m.track !== ACTIVE_TRACK_ID && this.switchMap(m.track)) return;
+    if (m.track === ACTIVE_TRACK_ID) this.mapSwitches = 0;
     if (m.phase === 'lobby') {
       if (previous !== 'lobby') this.host.returnToLobby();
       this.order = [];
       this.crown = NO_CROWN;
       this.playerCrown.visible = false;
       this.drones.setKing('');
-      this.lobby.showRoom({ code: this.code, myId: this.myId, hostId: m.hostId, laps: m.laps, mode: m.mode, pilots: m.pilots, pingMs: this.client?.pingMs ?? 0 });
+      this.lobby.showRoom({ code: this.code, myId: this.myId, hostId: m.hostId, laps: m.laps, mode: m.mode, track: m.track, pilots: m.pilots, pingMs: this.client?.pingMs ?? 0 });
     } else if (m.phase === 'countdown' && previous === 'lobby') {
       this.order = [];
       this.drones.reset();
@@ -211,8 +235,21 @@ export class LiveController implements LiveSession, CrownSession {
     this.crownMode?.onCrown(m);
   }
 
+  /** Tells the server to hold our place, then reloads into the room's map. Gives up after two tries (a blocked reload loop). */
+  private switchMap(track: TrackId): boolean {
+    if (this.mapSwitches >= 2) {
+      this.lobby.showEntry(`Could not switch to ${TRACK_DEFS[track].name}. Pick it in the Maps menu, then join again.`);
+      return false;
+    }
+    this.mapSwitches = this.mapSwitches + 1;
+    this.lobby.showRoomMessage(`Switching to ${TRACK_DEFS[track].name}…`);
+    this.client?.send({ t: 'hold' });
+    window.setTimeout(() => reloadIntoRoomMap(track, this.code), 250);
+    return true;
+  }
+
   private copyLink(): void {
-    const url = `${window.location.origin}/?room=${encodeURIComponent(this.code)}&track=${ACTIVE_TRACK_ID}`;
+    const url = `${window.location.origin}/?room=${encodeURIComponent(this.code)}&track=${this.roomTrack}`;
     void navigator.clipboard?.writeText(url).catch(() => window.prompt('Copy this link', url));
     this.lobby.setMessage('Invite link copied.');
   }
