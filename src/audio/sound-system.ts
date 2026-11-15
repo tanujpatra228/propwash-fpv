@@ -1,8 +1,10 @@
 import { AUDIO, type SoundCameraId } from '../config';
 import { loadAudioLevels, saveAudioLevels, type AudioLevels } from '../core/audio-settings';
 import { loadJson, saveJson } from '../core/storage';
+import type { Vec3 } from './positional-model';
 import { AudioBus } from './audio-bus';
 import { BeaconVoice } from './beacon-voice';
+import { RemoteVoice, type RemoteSoundSource } from './remote-voice';
 import { cameraMix, motorLoads, washLevel, type BeaconCue } from './motor-model';
 import { MotorVoice } from './motor-voice';
 import { Sfx, type SoundEvent } from './sfx';
@@ -46,6 +48,7 @@ export class SoundSystem {
   private isOn = false;
   private isUnavailable = false;
   private levels: AudioLevels = loadAudioLevels();
+  private readonly remotes = new Map<string, RemoteVoice>();
   private previous = { pitchRad: 0, rollRad: 0, throttle01: 0, isKnown: false };
 
   constructor() {
@@ -93,6 +96,35 @@ export class SoundSystem {
   /** A one-shot sound. Does nothing when sound is off or blocked. */
   play(event: SoundEvent): void {
     if (this.isOn) this.graph?.sfx.play(event);
+  }
+
+  /**
+   * Other pilots' motors, placed around the camera. Call every frame in live rooms (an empty list elsewhere). The
+   * listener is the camera: where it is, which way it faces, and how fast the player's drone is moving (for Doppler).
+   */
+  updateRemotes(sources: readonly RemoteSoundSource[], listener: { position: Vec3; forward: Vec3; up: Vec3; velocity: Vec3 }, dtS: number): void {
+    const g = this.graph;
+    if (!g) return;
+    g.bus.setListener(listener.position, listener.forward, listener.up);
+    const present = new Set<string>();
+    for (const source of sources) {
+      present.add(source.id);
+      let voice = this.remotes.get(source.id);
+      if (!voice) {
+        voice = new RemoteVoice(g.bus);
+        this.remotes.set(source.id, voice);
+      }
+      voice.update(source, listener.position, listener.velocity, this.isOn);
+    }
+    for (const [id, voice] of this.remotes) {
+      if (present.has(id)) continue;
+      voice.silence();
+      voice.unseenS += dtS;
+      if (voice.unseenS >= AUDIO.remote.forgetAfterS) {
+        voice.dispose();
+        this.remotes.delete(id);
+      }
+    }
   }
 
   /** The free crown's shimmer (null when there is none). Call every frame in Crown chase. */

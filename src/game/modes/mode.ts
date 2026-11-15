@@ -15,9 +15,15 @@ export interface PilotMarker {
   color: number;
   /** Wears the crown in crown chase. */
   isKing: boolean;
+  /** False for markers that are not a drone (the free crown): they have no motor to hear. */
+  hasMotor: boolean;
   x: number;
   y: number;
   z: number;
+  /** Metres per second, smoothed. For Doppler. */
+  vx: number;
+  vy: number;
+  vz: number;
 }
 
 export type ModeId = 'free' | 'trial' | 'training' | 'live' | 'challenge' | 'crown';
