@@ -2,7 +2,7 @@
  * The live-race room state machine. Pure: no sockets, no timers, no clock of its own. The server feeds it
  * connections, text frames and the current time; it returns who should be sent what and who to disconnect.
  */
-import { ROOMS, TRACK, TRACK_DEFS, TRACK_IDS } from '../config';
+import { ROOMS, TRACK, TRACK_DEFS, TRACK_IDS, type TrackId } from '../config';
 import { CrownGame, type CrownEvent, type CrownSnapshot } from './crown-game';
 import { checkPilotName } from './pilot-name';
 import {
@@ -44,6 +44,8 @@ export interface Step {
   out: Outgoing[];
   /** Pilot ids whose connection should be closed. */
   close: string[];
+  /** Set by `join` when a returning pilot took over their old place: the id the connection must now use. */
+  joinedAs?: string;
 }
 
 export interface Pilot {
@@ -64,6 +66,12 @@ export interface Pilot {
   windowStartMs: number;
   windowCount: number;
   badFrames: number;
+  /** The world version (map) this pilot's game is on. */
+  worldVersion: number;
+  /** A secret from the pilot's browser that lets them reclaim this place after reloading into another map. */
+  key: string;
+  /** While in the future, a disconnected pilot keeps their place (they are reloading into another map). */
+  holdUntilMs: number;
 }
 
 const GATES_PER_LAP = TRACK.gateCount;
@@ -84,8 +92,13 @@ export class Room {
   private firstFinishMs = 0;
   private finishedCount = 0;
 
-  constructor(code: string, private readonly worldVersion: number) {
+  constructor(code: string, private worldVersion: number) {
     this.code = code;
+  }
+
+  /** The map this room is playing. */
+  get track(): TrackId {
+    return TRACK_IDS.find((t) => TRACK_DEFS[t].worldVersion === this.worldVersion) ?? 'valley';
   }
 
   /** Everything needed to rebuild the room after the server's memory was dropped (hibernation). */
@@ -107,7 +120,7 @@ export class Room {
     room.raceStartMs = snapshot.raceStartMs;
     room.firstFinishMs = snapshot.firstFinishMs;
     room.finishedCount = snapshot.finishedCount;
-    for (const p of snapshot.pilots) room.pilots.set(p.id, { ...p });
+    for (const p of snapshot.pilots) room.pilots.set(p.id, { ...p, worldVersion: p.worldVersion ?? snapshot.worldVersion, key: p.key ?? '', holdUntilMs: p.holdUntilMs ?? 0 });
     return room;
   }
 
@@ -130,11 +143,11 @@ export class Room {
   private roster(): RosterEntry[] {
     return [...this.pilots.values()]
       .sort((a, b) => a.joinedAtMs - b.joinedAtMs)
-      .map((p) => ({ id: p.id, name: p.name, isReady: p.isReady, slot: p.slot, isConnected: p.isConnected }));
+      .map((p) => ({ id: p.id, name: p.name, isReady: p.isReady, slot: p.slot, isConnected: p.isConnected, isOnMap: p.worldVersion === this.worldVersion }));
   }
 
   private roomMessage(): ServerMessage {
-    return { t: 'room', phase: this.phase, mode: this.mode, hostId: this.hostId, laps: this.laps, pilots: this.roster() };
+    return { t: 'room', phase: this.phase, mode: this.mode, track: this.track, hostId: this.hostId, laps: this.laps, pilots: this.roster() };
   }
 
   private broadcastRoom(step: Step): void {
@@ -151,29 +164,40 @@ export class Room {
     return { out: [{ to: id, message: { t: 'error', message } }], close: [id] };
   }
 
-  /** Says why a client cannot join: it is on another track, or its game is out of date. */
-  private versionMessage(clientVersion: number): string {
-    const roomTrack = TRACK_IDS.find((t) => TRACK_DEFS[t].worldVersion === this.worldVersion);
-    const clientKnown = TRACK_IDS.some((t) => TRACK_DEFS[t].worldVersion === clientVersion);
-    if (roomTrack && clientKnown) return `This room races on ${TRACK_DEFS[roomTrack].name}. Switch track in the menu and join again.`;
-    return 'Your game version is out of date. Reload the page.';
-  }
-
-  /** A pilot connects. A refusal also closes the connection. */
-  join(id: string, rawName: unknown, worldVersion: number, nowMs: number): Step {
-    if (worldVersion !== this.worldVersion) return this.refuse(id, this.versionMessage(worldVersion));
+  /** A pilot connects. A refusal also closes the connection. `key` lets a pilot reloading into another map reclaim their place. */
+  join(id: string, rawName: unknown, worldVersion: number, nowMs: number, key = ''): Step {
+    if (!TRACK_IDS.some((t) => TRACK_DEFS[t].worldVersion === worldVersion)) return this.refuse(id, 'Your game version is out of date. Reload the page.');
     const name = checkPilotName(rawName);
     if (!name.ok) return this.refuse(id, name.reason);
+    const returning = key === '' ? undefined : [...this.pilots.values()].find((p) => p.key === key && !p.isConnected && p.holdUntilMs > nowMs);
+    if (returning && this.phase === 'lobby') return this.revive(returning, worldVersion, name.name);
     const existing = this.pilots.get(id);
     if (existing?.isConnected) return this.refuse(id, 'You are already in this room in another tab.');
     if (this.phase === 'countdown' || this.phase === 'racing') return this.refuse(id, 'A race is in progress. Join when it ends.');
-    if (this.connected().length >= ROOMS.maxPilots) return this.refuse(id, 'This room is full.');
+    if (this.pilots.size >= ROOMS.maxPilots) return this.refuse(id, 'This room is full.');
     const slot = existing?.slot ?? this.freeSlot();
     if (slot < 0) return this.refuse(id, 'This room is full.');
-    this.pilots.set(id, this.freshPilot(id, name.name, slot, nowMs));
-    if (this.hostId === '' || !this.pilots.get(this.hostId)?.isConnected) this.hostId = id;
+    const pilot = this.freshPilot(id, name.name, slot, nowMs);
+    pilot.worldVersion = worldVersion;
+    pilot.key = key;
+    this.pilots.set(id, pilot);
+    // The first pilot hosts; a host who is only away (reloading into another map) keeps the role.
+    if (this.hostId === '' || !this.pilots.has(this.hostId)) this.hostId = id;
     const step = emptyStep();
     step.out.push({ to: id, message: { t: 'welcome', you: id, code: this.code } });
+    this.broadcastRoom(step);
+    return step;
+  }
+
+  /** A pilot who held their place comes back (after reloading into another map). */
+  private revive(pilot: Pilot, worldVersion: number, name: string): Step {
+    pilot.isConnected = true;
+    pilot.holdUntilMs = 0;
+    pilot.worldVersion = worldVersion;
+    pilot.name = name;
+    const step = emptyStep();
+    step.joinedAs = pilot.id;
+    step.out.push({ to: pilot.id, message: { t: 'welcome', you: pilot.id, code: this.code } });
     this.broadcastRoom(step);
     return step;
   }
@@ -182,6 +206,7 @@ export class Room {
     return {
       id, name, isReady: false, slot, joinedAtMs: nowMs, isConnected: true, gatesPassed: 0, lastGateAtMs: 0, lapStartedAtMs: 0,
       bestLapS: 0, finishTimeS: 0, place: 0, dNextM: 0, lastChatAtMs: 0, windowStartMs: nowMs, windowCount: 0, badFrames: 0,
+      worldVersion: this.worldVersion, key: '', holdUntilMs: 0,
     };
   }
 
@@ -191,9 +216,14 @@ export class Room {
     const step = emptyStep();
     if (!pilot?.isConnected) return step;
     pilot.isConnected = false;
+    if (this.phase === 'lobby' && pilot.holdUntilMs > nowMs) {
+      // Reloading into another map: keep the place (and the host role) until they are back or the hold runs out.
+      this.broadcastRoom(step);
+      return step;
+    }
     const racing = this.phase === 'countdown' || this.phase === 'racing';
     if (!racing && this.phase !== 'results') this.pilots.delete(id);
-    if (this.connected().length === 0) {
+    if (this.connected().length === 0 && !this.hasHeldPilots(nowMs)) {
       this.resetToLobby();
       return step;
     }
@@ -205,6 +235,11 @@ export class Room {
     } else if (this.phase === 'racing') this.finishIfDone(step);
     this.broadcastRoom(step);
     return step;
+  }
+
+  /** True while a disconnected pilot is holding their place. */
+  private hasHeldPilots(nowMs: number): boolean {
+    return [...this.pilots.values()].some((p) => !p.isConnected && p.holdUntilMs > nowMs);
   }
 
   private longestPresent(): string {
@@ -238,6 +273,8 @@ export class Room {
       case 'ready': return this.setReady(pilot, message.isReady);
       case 'laps': return this.setLaps(pilot, message.laps);
       case 'mode': return this.setMode(pilot, message.mode);
+      case 'track': return this.setTrack(pilot, message.track);
+      case 'hold': return this.hold(pilot, nowMs);
       case 'start': return this.start(pilot, nowMs);
       case 'rematch': return this.rematch(pilot);
       case 'chat': return this.chat(pilot, message.text, nowMs);
@@ -274,11 +311,31 @@ export class Room {
     return step;
   }
 
+  /** The host picks the map. Everyone on another map reloads into it, so ready flags start over. */
+  private setTrack(pilot: Pilot, track: TrackId): Step {
+    if (this.phase !== 'lobby' || pilot.id !== this.hostId) return emptyStep();
+    const version = TRACK_DEFS[track].worldVersion;
+    if (version === this.worldVersion) return emptyStep();
+    this.worldVersion = version;
+    for (const p of this.pilots.values()) p.isReady = false;
+    const step = emptyStep();
+    this.broadcastRoom(step);
+    return step;
+  }
+
+  /** A pilot says they are about to reload into another map: keep their place for a while. */
+  private hold(pilot: Pilot, nowMs: number): Step {
+    if (this.phase === 'lobby') pilot.holdUntilMs = nowMs + ROOMS.holdMs;
+    return emptyStep();
+  }
+
   private start(pilot: Pilot, nowMs: number): Step {
     if (this.phase !== 'lobby') return emptyStep();
     if (pilot.id !== this.hostId) return this.notice(pilot.id, 'Only the host can start the game.');
     const here = this.connected();
     if (here.length < ROOMS.minPilotsToStart) return this.notice(pilot.id, 'You need at least two pilots to race.');
+    if (this.hasHeldPilots(nowMs)) return this.notice(pilot.id, 'Waiting for pilots to finish switching map.');
+    if (here.some((p) => p.worldVersion !== this.worldVersion)) return this.notice(pilot.id, `Everyone must be on ${TRACK_DEFS[this.track].name}.`);
     if (here.some((p) => p.id !== this.hostId && !p.isReady)) return this.notice(pilot.id, 'Everyone must be ready.');
     this.phase = 'countdown';
     this.raceStartMs = nowMs + ROOMS.countdownMs;
@@ -394,6 +451,7 @@ export class Room {
   /** Time-driven changes: the countdown ending, the grace period after the first finish, the hard stop. */
   tick(nowMs: number): Step {
     const step = emptyStep();
+    if (this.phase === 'lobby') this.expireHolds(nowMs, step);
     if (this.phase === 'countdown' && nowMs >= this.raceStartMs) {
       this.phase = 'racing';
       if (this.mode === 'crown') this.startCrown(nowMs);
@@ -411,6 +469,19 @@ export class Room {
     return step;
   }
 
+  /** Pilots whose hold ran out without coming back leave the room; the host role moves on if it was theirs. */
+  private expireHolds(nowMs: number, step: Step): void {
+    const gone = [...this.pilots.values()].filter((p) => !p.isConnected && p.holdUntilMs > 0 && p.holdUntilMs <= nowMs);
+    if (gone.length === 0) return;
+    for (const p of gone) this.pilots.delete(p.id);
+    if (this.connected().length === 0 && !this.hasHeldPilots(nowMs)) {
+      this.resetToLobby();
+      return;
+    }
+    if (!this.pilots.has(this.hostId)) this.hostId = this.longestPresent();
+    this.broadcastRoom(step);
+  }
+
   /** The crown goes to a pilot picked from the clock, at the moment of GO. */
   private startCrown(nowMs: number): void {
     const ids = this.connected().sort((a, b) => a.slot - b.slot).map((p) => p.id);
@@ -421,6 +492,10 @@ export class Room {
   /** When the server should next call `tick`, or 0 when nothing is pending. */
   nextWakeMs(): number {
     if (this.phase === 'countdown') return this.raceStartMs;
+    if (this.phase === 'lobby') {
+      const holds = [...this.pilots.values()].filter((p) => !p.isConnected && p.holdUntilMs > 0).map((p) => p.holdUntilMs);
+      return holds.length > 0 ? Math.min(...holds) : 0;
+    }
     if (this.phase !== 'racing') return 0;
     if (this.crown) return this.crown.matchEndMs;
     const hardStop = this.raceStartMs + ROOMS.raceHardStopMs;

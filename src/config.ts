@@ -37,11 +37,11 @@ export function isTrackId(value: unknown): value is TrackId {
  * ghosts and best laps. `start` is gate 0's position on the ground plane. The drone cannot leave the bounds box.
  */
 export const TRACK_DEFS = {
-  valley: { family: 'valley' as WorldFamily, atmosphere: 'day' as AtmosphereId, isNight: false, name: 'Valley Sprint', blurb: 'Nature, a lake and a factory.', worldVersion: 1, start: [0, -150], halfSizeM: 900, ceilingM: 300 },
-  city: { family: 'city' as WorldFamily, atmosphere: 'day' as AtmosphereId, isNight: false, name: 'Downtown Dash', blurb: 'Streets, traffic, towers and windows to fly through.', worldVersion: 101, start: [0, 190], halfSizeM: 320, ceilingM: 170 },
-  night: { family: 'city' as WorldFamily, atmosphere: 'night' as AtmosphereId, isNight: true, name: 'Downtown Dash: Night', blurb: 'The same city after dark: neon, street lights and glowing windows.', worldVersion: 102, start: [0, 190], halfSizeM: 320, ceilingM: 170 },
-  harbor: { family: 'harbor' as WorldFamily, atmosphere: 'dusk' as AtmosphereId, isNight: false, name: 'Harbor Run', blurb: 'Container yard, cranes, a cargo ship and open water at golden hour.', worldVersion: 103, start: [-230, -128], halfSizeM: 360, ceilingM: 130 },
-  glacier: { family: 'glacier' as WorldFamily, atmosphere: 'alpine' as AtmosphereId, isNight: false, name: 'Glacier Pass', blurb: 'Snowy peaks, a tight canyon, a frozen lake and wind that pushes you around.', worldVersion: 104, start: [0, 240], halfSizeM: 500, ceilingM: 400 },
+  valley: { family: 'valley' as WorldFamily, atmosphere: 'day' as AtmosphereId, isNight: false, name: 'Valley Sprint', shortName: 'Valley', blurb: 'Nature, a lake and a factory.', worldVersion: 1, start: [0, -150], halfSizeM: 900, ceilingM: 300 },
+  city: { family: 'city' as WorldFamily, atmosphere: 'day' as AtmosphereId, isNight: false, name: 'Downtown Dash', shortName: 'City', blurb: 'Streets, traffic, towers and windows to fly through.', worldVersion: 101, start: [0, 190], halfSizeM: 320, ceilingM: 170 },
+  night: { family: 'city' as WorldFamily, atmosphere: 'night' as AtmosphereId, isNight: true, name: 'Downtown Dash: Night', shortName: 'City night', blurb: 'The same city after dark: neon, street lights and glowing windows.', worldVersion: 102, start: [0, 190], halfSizeM: 320, ceilingM: 170 },
+  harbor: { family: 'harbor' as WorldFamily, atmosphere: 'dusk' as AtmosphereId, isNight: false, name: 'Harbor Run', shortName: 'Harbor', blurb: 'Container yard, cranes, a cargo ship and open water at golden hour.', worldVersion: 103, start: [-230, -128], halfSizeM: 360, ceilingM: 130 },
+  glacier: { family: 'glacier' as WorldFamily, atmosphere: 'alpine' as AtmosphereId, isNight: false, name: 'Glacier Pass', shortName: 'Glacier', blurb: 'Snowy peaks, a tight canyon, a frozen lake and wind that pushes you around.', worldVersion: 104, start: [0, 240], halfSizeM: 500, ceilingM: 400 },
 } as const;
 
 /** The track chosen at start-up: `?track=` first, then the saved choice, else the valley. Changing it reloads the page. */
@@ -698,6 +698,8 @@ export const ROOMS = {
   /** Pose updates during a race; also the Durable Object budget driver (incoming messages bill 20:1). */
   poseHz: 10,
   maxFrameBytes: 512,
+  /** A pilot who is reloading into another map keeps their place in the lobby for this long. */
+  holdMs: 30_000,
   maxMessagesPerSecond: 20,
   /** A connection sending this many bad frames in a row is closed. */
   badFramesBeforeClose: 10,

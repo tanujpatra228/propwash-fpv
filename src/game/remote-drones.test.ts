@@ -5,9 +5,9 @@ import type { RosterEntry } from '../core/room-protocol';
 import { RemoteDrones } from './remote-drones';
 
 const roster: RosterEntry[] = [
-  { id: 'me', name: 'Arjun', isReady: true, slot: 0, isConnected: true },
-  { id: 'bea', name: 'Bea', isReady: true, slot: 1, isConnected: true },
-  { id: 'cy', name: 'Cy', isReady: true, slot: 2, isConnected: true },
+  { id: 'me', name: 'Arjun', isReady: true, slot: 0, isConnected: true, isOnMap: true },
+  { id: 'bea', name: 'Bea', isReady: true, slot: 1, isConnected: true, isOnMap: true },
+  { id: 'cy', name: 'Cy', isReady: true, slot: 2, isConnected: true, isOnMap: true },
 ];
 const pose = (x: number) => ({ x, y: 500, z: -200, yaw: 0, pitch: 0, roll: 0 });
 

@@ -2,7 +2,7 @@
  * Live-race wire protocol, shared by the game and the server so both sides agree on every message.
  * Frames are small JSON text. Nothing from the network is trusted: `parseClientMessage` checks every field.
  */
-import { ROOMS } from '../config';
+import { isTrackId, ROOMS, type TrackId } from '../config';
 
 export type RoomPhase = 'lobby' | 'countdown' | 'racing' | 'results';
 
@@ -23,6 +23,8 @@ export type ClientMessage =
   | { t: 'ready'; isReady: boolean }
   | { t: 'laps'; laps: number }
   | { t: 'mode'; mode: RoomMode }
+  | { t: 'track'; track: TrackId }
+  | { t: 'hold' }
   | { t: 'start' }
   | { t: 'rematch' }
   | { t: 'chat'; text: string }
@@ -36,6 +38,8 @@ export interface RosterEntry {
   /** Starting-grid slot, 0 to maxPilots - 1. */
   slot: number;
   isConnected: boolean;
+  /** On the map the room is playing. A pilot on another map reloads into it before the game can start. */
+  isOnMap: boolean;
 }
 
 /** One pilot in the race order: gates passed in order, counting the start line each time. */
@@ -63,7 +67,7 @@ export interface ResultRow {
 
 export type ServerMessage =
   | { t: 'welcome'; you: string; code: string }
-  | { t: 'room'; phase: RoomPhase; mode: RoomMode; hostId: string; laps: number; pilots: RosterEntry[] }
+  | { t: 'room'; phase: RoomPhase; mode: RoomMode; track: TrackId; hostId: string; laps: number; pilots: RosterEntry[] }
   | { t: 'crown'; holderId: string; scores: CrownScoreEntry[]; threatId: string; threat01: number; remainingMs: number }
   | { t: 'countdown'; startsInMs: number }
   | { t: 'go' }
@@ -133,6 +137,10 @@ export function parseClientMessage(frame: unknown): ParseResult {
       return isInt(o['laps'], ROOMS.minLaps, ROOMS.maxLaps) ? { ok: true, message: { t: 'laps', laps: o['laps'] } } : { ok: false, reason: 'bad laps' };
     case 'mode':
       return o['mode'] === 'race' || o['mode'] === 'crown' ? { ok: true, message: { t: 'mode', mode: o['mode'] } } : { ok: false, reason: 'bad mode' };
+    case 'track':
+      return isTrackId(o['track']) ? { ok: true, message: { t: 'track', track: o['track'] } } : { ok: false, reason: 'bad track' };
+    case 'hold':
+      return { ok: true, message: { t: 'hold' } };
     case 'start':
       return { ok: true, message: { t: 'start' } };
     case 'rematch':

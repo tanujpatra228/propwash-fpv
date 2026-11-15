@@ -233,13 +233,103 @@ describe('snapshot', () => {
   });
 });
 
-describe('tracks', () => {
-  it('tells a pilot on another track to switch, and an out-of-date one to reload', () => {
-    const room = new Room('ABCDE', 1); // the valley
-    const city = room.join('a', 'Arjun', 101, 0).out.find((o) => o.message.t === 'error')?.message;
-    expect(city?.t === 'error' && city.message).toMatch(/Valley Sprint.*Switch track/);
-    const stale = room.join('b', 'Bea', 999, 0).out.find((o) => o.message.t === 'error')?.message;
-    expect(stale?.t === 'error' && stale.message).toMatch(/out of date/);
+describe('maps', () => {
+  const VALLEY = 1;
+  const CITY = 101;
+  const roomMsg = (s: Step) => s.out.map((o) => o.message).find((m) => m.t === 'room');
+  const trackOf = (s: Step): string | undefined => {
+    const m = roomMsg(s);
+    return m?.t === 'room' ? m.track : undefined;
+  };
+
+  it('lets a pilot on another map into the lobby, marked as not on the map, and refuses an unknown version', () => {
+    const room = new Room('ABCDE', VALLEY);
+    room.join('a', 'Arjun', VALLEY, 0);
+    const step = room.join('b', 'Bea', CITY, 1);
+    const m = roomMsg(step);
+    expect(m?.t === 'room' && m.pilots.map((p) => p.isOnMap)).toEqual([true, false]);
+    expect(room.join('c', 'Cy', 999, 2).close).toEqual(['c']);
+  });
+  it('the host picks the map; others cannot, and it is a lobby choice only', () => {
+    const room = new Room('ABCDE', VALLEY);
+    room.join('host', 'Host', VALLEY, 0);
+    room.join('guest', 'Guest', VALLEY, 1);
+    send(room, 'guest', { t: 'ready', isReady: true }, 2);
+    expect(send(room, 'guest', { t: 'track', track: 'city' }, 3).out).toHaveLength(0);
+    expect(trackOf(send(room, 'host', { t: 'track', track: 'city' }, 4))).toBe('city');
+    expect(room.track).toBe('city');
+    // Everyone's ready flag starts over, because everyone has to reload into the map.
+    const roster = roomMsg(send(room, 'host', { t: 'ready', isReady: true }, 5));
+    expect(roster?.t === 'room' && roster.pilots.find((p) => p.id === 'guest')?.isReady).toBe(false);
+  });
+  it('will not start until everyone is on the map', () => {
+    const room = new Room('ABCDE', VALLEY);
+    room.join('host', 'Host', VALLEY, 0);
+    room.join('guest', 'Guest', VALLEY, 1);
+    send(room, 'host', { t: 'track', track: 'city' }, 2);
+    send(room, 'guest', { t: 'ready', isReady: true }, 3);
+    const refused = send(room, 'host', { t: 'start' }, 4);
+    expect(refused.out[0]?.message).toMatchObject({ t: 'error', message: expect.stringMatching(/Downtown Dash/) });
+    expect(room.getPhase()).toBe('lobby');
+  });
+  it('keeps a held place and the host role while a pilot reloads into another map, and gives it back by key', () => {
+    const room = new Room('ABCDE', VALLEY);
+    room.join('host', 'Host', VALLEY, 0, 'hostkey-12345');
+    room.join('guest', 'Guest', VALLEY, 1, 'guestkey-12345');
+    send(room, 'host', { t: 'track', track: 'city' }, 2);
+    send(room, 'host', { t: 'hold' }, 3);
+    send(room, 'guest', { t: 'hold' }, 3);
+    room.leave('host', 100);
+    room.leave('guest', 100);
+    expect(room.getHostId()).toBe('host');
+    expect(room.pilotCount()).toBe(0);
+    expect(room.getPhase()).toBe('lobby');
+    // The host comes back on the new map with the same key: same id, still the host.
+    const back = room.join('newid-1', 'Host', CITY, 5000, 'hostkey-12345');
+    expect(back.joinedAs).toBe('host');
+    expect(back.out[0]?.message).toMatchObject({ t: 'welcome', you: 'host' });
+    expect(room.getHostId()).toBe('host');
+    // A different key does not take someone's place.
+    const other = room.join('newid-2', 'Intruder', CITY, 5100, 'wrongkey-12345');
+    expect(other.joinedAs).toBeUndefined();
+  });
+  it('will not start while someone is still switching, and gives up on them after the hold', () => {
+    const room = new Room('ABCDE', VALLEY);
+    room.join('host', 'Host', VALLEY, 0, 'hostkey-12345');
+    room.join('guest', 'Guest', VALLEY, 1, 'guestkey-12345');
+    send(room, 'guest', { t: 'ready', isReady: true }, 2);
+    send(room, 'guest', { t: 'hold' }, 3);
+    room.leave('guest', 100);
+    const refused = send(room, 'host', { t: 'start' }, 200);
+    expect(refused.out[0]?.message).toMatchObject({ t: 'error' });
+    expect(room.nextWakeMs()).toBe(3 + ROOMS.holdMs);
+    const step = room.tick(3 + ROOMS.holdMs);
+    expect(step.out.some((o) => o.message.t === 'room')).toBe(true);
+    expect(room.nextWakeMs()).toBe(0);
+  });
+  it('moves the host role on when the host never returns', () => {
+    const room = new Room('ABCDE', VALLEY);
+    room.join('host', 'Host', VALLEY, 0, 'hostkey-12345');
+    room.join('guest', 'Guest', VALLEY, 1, 'guestkey-12345');
+    send(room, 'host', { t: 'hold' }, 2);
+    room.leave('host', 3);
+    expect(room.getHostId()).toBe('host');
+    room.tick(2 + ROOMS.holdMs);
+    expect(room.getHostId()).toBe('guest');
+  });
+  it('a normal disconnect without a hold still removes the pilot', () => {
+    const room = new Room('ABCDE', VALLEY);
+    room.join('host', 'Host', VALLEY, 0, 'hostkey-12345');
+    room.join('guest', 'Guest', VALLEY, 1, 'guestkey-12345');
+    room.leave('guest', 10);
+    expect(room.pilotCount()).toBe(1);
+    expect(room.join('x', 'New', VALLEY, 11, 'guestkey-12345').joinedAs).toBeUndefined();
+  });
+  it('the map survives hibernation', () => {
+    const room = new Room('ABCDE', VALLEY);
+    room.join('host', 'Host', VALLEY, 0);
+    send(room, 'host', { t: 'track', track: 'harbor' }, 1);
+    expect(Room.restore(JSON.parse(JSON.stringify(room.snapshot()))).track).toBe('harbor');
   });
 });
 

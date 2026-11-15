@@ -42,9 +42,12 @@ export class RaceRoom extends DurableObject<Env> {
     const [client, server] = [pair[0], pair[1]];
     // The pilot's id inside the room is random and per connection, so a player's saved pilot id is never shared.
     const id = crypto.randomUUID().slice(0, 8);
+    // A pilot reloading into another map sends a secret key to reclaim their old place; anything odd is ignored.
+    const rawKey = url.searchParams.get('key') ?? '';
+    const key = /^[A-Za-z0-9-]{8,64}$/.test(rawKey) ? rawKey : '';
+    const step = room.join(id, url.searchParams.get('name'), Number(url.searchParams.get('world')), Date.now(), key);
     this.ctx.acceptWebSocket(server);
-    server.serializeAttachment({ id });
-    const step = room.join(id, url.searchParams.get('name'), Number(url.searchParams.get('world')), Date.now());
+    server.serializeAttachment({ id: step.joinedAs ?? id });
     await this.dispatch(step, room);
     return new Response(null, { status: 101, webSocket: client });
   }
@@ -66,13 +69,14 @@ export class RaceRoom extends DurableObject<Env> {
 
   override async alarm(): Promise<void> {
     const room = await this.load('');
-    if (room.pilotCount() === 0) {
-      // Nobody has been here for the idle period: forget the room entirely.
+    const step = room.tick(Date.now());
+    if (room.pilotCount() === 0 && room.nextWakeMs() === 0) {
+      // Nobody has been here for the idle period (and nobody is holding a place): forget the room entirely.
       await this.ctx.storage.deleteAll();
       this.room = null;
       return;
     }
-    await this.dispatch(room.tick(Date.now()), room);
+    await this.dispatch(step, room);
   }
 
   private async drop(ws: WebSocket): Promise<void> {

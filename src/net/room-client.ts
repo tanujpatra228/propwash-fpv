@@ -42,9 +42,9 @@ export class RoomClient {
     return this.socket?.readyState === WebSocket.OPEN;
   }
 
-  connect(code: string, name: string): void {
+  connect(code: string, name: string, key = ''): void {
     const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const query = new URLSearchParams({ name, world: String(WORLD.version), track: ACTIVE_TRACK_ID });
+    const query = new URLSearchParams({ name, world: String(WORLD.version), track: ACTIVE_TRACK_ID, key });
     try {
       this.socket = new WebSocket(`${scheme}://${window.location.host}/api/rooms/${code}/ws?${query.toString()}`);
     } catch {

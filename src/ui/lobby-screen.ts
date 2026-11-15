@@ -1,4 +1,4 @@
-import { ROOMS } from '../config';
+import { ROOMS, TRACK_DEFS, TRACK_IDS, type TrackId } from '../config';
 import { el } from '../core/dom';
 import { normaliseRoomCode, type RoomMode, type RosterEntry } from '../core/room-protocol';
 
@@ -8,6 +8,7 @@ export interface LobbyHandlers {
   onReady(isReady: boolean): void;
   onLaps(laps: number): void;
   onMode(mode: RoomMode): void;
+  onTrack(track: TrackId): void;
   onStart(): void;
   onChat(text: string): void;
   onCopyLink(): void;
@@ -20,6 +21,8 @@ export interface LobbyView {
   hostId: string;
   laps: number;
   mode: RoomMode;
+  /** The map the room is playing. */
+  track: TrackId;
   pilots: readonly RosterEntry[];
   pingMs: number;
 }
@@ -32,6 +35,7 @@ export function startStatus(view: Pick<LobbyView, 'myId' | 'hostId' | 'pilots'>)
   const count = `${ready}/${here.length} ready`;
   if (view.myId !== view.hostId) return { canStart: false, hint: 'Waiting for the host to start.', label: `Start race · ${count}` };
   if (here.length < ROOMS.minPilotsToStart) return { canStart: false, hint: 'Share the link: you need at least one more pilot.', label: `Start race · ${here.length}/${ROOMS.minPilotsToStart} pilots` };
+  if (here.some((p) => !p.isOnMap)) return { canStart: false, hint: 'Waiting for everyone to switch to the map.', label: `Start race · ${count}` };
   if (ready < here.length) return { canStart: false, hint: 'Waiting for everyone to be ready.', label: `Start race · ${count}` };
   return { canStart: true, hint: 'Everyone is ready.', label: `Start race · ${count}` };
 }
@@ -51,6 +55,8 @@ export class LobbyScreen {
   private readonly lapsRow = el('div', { class: 'lobby-laps' });
   private readonly modeButtons = new Map<RoomMode, HTMLButtonElement>();
   private readonly modeNote = el('small', { class: 'cd-sub' });
+  private readonly mapButtons = new Map<TrackId, HTMLButtonElement>();
+  private readonly mapNote = el('small', { class: 'cd-sub' });
   private readonly readyButton = el('button', { type: 'button', class: 'btn', text: 'Ready' });
   private readonly startButton = el('button', { type: 'button', class: 'btn', text: 'Start race' });
   private readonly startHint = el('small', { class: 'cd-sub' });
@@ -119,12 +125,24 @@ export class LobbyScreen {
       this.codeLabel,
       this.pilots,
       this.buildModeRow(),
+      this.buildMapRow(),
       this.lapsRow,
       this.lapsNote,
       this.chatLog,
       this.chatInput,
       el('div', { class: 'cd-buttons' }, [this.readyButton, this.startButton, this.startHint, copy, leave]),
     ]);
+  }
+
+  private buildMapRow(): HTMLElement {
+    const seg = el('div', { class: 'seg map-seg' });
+    for (const id of TRACK_IDS) {
+      const button = el('button', { type: 'button' }, [el('b', { text: TRACK_DEFS[id].shortName })]);
+      button.addEventListener('click', () => this.handlers.onTrack(id));
+      this.mapButtons.set(id, button);
+      seg.append(button);
+    }
+    return el('div', { class: 'lobby-map' }, [el('span', { text: 'Map' }), seg, this.mapNote]);
   }
 
   private buildModeRow(): HTMLElement {
@@ -151,6 +169,12 @@ export class LobbyScreen {
 
   hide(): void {
     this.root.hidden = true;
+  }
+
+  /** A message that shows over the room view too (for example while reloading into another map). */
+  showRoomMessage(text: string): void {
+    this.message.textContent = text;
+    this.root.hidden = false;
   }
 
   setMessage(text: string): void {
@@ -192,6 +216,11 @@ export class LobbyScreen {
     });
     this.lapsNote.textContent = isHost || view.mode === 'crown' ? '' : 'The host chooses the number of laps.';
     this.lapsRow.hidden = view.mode === 'crown';
+    for (const [id, button] of this.mapButtons) {
+      button.classList.toggle('on', id === view.track);
+      button.disabled = !isHost;
+    }
+    this.mapNote.textContent = isHost ? 'Everyone reloads into the map you pick.' : `Map: ${TRACK_DEFS[view.track].name}. The host chooses.`;
     for (const [mode, button] of this.modeButtons) {
       button.classList.toggle('on', mode === view.mode);
       button.disabled = !isHost;
@@ -202,7 +231,7 @@ export class LobbyScreen {
         el('li', { class: p.id === view.myId ? 'me' : undefined }, [
           el('i', { class: 'lobby-dot', style: `background:#${(ROOMS.droneColors[p.slot % ROOMS.droneColors.length] ?? 0xffffff).toString(16).padStart(6, '0')}` }),
           el('span', { class: 'st-name', text: p.name }),
-          el('small', { text: p.id === view.hostId ? 'Host' : p.isReady ? 'Ready' : 'Not ready' }),
+          el('small', { text: !p.isOnMap ? 'Switching map' : p.id === view.hostId ? 'Host' : p.isReady ? 'Ready' : 'Not ready' }),
         ]),
       ),
     );
