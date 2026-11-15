@@ -1,6 +1,6 @@
 # Feature: Sound Design
 
-Status: In progress (parts 1 and 2 built: bus, motors, race and battery sounds, crash sounds)
+Status: In progress (parts 1 to 3 built: bus, motors, race and battery sounds, crash sounds, Crown chase sounds)
 Phase: 8
 Branch: `feat/sound-design`
 Last updated: 2026-11-15
@@ -21,6 +21,11 @@ A proper audio layer: one mixer (bus) with volume sliders, a four-motor drone so
 - **Crashes:** what you hit decides the sound, how fast you were going decides the loudness (a slow bump still thuds). Under every crash the motors cut with a falling whine. Hard crashes leave a short ringing in the ears.
   - Ground: dull thud. Water: splash that glides down, with a few bubbles. Tree: rustle and snap. Building and factory: heavy low thump. Rock: sharp crack.
   - Gate, container and crane: ringing metal (gate bright, container mid, crane deep and long). Vehicle: crunch, then a short car horn.
+- **Crown chase:**
+  - **Free crown:** a high shimmer you can steer by. It gets louder as you get close, and pans left or right to show where the beacon is relative to your drone's heading. It is silent beyond 220 m and while someone wears the crown.
+  - **You claim it:** a bright rising chord. **You are dethroned:** a low falling sting. **Someone else claims it:** a soft ping. **It drops:** a falling swoop. **It returns at the beacon:** a chime.
+  - **Heartbeat:** while you are king, a heartbeat that speeds up as your 30 seconds run out.
+  - **Proximity pulse:** while a chaser is within 14 m of the king, a sonar-style pulse that speeds up as they close in. The king hears a higher, sharper pulse (danger). The chaser hears a lower one (lock-on).
 - **Battery low:** short beeps that speed up as the pack drains, like a real low-voltage buzzer.
 - Sound is still off until the player turns it on (M or the flight menu button), because browsers need a click first. The on/off choice is saved as before.
 
@@ -37,6 +42,9 @@ A proper audio layer: one mixer (bus) with volume sliders, a four-motor drone so
 | Countdown | 880 Hz tick, 1320 Hz GO |
 | Battery low | Beep at 2.8 kHz. Interval 1.2 s at the low threshold, down to 0.25 s near empty |
 | Crash | Per surface profile in `AUDIO.crash.profiles` (thump, noise burst, ringing partials, optional horn or bubbles). Loudness 35% at 3 m/s impact speed up to 100% at 25 m/s. Motor-cut whine 520 to 60 Hz in 0.45 s. Ringing in the ears above 60% intensity |
+| Crown beacon | Two detuned sines (1568 Hz and 1975 Hz) with a 5 Hz shimmer. Volume rises with closeness inside 220 m; pan is the beacon's side relative to the drone heading |
+| Crown heartbeat | Lub-dub every 1.0 s at the start of the hold, down to 0.38 s at the end (accelerating) |
+| Crown pulse | Beep every 0.8 s at the edge of the warning range, 0.12 s when touching |
 | Mixer | Motors and prop wash on the Motors bus, wind on Ambience, all one-shot sounds on Effects. All feed Master, then a limiter so stacked sounds never clip |
 | Slider curve | Slider 0 to 100, gain is the square of slider / 100 (feels even to the ear) |
 
@@ -68,6 +76,7 @@ A proper audio layer: one mixer (bus) with volume sliders, a four-motor drone so
 - [ ] Gate pings rise in a streak and reset after a crash.
 - [ ] Countdown ticks, GO tone, lap chime and personal-best chime play in the matching modes.
 - [ ] Each of the ten crash reasons sounds different, and a fast crash is louder than a slow bump.
+- [ ] In Crown chase: the free crown can be found by ear, claim, loss, steal by others, drop and return each sound different, the heartbeat speeds up near the end of a hold, and the proximity pulse speeds up as a chaser closes in.
 - [ ] Low-battery beeps speed up as charge drops and stop when empty.
 - [ ] No console errors where audio is blocked.
 
@@ -82,16 +91,19 @@ A proper audio layer: one mixer (bus) with volume sliders, a four-motor drone so
 | 5 | Unit: audio settings | Bad values clamped, missing keys default, round trip | Unit |
 | 6 | Unit: director | Gate, lap, best lap, countdown, battery events fire once; streak resets on crash | Unit |
 | 7 | Unit: crash volume and profiles | Slow bumps quiet but audible, hard crashes full; every crash reason has a profile and none is left over | Unit |
-| 8 | Manual: fly, bank, dive, change camera | See the acceptance criteria | Manual |
+| 8 | Unit: Crown cues (model and director) | Beacon loudness and pan, heartbeat and pulse rates, one event per change of holder, nothing on the first update | Unit |
+| 9 | Manual: fly, bank, dive, change camera | See the acceptance criteria | Manual |
 
 ## Verification and known gaps
 
+- Crown chase sounds: rendered offline in stereo: each sting is audible and distinct, the beacon is louder in the right ear when panned right and the left when panned left, and silent with no beacon. A two-browser Crown chase room with sound on ran with no console or page errors.
 - Crash sounds: rendered offline in a browser (an `OfflineAudioContext` standing in for the real one): all ten reasons produce sound, they differ in loudness and pitch (building and factory lowest, water and tree noisiest), a 3 m/s bump is about half as loud as a 20 m/s crash, no errors.
 - Verified: 506 tests (model, settings, director). In headless Chrome with a measuring analyser on the limiter: the menu is silent, free flight and time trial produce a signal, the context runs, and there are no console errors.
 - Headless browsers have no audio output, so only logic and absence of errors can be tested here. Every tone value is a first guess and needs ears: please listen and tell me what to change.
-- Not in these parts: Crown chase audio, 3D positioned sound and Doppler for other pilots, per-map ambience (parts 4 to 6 of the plan).
+- Not in these parts: 3D positioned sound and Doppler for other pilots, per-map ambience (parts 4 to 6 of the plan).
 
 ## Changelog
 
 - 2026-11-15: Created. Part 1 (bus, four motors, prop wash, wind, gate, countdown, lap and battery sounds, sliders).
 - 2026-11-15: Part 2: crash sounds per surface, with impact speed deciding loudness. Positional sound for other pilots waits for the seat camera (the user is adding a third-person camera much closer to the drone than chase).
+- 2026-11-15: Part 3: Crown chase sounds (beacon shimmer with pan and distance, claim, loss, steal, drop and return stings, heartbeat, proximity pulse). The beacon pans by the drone's heading, not the camera, so it needs no change for the future seat camera.

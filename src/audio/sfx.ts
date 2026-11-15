@@ -9,7 +9,14 @@ export type SoundEvent =
   | { type: 'go' }
   | { type: 'lap'; isBest: boolean }
   | { type: 'batteryBeep' }
-  | { type: 'crash'; reason: CrashSoundId; speedMps: number };
+  | { type: 'crash'; reason: CrashSoundId; speedMps: number }
+  | { type: 'crownClaimed' }
+  | { type: 'crownLost' }
+  | { type: 'crownOther' }
+  | { type: 'crownDropped' }
+  | { type: 'crownBack' }
+  | { type: 'heartbeat' }
+  | { type: 'crownPulse'; isKing: boolean };
 
 /** Plays one-shot sounds on the Effects bus: short enveloped tones, no samples. */
 export class Sfx {
@@ -32,7 +39,28 @@ export class Sfx {
       }
       case 'batteryBeep': this.tone(AUDIO.batteryBeep.hz, 0, AUDIO.batteryBeep.beepS, AUDIO.batteryBeep.volume, 'square'); break;
       case 'crash': this.crash(event.reason, event.speedMps); break;
+      case 'crownClaimed': this.notes(AUDIO.crown.claim, 'triangle'); break;
+      case 'crownLost': this.notes(AUDIO.crown.lost, 'sawtooth'); break;
+      case 'crownOther': this.tone(AUDIO.crown.other.hz, 0, AUDIO.crown.other.durationS, AUDIO.crown.other.volume, 'sine'); break;
+      case 'crownDropped': this.sweep(AUDIO.crown.dropped.fromHz, AUDIO.crown.dropped.toHz, 0, AUDIO.crown.dropped.durationS, AUDIO.crown.dropped.volume, 'triangle'); break;
+      case 'crownBack': this.notes(AUDIO.crown.back, 'sine'); break;
+      case 'heartbeat': {
+        const h = AUDIO.crown.heartbeat;
+        this.sweep(h.thumpHz * 1.5, h.thumpHz * 0.7, 0, h.thumpS, h.volume, 'sine');
+        this.sweep(h.thumpHz * 1.3, h.thumpHz * 0.6, h.secondDelayS, h.thumpS, h.volume * 0.7, 'sine');
+        break;
+      }
+      case 'crownPulse': {
+        const p = AUDIO.crown.pulse;
+        this.tone(event.isKing ? p.kingHz : p.chaserHz, 0, p.durationS, p.volume, event.isKing ? 'square' : 'sine');
+        break;
+      }
     }
+  }
+
+  /** A run of notes, one after the other. */
+  private notes(spec: { notesHz: readonly number[]; gapS: number; noteS: number; volume: number }, type: OscillatorType): void {
+    for (const [i, hz] of spec.notesHz.entries()) this.tone(hz, i * spec.gapS, spec.noteS, spec.volume, type);
   }
 
   /** A tone with a 5 ms attack and an exponential fade, `delayS` from now. */

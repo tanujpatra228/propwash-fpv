@@ -694,6 +694,18 @@ export const AUDIO = {
       rock: { thumpHz: 80, thumpS: 0.25, thumpVolume: 0.65, noiseHz: 4200, noiseGlideToHz: 0, noiseQ: 0.8, noiseS: 0.12, noiseVolume: 0.5, ringsHz: [], ringS: 0, ringVolume: 0, extra: 'none' },
     } satisfies Record<CrashSoundId, CrashProfile>,
   },
+  /** Crown chase. */
+  crown: {
+    beacon: { hzA: 1568, hzB: 1975, shimmerHz: 5, rangeM: 220, maxVolume: 0.09 },
+    claim: { notesHz: [523, 659, 784, 1047], gapS: 0.07, noteS: 0.35, volume: 0.3 },
+    lost: { notesHz: [392, 330, 262], gapS: 0.12, noteS: 0.35, volume: 0.28 },
+    other: { hz: 880, durationS: 0.18, volume: 0.22 },
+    dropped: { fromHz: 700, toHz: 180, durationS: 0.5, volume: 0.35 },
+    back: { notesHz: [1319, 1760], gapS: 0.09, noteS: 0.3, volume: 0.2 },
+    heartbeat: { slowIntervalS: 1, fastIntervalS: 0.38, thumpHz: 62, thumpS: 0.14, secondDelayS: 0.16, volume: 0.45 },
+    /** The pulse starts when a chaser is this close to touching (0 far, 1 touching). */
+    pulse: { startThreat01: 0.25, slowIntervalS: 0.8, fastIntervalS: 0.12, kingHz: 940, chaserHz: 560, durationS: 0.06, volume: 0.36 },
+  },
   batteryBeep: { hz: 2800, beepS: 0.06, volume: 0.18, slowIntervalS: 1.2, fastIntervalS: 0.25 },
 } as const;
 

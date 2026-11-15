@@ -4,7 +4,7 @@ import type { PoseFields, ResultRow, RoomRules, RosterEntry, ServerMessage } fro
 import { ordinal, type StandingRow } from '../../ui/standings-panel';
 import { gridPose } from '../grid';
 import type { Pose } from '../respawn';
-import type { GameMode, ModeFrame, ModeHost, ModeHud, PilotMarker } from './mode';
+import type { GameMode, ModeAudio, ModeFrame, ModeHost, ModeHud, PilotMarker } from './mode';
 import { quantisePose } from './pose-report';
 
 export type CrownUpdate = Extract<ServerMessage, { t: 'crown' }>;
@@ -41,6 +41,8 @@ function clock(ms: number): string {
 export class LiveCrown implements GameMode {
   readonly id = 'crown' as const;
   readonly drainsBattery = false;
+  /** What the sound needs: refreshed every frame. */
+  readonly audio: ModeAudio = { myId: '', holderId: '', holdLeftMs: 0, threatId: '', threat01: 0, beacon: null, isRunning: false };
   readonly hud: ModeHud = { modeLabel: 'Crown chase', hint: FREE_HINT, race: null, countdown: '', swapProgress01: 0, lesson: null, standings: [], others: [], ghostLabel: '' };
   private state: State = 'countdown';
   private countdownLeftS: number = ROOMS.countdownMs / 1000;
@@ -159,6 +161,14 @@ export class LiveCrown implements GameMode {
       if (name === undefined) return [];
       return [{ name: s.id === crown.holderId ? `♛ ${name}` : name, isMe: s.id === myId, finishedPlace: 0, lap: 0, detail: `${Math.floor(s.points)} s` }];
     });
+    const a = this.audio;
+    a.myId = myId;
+    a.holderId = crown.holderId;
+    a.holdLeftMs = crown.holdLeftMs;
+    a.threatId = crown.threatId;
+    a.threat01 = crown.threat01;
+    a.beacon = isCrownFree ? this.crownMarker : null;
+    a.isRunning = this.state === 'running';
     if (this.state === 'over') return;
     this.hud.hint = this.hint();
   }
