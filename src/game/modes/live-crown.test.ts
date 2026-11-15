@@ -9,7 +9,7 @@ const roster: RosterEntry[] = [
   { id: 'bea', name: 'Bea', isReady: true, slot: 0, isConnected: true, isOnMap: true },
 ];
 const update = (holderId: string, threatId = '', threat01 = 0): CrownUpdate => ({
-  t: 'crown', holderId, threatId, threat01, remainingMs: 95_000,
+  t: 'crown', holderId, threatId, threat01, remainingMs: 95_000, holdLeftMs: holderId === '' ? 0 : 20_000, respawnLeftMs: 0,
   scores: [{ id: 'bea', points: 40.6 }, { id: 'me', points: 12 }],
 });
 
@@ -65,7 +65,29 @@ describe('LiveCrown', () => {
     expect(mode.hud.hint).toMatch(/Touch the king/);
     state.crown = update('bea');
     mode.update(0.01, frame);
-    expect(mode.hud.hint).toMatch(/Touch the king to take the crown/);
+    expect(mode.hud.hint).toMatch(/Take the crown from the king. It drops in 20 s/);
+  });
+  it('points to the beacon while the crown is free, with a countdown while it respawns, and marks it on the minimap', () => {
+    const { mode, state } = setup();
+    mode.onGo();
+    state.crown = { ...update(''), respawnLeftMs: 3200 };
+    mode.update(0.01, frame);
+    expect(mode.hud.hint).toMatch(/returns in 4/);
+    expect(mode.hud.others).toHaveLength(0);
+    state.crown = update('');
+    mode.update(0.01, frame);
+    expect(mode.hud.hint).toMatch(/gold beacon/);
+    expect(mode.hud.others.map((o) => o.name)).toEqual(['Crown']);
+  });
+  it('tells the king how long the hold has left, and says when the crown drops', () => {
+    const { mode, state, banners } = setup();
+    mode.onGo();
+    mode.onCrown(update('me'));
+    state.crown = update('me');
+    mode.update(0.01, frame);
+    expect(mode.hud.hint).toMatch(/20 s left on the crown/);
+    mode.onCrown({ ...update(''), respawnLeftMs: 5000 });
+    expect(banners).toEqual(['Time is up']);
   });
   it('flashes a banner when the crown changes hands, and not for the first king', () => {
     const { mode, banners } = setup();

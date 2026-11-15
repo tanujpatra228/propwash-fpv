@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { CROWN, ROOMS, TRACK, WORLD } from '../config';
+import { CROWN, ROOMS, TRACK, TRACK_DEFS, WORLD } from '../config';
 import { EVERYONE, Room, type Step } from './room-logic';
 
 const GATES = TRACK.gateCount;
@@ -356,30 +356,35 @@ describe('crown chase', () => {
     send(room, 'host', { t: 'start' }, 10);
     expect(send(room, 'host', { t: 'mode', mode: 'race' }, 11).out).toHaveLength(0);
   });
-  it('gives the crown to someone at GO and sends the crown state', () => {
+  it('starts with a free crown at GO and sends the crown state', () => {
     const room = lobby(['host', 'guest']);
     send(room, 'host', { t: 'mode', mode: 'crown' }, 5);
     send(room, 'guest', { t: 'ready', isReady: true }, 6);
     send(room, 'host', { t: 'start' }, 1000);
     const go = room.tick(1000 + ROOMS.countdownMs);
     const crown = go.out.map((o) => o.message).find((m) => m.t === 'crown');
-    expect(crown?.t === 'crown' && ['host', 'guest']).toContain(crown?.t === 'crown' ? crown.holderId : '');
+    expect(crown?.t === 'crown' && crown.holderId).toBe('');
     expect(crown?.t === 'crown' && crown.remainingMs).toBe(CROWN.matchMs);
   });
   it('scores the king, lets a chaser dethrone by touching after the protection, and ranks by points', () => {
     const { room, goMs } = crownMatch();
-    const first = room.snapshot().crown?.holderId ?? '';
-    const chaser = first === 'host' ? 'guest' : 'host';
-    let t = goMs;
+    const [sx = 0, sy = 0, sz = 0] = TRACK_DEFS.valley.crownSpawn;
+    const first = 'host';
+    const chaser = 'guest';
+    // The host flies to the crown point and claims the free crown.
+    send(room, first, pose(sx * 100, sy * 100, sz * 100), goMs);
+    send(room, chaser, pose(100_000), goMs);
+    expect(room.snapshot().crown?.holderId).toBe(first);
+    let t = goMs + 100;
     let stolen = false;
     for (; t < goMs + CROWN.protectMs + 2000; t += 100) {
-      const steps = [send(room, first, pose(0), t), send(room, chaser, pose(100), t)]; // the chaser is touching, 1 m away
+      const steps = [send(room, first, pose(sx * 100, sy * 100, sz * 100), t), send(room, chaser, pose(sx * 100 + 100, sy * 100, sz * 100), t)]; // the chaser is touching, 1 m away
       if (steps.some((s) => s.out.some((o) => o.message.t === 'crown' && o.message.holderId === chaser))) stolen = true;
     }
     expect(stolen).toBe(true);
     // Run out the match, with the pilots far apart so the crown stays put.
     for (; t < goMs + CROWN.matchMs; t += 1000) {
-      send(room, first, pose(0), t);
+      send(room, first, pose(sx * 100), t);
       send(room, chaser, pose(100_000), t);
     }
     const end = room.tick(goMs + CROWN.matchMs);
@@ -408,8 +413,9 @@ describe('crown chase', () => {
   });
   it('survives hibernation in the middle of a match', () => {
     const { room, goMs } = crownMatch();
-    const first = room.snapshot().crown?.holderId ?? '';
-    send(room, first, pose(0), goMs + 100);
+    const first = 'host';
+    const [sx = 0, sy = 0, sz = 0] = TRACK_DEFS.valley.crownSpawn;
+    send(room, first, pose(sx * 100, sy * 100, sz * 100), goMs + 100);
     const copy = Room.restore(JSON.parse(JSON.stringify(room.snapshot())));
     expect(copy.getPhase()).toBe('racing');
     expect(copy.nextWakeMs()).toBe(goMs + CROWN.matchMs);

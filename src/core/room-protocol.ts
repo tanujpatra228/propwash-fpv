@@ -79,7 +79,7 @@ export interface ResultRow {
 export type ServerMessage =
   | { t: 'welcome'; you: string; code: string }
   | { t: 'room'; phase: RoomPhase; mode: RoomMode; track: TrackId; rules: RoomRules; hostId: string; laps: number; pilots: RosterEntry[] }
-  | { t: 'crown'; holderId: string; scores: CrownScoreEntry[]; threatId: string; threat01: number; remainingMs: number }
+  | { t: 'crown'; holderId: string; scores: CrownScoreEntry[]; threatId: string; threat01: number; remainingMs: number; holdLeftMs: number; respawnLeftMs: number }
   | { t: 'countdown'; startsInMs: number }
   | { t: 'go' }
   | { t: 'chat'; from: string; text: string }

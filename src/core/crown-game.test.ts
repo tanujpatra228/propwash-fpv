@@ -3,11 +3,12 @@ import { CROWN } from '../config';
 import { CrownGame } from './crown-game';
 
 const PROTECT = CROWN.protectMs;
+const SPAWN = [0, 10, 0] as const;
 
-/** A match started at t = 0: the king at the origin (10 m up), a chaser and a third pilot placed by the caller. */
+/** A match started at t = 0: the king stands on the crown point (the origin, 10 m up) and takes the crown; a chaser and a third pilot are placed by the caller. */
 function match(): CrownGame {
   const g = new CrownGame();
-  g.start(['king', 'chaser', 'third'], 'king', 0);
+  g.start(['king', 'chaser', 'third'], SPAWN, 0);
   place(g, 0, { king: [0, 0], chaser: [500, 0], third: [900, 0] });
   return g;
 }
@@ -35,10 +36,77 @@ describe('CrownGame scoring', () => {
   });
   it('never scores past the end of the match', () => {
     const g = new CrownGame();
-    g.start(['a', 'b'], 'a', 0);
-    g.advance(CROWN.matchMs + 60_000);
-    expect(g.scores()[0]?.points).toBeCloseTo(CROWN.matchMs / 1000, 5);
+    g.start(['a', 'b'], SPAWN, 0);
     expect(g.isOver(CROWN.matchMs)).toBe(true);
+    g.setPose('a', 0, 10, 0, 0);
+    g.advance(0);
+    for (let t = 0; t <= CROWN.matchMs + 60_000; t += 1000) {
+      g.setPose('a', 0, 10, 0, t);
+      g.advance(t);
+    }
+    expect(g.scores()[0]?.points).toBeLessThanOrEqual(CROWN.matchMs / 1000);
+  });
+});
+
+describe('CrownGame free crown and the hold limit', () => {
+  const FAR: Record<string, [number, number]> = { king: [300, 0], chaser: [500, 0], third: [900, 0] };
+  const fresh = (): CrownGame => {
+    const g = new CrownGame();
+    g.start(['king', 'chaser', 'third'], SPAWN, 0);
+    run(g, 0, 2000, () => FAR);
+    return g;
+  };
+  it('starts free: nobody wears the crown until someone reaches the crown point', () => {
+    const g = fresh();
+    expect(g.holder).toBe('');
+    expect(g.scores().every((s) => s.points === 0)).toBe(true);
+  });
+  it('the first pilot to reach the crown point claims it, and the closest one wins a tie', () => {
+    const g = fresh();
+    place(g, 2100, { king: [CROWN.claimRangeM - 1, 0], chaser: [1, 0], third: [900, 0] });
+    expect(g.holder).toBe('chaser');
+  });
+  it('a pilot just outside claim range does not claim it', () => {
+    const g = fresh();
+    place(g, 2100, { king: [CROWN.claimRangeM + 2, 0], chaser: [500, 0], third: [900, 0] });
+    expect(g.holder).toBe('');
+  });
+  it('the crown drops after the hold limit and reappears after the respawn delay', () => {
+    const g = match();
+    const away = { king: [200, 0], chaser: [500, 0], third: [900, 0] } as Record<string, [number, number]>;
+    run(g, 100, CROWN.holdMaxMs - 100, () => away);
+    expect(g.holder).toBe('king');
+    expect(g.holdLeftMs(CROWN.holdMaxMs - 100)).toBe(100);
+    run(g, CROWN.holdMaxMs, CROWN.holdMaxMs + 100, () => away);
+    expect(g.holder).toBe('');
+    expect(g.respawnLeftMs(CROWN.holdMaxMs + 100)).toBeGreaterThan(0);
+    // A pilot waiting at the crown point cannot take it until it respawns.
+    const waiting = { king: [200, 0], chaser: [0, 0], third: [900, 0] } as Record<string, [number, number]>;
+    run(g, CROWN.holdMaxMs + 200, CROWN.holdMaxMs + CROWN.respawnMs - 200, () => waiting);
+    expect(g.holder).toBe('');
+    run(g, CROWN.holdMaxMs + CROWN.respawnMs - 100, CROWN.holdMaxMs + CROWN.respawnMs + 300, () => waiting);
+    expect(g.holder).toBe('chaser');
+  });
+  it('points stop exactly when the hold runs out', () => {
+    const g = match();
+    const away = { king: [200, 0], chaser: [500, 0], third: [900, 0] } as Record<string, [number, number]>;
+    run(g, 100, CROWN.holdMaxMs + 3000, () => away);
+    const king = g.scores().find((s) => s.id === 'king');
+    expect(king?.points).toBeCloseTo(CROWN.holdMaxMs / 1000, 3);
+  });
+  it('a new king gets a full hold, not what was left on the old one', () => {
+    const g = match();
+    run(g, 100, PROTECT, () => apart);
+    place(g, 20_000, { king: [0, 0], chaser: [1, 0], third: [900, 0] });
+    expect(g.holder).toBe('chaser');
+    expect(g.holdLeftMs(20_000)).toBe(CROWN.holdMaxMs);
+  });
+  it('the crown drops when its king leaves', () => {
+    const g = match();
+    run(g, 100, PROTECT, () => apart);
+    g.remove('king', PROTECT + 100);
+    expect(g.holder).toBe('');
+    expect(g.respawnLeftMs(PROTECT + 100)).toBe(CROWN.respawnMs);
   });
 });
 
@@ -124,12 +192,12 @@ describe('CrownGame warnings, leaving and saving', () => {
     expect(g.threat().id).toBe('chaser');
     expect(g.threat().progress01).toBeCloseTo(0.5, 5);
   });
-  it('passes the crown to the top scorer when the king leaves', () => {
+  it('drops the crown when the king leaves', () => {
     const g = match();
     run(g, 100, 4000, () => apart);
     const events = g.remove('king', 4000);
-    expect(events[0]).toMatchObject({ type: 'stolen', from: 'king' });
-    expect(['chaser', 'third']).toContain(g.holder);
+    expect(events[0]).toMatchObject({ type: 'dropped', from: 'king' });
+    expect(g.holder).toBe('');
     expect(g.pilotCount).toBe(2);
   });
   it('removing a chaser changes nothing about the crown', () => {

@@ -426,6 +426,8 @@ export class Room {
       threatId: threat.id,
       threat01: threat.progress01,
       remainingMs: game?.remainingMs(nowMs) ?? 0,
+      holdLeftMs: game?.holdLeftMs(nowMs) ?? 0,
+      respawnLeftMs: game?.respawnLeftMs(nowMs) ?? 0,
     };
   }
 
@@ -512,11 +514,11 @@ export class Room {
     this.broadcastRoom(step);
   }
 
-  /** The crown goes to a pilot picked from the clock, at the moment of GO. */
+  /** The crown starts free at the map's crown point at the moment of GO. */
   private startCrown(nowMs: number): void {
     const ids = this.connected().sort((a, b) => a.slot - b.slot).map((p) => p.id);
     this.crown = new CrownGame();
-    this.crown.start(ids, ids[nowMs % Math.max(1, ids.length)] ?? '', this.raceStartMs);
+    this.crown.start(ids, TRACK_DEFS[this.track].crownSpawn, this.raceStartMs);
   }
 
   /** When the server should next call `tick`, or 0 when nothing is pending. */

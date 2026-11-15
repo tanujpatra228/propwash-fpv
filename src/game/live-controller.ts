@@ -4,6 +4,7 @@ import { reloadIntoRoomMap } from '../core/track-switch';
 import { getRoomKey } from '../net/room-key';
 import { normaliseRoomCode, type PoseFields, type RosterEntry, type RoomMode, type RoomPhase, type RoomRules, type ServerMessage, type StandingEntry } from '../core/room-protocol';
 import { createCrown } from '../drone/crown';
+import { CrownBeacon } from './crown-beacon';
 import { loadPilotName, savePilotName } from '../net/pilot-identity';
 import { createRoom, RoomClient } from '../net/room-client';
 import { LobbyScreen } from '../ui/lobby-screen';
@@ -28,7 +29,7 @@ export interface LiveHost {
 }
 
 /** Owns the room connection, the lobby screen and the other pilots' drones. Feeds server events to the live race mode. */
-const NO_CROWN: CrownUpdate = { t: 'crown', holderId: '', scores: [], threatId: '', threat01: 0, remainingMs: 0 };
+const NO_CROWN: CrownUpdate = { t: 'crown', holderId: '', scores: [], threatId: '', threat01: 0, remainingMs: 0, holdLeftMs: 0, respawnLeftMs: 0 };
 
 export class LiveController implements LiveSession, CrownSession {
   private readonly lobby: LobbyScreen;
@@ -40,6 +41,7 @@ export class LiveController implements LiveSession, CrownSession {
   private roomTrack: TrackId = ACTIVE_TRACK_ID;
   rules: RoomRules = { drain: false, loadout: 'stock' };
   private readonly playerCrown = createCrown();
+  private readonly beacon: CrownBeacon;
   crown: CrownUpdate = NO_CROWN;
   private name = '';
   private code = '';
@@ -75,6 +77,9 @@ export class LiveController implements LiveSession, CrownSession {
 
   constructor(private readonly host: LiveHost) {
     this.drones = new RemoteDrones(host.scene);
+    const [bx, by, bz] = TRACK_DEFS[ACTIVE_TRACK_ID].crownSpawn;
+    this.beacon = new CrownBeacon(bx, by, bz);
+    host.scene.add(this.beacon.group);
     host.playerModel.add(this.playerCrown);
     this.lobby = new LobbyScreen({
       onCreate: () => void this.create(),
@@ -174,6 +179,7 @@ export class LiveController implements LiveSession, CrownSession {
     this.rules = { drain: false, loadout: 'stock' };
     this.crown = NO_CROWN;
     this.playerCrown.visible = false;
+    this.beacon.setVisible(false);
     this.drones.clear();
   }
 
@@ -222,6 +228,7 @@ export class LiveController implements LiveSession, CrownSession {
       this.order = [];
       this.crown = NO_CROWN;
       this.playerCrown.visible = false;
+      this.beacon.setVisible(false);
       this.drones.setKing('');
       this.lobby.showRoom({ code: this.code, myId: this.myId, hostId: m.hostId, laps: m.laps, mode: m.mode, track: m.track, rules: m.rules, pilots: m.pilots, pingMs: this.client?.pingMs ?? 0 });
     } else if (m.phase === 'countdown' && previous === 'lobby') {
@@ -238,6 +245,7 @@ export class LiveController implements LiveSession, CrownSession {
     this.crown = m;
     this.drones.setKing(m.holderId);
     this.playerCrown.visible = m.holderId !== '' && m.holderId === this.myId;
+    this.beacon.setVisible(m.holderId === '' && m.respawnLeftMs <= 0 && m.remainingMs > 0);
     this.crownMode?.onCrown(m);
   }
 
@@ -283,5 +291,6 @@ export class LiveController implements LiveSession, CrownSession {
   /** Called every frame while flying a live race. */
   update(nowMs: number, dtS: number): void {
     this.drones.update(nowMs, dtS);
+    this.beacon.update(dtS);
   }
 }
