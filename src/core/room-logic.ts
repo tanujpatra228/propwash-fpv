@@ -175,7 +175,9 @@ export class Room {
     if (!TRACK_IDS.some((t) => TRACK_DEFS[t].worldVersion === worldVersion)) return this.refuse(id, 'Your game version is out of date. Reload the page.');
     const name = checkPilotName(rawName);
     if (!name.ok) return this.refuse(id, name.reason);
-    const returning = key === '' ? undefined : [...this.pilots.values()].find((p) => p.key === key && !p.isConnected && p.holdUntilMs > nowMs);
+    // The same tab coming back (after reloading into another map or a refresh) takes over its old place, even if the old
+    // connection has not been noticed as closed yet, so a reload can never leave a second copy of the pilot behind.
+    const returning = key === '' ? undefined : [...this.pilots.values()].find((p) => p.key === key && (p.isConnected || p.holdUntilMs > nowMs));
     if (returning && this.phase === 'lobby') return this.revive(returning, worldVersion, name.name);
     const existing = this.pilots.get(id);
     if (existing?.isConnected) return this.refuse(id, 'You are already in this room in another tab.');
@@ -195,7 +197,7 @@ export class Room {
     return step;
   }
 
-  /** A pilot who held their place comes back (after reloading into another map). */
+  /** A pilot comes back (after reloading into another map) and takes over their place. The server closes any old connection. */
   private revive(pilot: Pilot, worldVersion: number, name: string): Step {
     pilot.isConnected = true;
     pilot.holdUntilMs = 0;
