@@ -713,6 +713,31 @@ export const AUDIO = {
       rock: { thumpHz: 80, thumpS: 0.25, thumpVolume: 0.65, noiseHz: 4200, noiseGlideToHz: 0, noiseQ: 0.8, noiseS: 0.12, noiseVolume: 0.5, ringsHz: [], ringS: 0, ringVolume: 0, extra: 'none', hasEarRinging: true },
     } satisfies Record<CrashSoundId, CrashProfile>,
   },
+  /** Other pilots' motors in live rooms, placed in 3D around the camera. */
+  remote: {
+    speedOfSoundMps: 343,
+    dopplerMin: 0.8,
+    dopplerMax: 1.25,
+    /** Silent beyond this distance (the voice is also released to save work). */
+    rangeM: 250,
+    refDistanceM: 4,
+    rolloff: 1.6,
+    /** Volume at the reference distance: base plus per unit of estimated throttle. */
+    volumeBase: 0.12,
+    volumePerThrottle: 0.2,
+    /** Air takes the highs off with distance: the filter cutoff scale is 1 / (1 + distance / this). */
+    absorptionDistanceM: 60,
+    /** Estimated throttle of a drone we only see move: a base, plus speed and climb terms. */
+    throttleBase: 0.35,
+    throttlePerSpeedRatio: 0.3,
+    throttlePerClimbRatio: 0.35,
+    fullSpeedMps: 20,
+    fullClimbMps: 6,
+    /** The two sawtooths are this far apart, so the motor has a body. */
+    detune: 1.012,
+    /** A voice for a pilot not seen for this long is removed. */
+    forgetAfterS: 0.5,
+  },
   /** Crown chase. */
   crown: {
     beacon: { hzA: 1568, hzB: 1975, shimmerHz: 5, rangeM: 220, maxVolume: 0.09 },

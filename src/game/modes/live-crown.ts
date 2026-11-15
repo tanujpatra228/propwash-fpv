@@ -51,7 +51,7 @@ export class LiveCrown implements GameMode {
   private lastHolder = '';
   private hasSeenCrown = false;
   /** The crown on the minimap and as a name tag while it lies free at its point. */
-  private readonly crownMarker: PilotMarker = { id: 'crown', name: 'Crown', color: 0xffc83a, isKing: true, x: 0, y: 0, z: 0 };
+  private readonly crownMarker: PilotMarker = { id: 'crown', name: 'Crown', color: 0xffc83a, isKing: true, hasMotor: false, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0 };
   private readonly pose: PoseFields = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0, roll: 0 };
 
   constructor(

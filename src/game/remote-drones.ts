@@ -1,5 +1,6 @@
 import { Euler, Quaternion, type Scene } from 'three';
 import { ROOMS } from '../config';
+import { damp } from '../core/math';
 import type { PoseFields, RosterEntry } from '../core/room-protocol';
 import { createCrown } from '../drone/crown';
 import { createDroneModel, type DroneModel } from '../drone/drone-model';
@@ -8,11 +9,15 @@ import type { PilotMarker } from './modes/mode';
 
 const euler = new Euler(0, 0, 0, 'YXZ');
 const PROP_THROTTLE = 0.5;
+/** The drone's velocity is read from how it moved between frames, smoothed so network jitter does not warble the Doppler. */
+const VELOCITY_SMOOTHING_PER_S = 10;
 
 interface Remote {
   model: DroneModel;
   buffer: SnapshotBuffer;
   marker: PilotMarker;
+  /** False until the pilot has been seen once, so the first frame does not read as a jump. */
+  hasPrevious: boolean;
 }
 
 /** The other pilots' drones in a live race: created from the roster, moved from smoothed network poses. */
@@ -36,7 +41,7 @@ export class RemoteDrones {
       const model = createDroneModel({ color });
       model.group.visible = false;
       this.scene.add(model.group);
-      this.remotes.set(pilot.id, { model, buffer: new SnapshotBuffer(), marker: { id: pilot.id, name: pilot.name, color, isKing: false, x: 0, y: 0, z: 0 } });
+      this.remotes.set(pilot.id, { model, buffer: new SnapshotBuffer(), marker: { id: pilot.id, name: pilot.name, color, isKing: false, hasMotor: true, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0 }, hasPrevious: false });
     }
   }
 
@@ -64,10 +69,22 @@ export class RemoteDrones {
     const s = this.sampled;
     this.visible.length = 0;
     this.crown.rotation.y += dtS * 1.5;
-    for (const { model, buffer, marker } of this.remotes.values()) {
+    for (const remote of this.remotes.values()) {
+      const { model, buffer, marker } = remote;
       const isShown = buffer.sample(nowMs, s);
       model.group.visible = isShown;
-      if (!isShown) continue;
+      if (!isShown) {
+        remote.hasPrevious = false;
+        continue;
+      }
+      if (remote.hasPrevious && dtS > 0) {
+        marker.vx = damp(marker.vx, (s.x - marker.x) / dtS, VELOCITY_SMOOTHING_PER_S, dtS);
+        marker.vy = damp(marker.vy, (s.y - marker.y) / dtS, VELOCITY_SMOOTHING_PER_S, dtS);
+        marker.vz = damp(marker.vz, (s.z - marker.z) / dtS, VELOCITY_SMOOTHING_PER_S, dtS);
+      } else {
+        marker.vx = marker.vy = marker.vz = 0;
+      }
+      remote.hasPrevious = true;
       marker.x = s.x;
       marker.y = s.y;
       marker.z = s.z;
@@ -82,9 +99,10 @@ export class RemoteDrones {
   /** Forgets old poses so a new race starts clean, and hides everything. */
   reset(): void {
     this.visible.length = 0;
-    for (const { model, buffer } of this.remotes.values()) {
-      buffer.clear();
-      model.group.visible = false;
+    for (const remote of this.remotes.values()) {
+      remote.buffer.clear();
+      remote.model.group.visible = false;
+      remote.hasPrevious = false;
     }
   }
 

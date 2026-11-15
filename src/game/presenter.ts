@@ -1,4 +1,6 @@
 import { Quaternion, Vector3 } from 'three';
+import type { RemoteSoundSource } from '../audio/remote-voice';
+import { ROOMS } from '../config';
 import type { PilotSettings } from '../core/pilot-settings';
 import type { SoundSystem } from '../audio/sound-system';
 import type { GameRenderer } from '../core/renderer';
@@ -40,6 +42,10 @@ export class Presenter {
   private readonly ghostQuaternion = new Quaternion();
   private readonly director = new AudioDirector();
   private readonly crownAudio = new CrownAudioDirector();
+  private readonly remoteSources: RemoteSoundSource[] = [];
+  private readonly remotePool: RemoteSoundSource[] = Array.from({ length: ROOMS.maxPilots }, () => ({ id: '', position: { x: 0, y: 0, z: 0 }, velocity: { x: 0, y: 0, z: 0 } }));
+  private readonly listenerForward = new Vector3();
+  private readonly listenerUp = new Vector3();
 
   constructor(
     private readonly parts: {
@@ -90,6 +96,7 @@ export class Presenter {
       isLow: f.battery.isLow, isEmpty: f.battery.isEmpty, isCrashed, isActive: true,
     })) sound.play(event);
     this.playCrownAudio(f);
+    this.playRemoteMotors(f);
     hud.update({
       flight,
       battery: f.battery,
@@ -120,6 +127,28 @@ export class Presenter {
     sound.updateBeacon(f.crashRemainingS > 0 ? null : result.beacon);
   }
 
+  /** Other pilots' motors, heard from the camera: its position and facing are the listener's ears, the player's drone speed is the listener's motion. */
+  private playRemoteMotors(f: PresentFrame): void {
+    const { sound, rig } = this.parts;
+    this.remoteSources.length = 0;
+    for (const marker of f.mode.hud.others) {
+      const slot = this.remotePool[this.remoteSources.length];
+      if (!marker.hasMotor || !slot) continue;
+      slot.id = marker.id;
+      slot.position.x = marker.x;
+      slot.position.y = marker.y;
+      slot.position.z = marker.z;
+      slot.velocity.x = marker.vx;
+      slot.velocity.y = marker.vy;
+      slot.velocity.z = marker.vz;
+      this.remoteSources.push(slot);
+    }
+    const { camera } = rig;
+    camera.getWorldDirection(this.listenerForward);
+    this.listenerUp.set(0, 1, 0).applyQuaternion(camera.quaternion);
+    sound.updateRemotes(this.remoteSources, { position: camera.position, forward: this.listenerForward, up: this.listenerUp, velocity: f.flight.velocity }, f.dtS);
+  }
+
   /** The main menu's background: the AI flyby filmed by the director, no pilot, no HUD, no sound. */
   presentMenu(dtS: number, timeS: number, director: MenuDirector, flight: FlightModel): void {
     const { renderer, rig, sky, scenery, boundary, sound } = this.parts;
@@ -135,5 +164,7 @@ export class Presenter {
     this.director.reset();
     this.crownAudio.reset();
     sound.updateBeacon(null);
+    this.remoteSources.length = 0;
+    sound.updateRemotes(this.remoteSources, { position: rig.camera.position, forward: this.listenerForward, up: this.listenerUp, velocity: flight.velocity }, dtS);
   }
 }

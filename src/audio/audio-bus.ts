@@ -43,6 +43,21 @@ export class AudioBus {
     this.ambience.gain.setTargetAtTime(levelToGain(levels.ambience), now, AUDIO.smoothingS);
   }
 
+  /** Points the Web Audio listener (the ears) at the camera: where it is and which way it faces and leans. */
+  setListener(position: { x: number; y: number; z: number }, forward: { x: number; y: number; z: number }, up: { x: number; y: number; z: number }): void {
+    const l = this.context.listener;
+    const now = this.context.currentTime;
+    l.positionX.setTargetAtTime(position.x, now, 0.03);
+    l.positionY.setTargetAtTime(position.y, now, 0.03);
+    l.positionZ.setTargetAtTime(position.z, now, 0.03);
+    l.forwardX.setTargetAtTime(forward.x, now, 0.03);
+    l.forwardY.setTargetAtTime(forward.y, now, 0.03);
+    l.forwardZ.setTargetAtTime(forward.z, now, 0.03);
+    l.upX.setTargetAtTime(up.x, now, 0.03);
+    l.upY.setTargetAtTime(up.y, now, 0.03);
+    l.upZ.setTargetAtTime(up.z, now, 0.03);
+  }
+
   /** Two seconds of white-ish noise, the same every time (no `Math.random`), for looping wind and wash. */
   createNoise(): AudioBufferSourceNode {
     const source = this.context.createBufferSource();
