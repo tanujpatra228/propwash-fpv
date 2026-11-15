@@ -11,6 +11,7 @@ import type { Scenery } from '../world/scenery';
 import type { SkyRig } from '../world/sky';
 import type { CameraRig } from './camera-rig';
 import { AudioDirector } from './audio-director';
+import { CrownAudioDirector } from './crown-audio-director';
 import { frameLens, lensFor } from './fpv-static';
 import type { HudBridge } from './hud-bridge';
 import type { LapTracker } from './lap-tracker';
@@ -38,6 +39,7 @@ export class Presenter {
   private readonly ghostPosition = new Vector3();
   private readonly ghostQuaternion = new Quaternion();
   private readonly director = new AudioDirector();
+  private readonly crownAudio = new CrownAudioDirector();
 
   constructor(
     private readonly parts: {
@@ -87,6 +89,7 @@ export class Presenter {
       isLastLapBest: f.tracker.lastLapS !== null && f.tracker.lastLapS === f.tracker.best?.lapTimeS, charge01: f.battery.charge01,
       isLow: f.battery.isLow, isEmpty: f.battery.isEmpty, isCrashed, isActive: true,
     })) sound.play(event);
+    this.playCrownAudio(f);
     hud.update({
       flight,
       battery: f.battery,
@@ -102,6 +105,21 @@ export class Presenter {
     });
   }
 
+  /** Crown chase cues: stingers, heartbeat, proximity pulse and the free crown's shimmer. */
+  private playCrownAudio(f: PresentFrame): void {
+    const { sound } = this.parts;
+    const audio = f.mode.audio;
+    if (!audio) {
+      this.crownAudio.reset();
+      sound.updateBeacon(null);
+      return;
+    }
+    const { position, yawRad } = f.flight;
+    const result = this.crownAudio.update({ dtS: f.dtS, audio, x: position.x, y: position.y, z: position.z, yawRad });
+    for (const event of result.events) sound.play(event);
+    sound.updateBeacon(f.crashRemainingS > 0 ? null : result.beacon);
+  }
+
   /** The main menu's background: the AI flyby filmed by the director, no pilot, no HUD, no sound. */
   presentMenu(dtS: number, timeS: number, director: MenuDirector, flight: FlightModel): void {
     const { renderer, rig, sky, scenery, boundary, sound } = this.parts;
@@ -115,5 +133,7 @@ export class Presenter {
     renderer.setLens(lensFor(false, false, 0));
     sound.update({ camera: rig.currentMode, dtS, isActive: false, areMotorsCut: false, throttle01: 0, speedMps: 0, sinkRateMps: 0, pitchRad: 0, rollRad: 0, yawRateRadps: 0 });
     this.director.reset();
+    this.crownAudio.reset();
+    sound.updateBeacon(null);
   }
 }

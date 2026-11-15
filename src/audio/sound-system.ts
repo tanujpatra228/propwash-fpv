@@ -2,7 +2,8 @@ import { AUDIO, type SoundCameraId } from '../config';
 import { loadAudioLevels, saveAudioLevels, type AudioLevels } from '../core/audio-settings';
 import { loadJson, saveJson } from '../core/storage';
 import { AudioBus } from './audio-bus';
-import { cameraMix, motorLoads, washLevel } from './motor-model';
+import { BeaconVoice } from './beacon-voice';
+import { cameraMix, motorLoads, washLevel, type BeaconCue } from './motor-model';
 import { MotorVoice } from './motor-voice';
 import { Sfx, type SoundEvent } from './sfx';
 import { WindVoice } from './wind-voice';
@@ -32,6 +33,7 @@ interface Graph {
   motors: MotorVoice;
   wind: WindVoice;
   sfx: Sfx;
+  beacon: BeaconVoice;
 }
 
 /**
@@ -93,6 +95,12 @@ export class SoundSystem {
     if (this.isOn) this.graph?.sfx.play(event);
   }
 
+  /** The free crown's shimmer (null when there is none). Call every frame in Crown chase. */
+  updateBeacon(cue: BeaconCue | null): void {
+    const g = this.graph;
+    if (g) g.beacon.update(g.bus.context, cue, this.isOn);
+  }
+
   /** Call every frame. */
   update(f: SoundFrame): void {
     const g = this.graph;
@@ -117,7 +125,7 @@ export class SoundSystem {
     if (this.isUnavailable) return false;
     try {
       const bus = new AudioBus(this.levels);
-      this.graph = { bus, motors: new MotorVoice(bus), wind: new WindVoice(bus), sfx: new Sfx(bus) };
+      this.graph = { bus, motors: new MotorVoice(bus), wind: new WindVoice(bus), sfx: new Sfx(bus), beacon: new BeaconVoice(bus) };
       return true;
     } catch (error) {
       console.warn('Sound unavailable.', error);

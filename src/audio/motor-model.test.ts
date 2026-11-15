@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { AUDIO } from '../config';
-import { batteryBeepIntervalS, cameraMix, crashIntensity, crashProfile, crashVolume, gatePitchHz, motorLoads, motorVoiceTone, washLevel, windTone, type MotorState } from './motor-model';
+import { AUDIO, CROWN } from '../config';
+import { batteryBeepIntervalS, beaconCue, cameraMix, heartbeatIntervalS, pulseIntervalS, crashIntensity, crashProfile, crashVolume, gatePitchHz, motorLoads, motorVoiceTone, washLevel, windTone, type MotorState } from './motor-model';
 
 const level: MotorState = { throttle01: 0.5, pitchRad: 0, rollRad: 0, pitchRateRadps: 0, rollRateRadps: 0, yawRateRadps: 0 };
 
@@ -118,5 +118,36 @@ describe('crash sounds', () => {
   it('buildings thud lower than rocks, and water glides down', () => {
     expect(crashProfile('building').thumpHz).toBeLessThan(crashProfile('rock').thumpHz);
     expect(crashProfile('water').noiseGlideToHz).toBeLessThan(crashProfile('water').noiseHz);
+  });
+});
+
+describe('crown cues', () => {
+  const at = { x: 0, y: 10, z: 0 };
+  it('the beacon is silent beyond its range and loudest on top of you', () => {
+    expect(beaconCue(at, 0, { x: AUDIO.crown.beacon.rangeM + 10, y: 10, z: 0 }).loudness01).toBe(0);
+    expect(beaconCue(at, 0, { x: 0, y: 10, z: 0 }).loudness01).toBe(1);
+    expect(beaconCue(at, 0, { x: 50, y: 10, z: 0 }).loudness01).toBeGreaterThan(beaconCue(at, 0, { x: 120, y: 10, z: 0 }).loudness01);
+  });
+  it('pans to the side the beacon is on, relative to where the drone faces', () => {
+    // Facing -z (yaw 0): +x is right, -x is left, ahead and behind are centred.
+    expect(beaconCue(at, 0, { x: 50, y: 10, z: 0 }).pan).toBeCloseTo(1);
+    expect(beaconCue(at, 0, { x: -50, y: 10, z: 0 }).pan).toBeCloseTo(-1);
+    expect(beaconCue(at, 0, { x: 0, y: 10, z: -50 }).pan).toBeCloseTo(0);
+    // Turned left by 90 degrees (yaw +90): now facing -x, so +x is behind and -z is on the right.
+    expect(beaconCue(at, Math.PI / 2, { x: 0, y: 10, z: -50 }).pan).toBeCloseTo(1);
+    expect(beaconCue(at, 0, at).pan).toBe(0);
+  });
+  it('the heartbeat speeds up as the hold runs out, and accelerates near the end', () => {
+    expect(heartbeatIntervalS(CROWN.holdMaxMs)).toBeCloseTo(AUDIO.crown.heartbeat.slowIntervalS);
+    expect(heartbeatIntervalS(0)).toBeCloseTo(AUDIO.crown.heartbeat.fastIntervalS);
+    const early = heartbeatIntervalS(25_000) - heartbeatIntervalS(20_000);
+    const late = heartbeatIntervalS(10_000) - heartbeatIntervalS(5000);
+    expect(late).toBeGreaterThan(early);
+  });
+  it('the pulse starts only when a chaser is close and speeds up as they near touching', () => {
+    expect(pulseIntervalS(0.1)).toBe(0);
+    expect(pulseIntervalS(AUDIO.crown.pulse.startThreat01)).toBeCloseTo(AUDIO.crown.pulse.slowIntervalS);
+    expect(pulseIntervalS(1)).toBeCloseTo(AUDIO.crown.pulse.fastIntervalS);
+    expect(pulseIntervalS(0.7)).toBeLessThan(pulseIntervalS(0.4));
   });
 });

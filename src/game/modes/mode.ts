@@ -92,9 +92,26 @@ export interface ModeFrame {
   isLanded: boolean;
 }
 
+/** What a mode tells the sound about the match, when it has anything to say (Crown chase). */
+export interface ModeAudio {
+  myId: string;
+  /** Who wears the crown, or '' when it lies free or is respawning. */
+  holderId: string;
+  holdLeftMs: number;
+  /** The nearest chaser to the king: who, and how close to touching (0 far, 1 touching). */
+  threatId: string;
+  threat01: number;
+  /** The free crown's position while it lies ready to be taken, otherwise null. */
+  beacon: { x: number; y: number; z: number } | null;
+  /** False in the countdown and after the match. */
+  isRunning: boolean;
+}
+
 export interface GameMode {
   readonly id: ModeId;
   readonly hud: ModeHud;
+  /** Sound cues for the match (only Crown chase has them). */
+  readonly audio?: ModeAudio;
   /** True while the pilot's input must be ignored (countdown, run over). */
   readonly isInputLocked: boolean;
   /** False when the battery should not drain (free flight with drain turned off). */

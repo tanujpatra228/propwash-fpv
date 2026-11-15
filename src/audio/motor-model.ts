@@ -1,4 +1,4 @@
-import { AUDIO, type CrashProfile, type CrashSoundId, type SoundCameraId } from '../config';
+import { AUDIO, CROWN, type CrashProfile, type CrashSoundId, type SoundCameraId } from '../config';
 import { clamp01 } from '../core/math';
 
 /** The drone's attitude and motion as the sound needs it. */
@@ -97,4 +97,41 @@ export function crashVolume(speedMps: number): number {
 
 export function crashProfile(reason: CrashSoundId): CrashProfile {
   return AUDIO.crash.profiles[reason];
+}
+
+/** The free crown as the pilot hears it: how loud (0..1) and which side (-1 left, 1 right). */
+export interface BeaconCue {
+  loudness01: number;
+  pan: number;
+}
+
+/**
+ * Where the beacon is from the pilot's ears. `yawRad` is the drone's heading (forward is -z at yaw 0, turning left is
+ * positive). Silent beyond the beacon's range, loudest on top of it.
+ */
+export function beaconCue(listener: { x: number; y: number; z: number }, yawRad: number, beacon: { x: number; y: number; z: number }): BeaconCue {
+  const dx = beacon.x - listener.x;
+  const dy = beacon.y - listener.y;
+  const dz = beacon.z - listener.z;
+  const distance = Math.hypot(dx, dy, dz);
+  const closeness = clamp01(1 - distance / AUDIO.crown.beacon.rangeM);
+  const horizontal = Math.hypot(dx, dz);
+  // Right of the drone is (cos yaw, -sin yaw) on the ground plane.
+  const pan = horizontal < 1e-6 ? 0 : Math.max(-1, Math.min(1, (dx * Math.cos(yawRad) - dz * Math.sin(yawRad)) / horizontal));
+  return { loudness01: closeness * closeness, pan };
+}
+
+/** Seconds between heartbeats while wearing the crown: calm at the start of the hold, racing as it runs out. */
+export function heartbeatIntervalS(holdLeftMs: number): number {
+  const { slowIntervalS, fastIntervalS } = AUDIO.crown.heartbeat;
+  const used = clamp01(1 - holdLeftMs / CROWN.holdMaxMs);
+  return slowIntervalS + (fastIntervalS - slowIntervalS) * used * used;
+}
+
+/** Seconds between proximity pulses for a chaser at `threat01` (0 far, 1 touching), or 0 when too far for a pulse. */
+export function pulseIntervalS(threat01: number): number {
+  const { startThreat01, slowIntervalS, fastIntervalS } = AUDIO.crown.pulse;
+  if (threat01 < startThreat01) return 0;
+  const t = clamp01((threat01 - startThreat01) / (1 - startThreat01));
+  return slowIntervalS + (fastIntervalS - slowIntervalS) * t;
 }
