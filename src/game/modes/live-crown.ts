@@ -1,5 +1,5 @@
 import { Vector3, type Quaternion } from 'three';
-import { CROWN, ROOMS, TRIAL } from '../../config';
+import { ACTIVE_TRACK_ID, CROWN, ROOMS, TRACK_DEFS, TRIAL } from '../../config';
 import type { PoseFields, ResultRow, RoomRules, RosterEntry, ServerMessage } from '../../core/room-protocol';
 import { ordinal, type StandingRow } from '../../ui/standings-panel';
 import { gridPose } from '../grid';
@@ -25,7 +25,12 @@ export interface CrownSession {
 
 type State = 'countdown' | 'running' | 'over';
 
-const HINT = 'Touch the king to take the crown. Hold it to score.';
+const FREE_HINT = 'Fly to the gold beacon to claim the crown.';
+const HOLD_S = CROWN.holdMaxMs / 1000;
+
+function seconds(ms: number): number {
+  return Math.max(0, Math.ceil(ms / 1000));
+}
 
 function clock(ms: number): string {
   const s = Math.max(0, Math.ceil(ms / 1000));
@@ -36,12 +41,15 @@ function clock(ms: number): string {
 export class LiveCrown implements GameMode {
   readonly id = 'crown' as const;
   readonly drainsBattery = false;
-  readonly hud: ModeHud = { modeLabel: 'Crown chase', hint: HINT, race: null, countdown: '', swapProgress01: 0, lesson: null, standings: [], others: [], ghostLabel: '' };
+  readonly hud: ModeHud = { modeLabel: 'Crown chase', hint: FREE_HINT, race: null, countdown: '', swapProgress01: 0, lesson: null, standings: [], others: [], ghostLabel: '' };
   private state: State = 'countdown';
   private countdownLeftS: number = ROOMS.countdownMs / 1000;
   private goShownLeftS = 0;
   private poseTimerS = 0;
   private lastHolder = '';
+  private hasSeenCrown = false;
+  /** The crown on the minimap and as a name tag while it lies free at its point. */
+  private readonly crownMarker: PilotMarker = { id: 'crown', name: 'Crown', color: 0xffc83a, isKing: true, x: 0, y: 0, z: 0 };
   private readonly pose: PoseFields = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0, roll: 0 };
 
   constructor(
@@ -70,6 +78,11 @@ export class LiveCrown implements GameMode {
     this.goShownLeftS = 0;
     this.poseTimerS = 0;
     this.lastHolder = '';
+    this.hasSeenCrown = false;
+    const [cx, cy, cz] = TRACK_DEFS[ACTIVE_TRACK_ID].crownSpawn;
+    this.crownMarker.x = cx;
+    this.crownMarker.y = cy;
+    this.crownMarker.z = cz;
     this.host.placeDrone(this.startPose());
     this.refreshHud();
   }
@@ -89,16 +102,20 @@ export class LiveCrown implements GameMode {
     this.goShownLeftS = TRIAL.goShownS;
   }
 
-  /** A crown update from the server. Flashes a banner when the crown changes hands. */
+  /** A crown update from the server. Flashes a banner when the crown is claimed, changes hands or drops. */
   onCrown(update: CrownUpdate): void {
     if (this.state === 'over') return;
     const holder = update.holderId;
-    if (this.lastHolder !== '' && holder !== this.lastHolder) {
+    if (this.hasSeenCrown && holder !== this.lastHolder) {
       const name = this.session.roster.find((p) => p.id === holder)?.name ?? 'A pilot';
-      if (holder === this.session.myId) this.host.flashBanner('You have the crown', `Hold it. Safe for ${CROWN.protectMs / 1000} seconds.`, 'info', 3);
-      else if (this.lastHolder === this.session.myId) this.host.flashBanner('Dethroned', `${name} took the crown. Chase them down.`, 'crash', 3);
+      if (holder === this.session.myId) this.host.flashBanner('You have the crown', `Hold it up to ${HOLD_S} seconds. Safe for ${CROWN.protectMs / 1000}.`, 'info', 3);
+      else if (holder === '') {
+        const wasMine = this.lastHolder === this.session.myId;
+        this.host.flashBanner(wasMine ? 'Time is up' : 'The crown dropped', `Back at the beacon in ${seconds(update.respawnLeftMs)} seconds.`, wasMine ? 'crash' : 'info', 3);
+      } else if (this.lastHolder === this.session.myId) this.host.flashBanner('Dethroned', `${name} took the crown. Chase them down.`, 'crash', 3);
       else this.host.flashBanner(`${name} took the crown`, '', 'info', 2);
     }
+    this.hasSeenCrown = true;
     this.lastHolder = holder;
   }
 
@@ -134,7 +151,8 @@ export class LiveCrown implements GameMode {
   private refreshHud(): void {
     const { crown, myId, roster } = this.session;
     const names = new Map(roster.map((p) => [p.id, p.name]));
-    this.hud.others = this.session.others;
+    const isCrownFree = crown.holderId === '' && crown.respawnLeftMs <= 0 && crown.remainingMs > 0;
+    this.hud.others = isCrownFree ? [...this.session.others, this.crownMarker] : this.session.others;
     this.hud.modeLabel = this.state === 'over' ? 'Crown chase' : `Crown chase · ${clock(crown.remainingMs)} left`;
     this.hud.standings = crown.scores.flatMap((s): StandingRow[] => {
       const name = names.get(s.id);
@@ -142,10 +160,16 @@ export class LiveCrown implements GameMode {
       return [{ name: s.id === crown.holderId ? `♛ ${name}` : name, isMe: s.id === myId, finishedPlace: 0, lap: 0, detail: `${Math.floor(s.points)} s` }];
     });
     if (this.state === 'over') return;
+    this.hud.hint = this.hint();
+  }
+
+  private hint(): string {
+    const { crown, myId } = this.session;
     const isClose = crown.threat01 > 0.25;
-    if (crown.holderId === myId) this.hud.hint = isClose ? 'A chaser is close! Get away!' : 'You are the king. Score every second you hold it.';
-    else if (crown.threatId === myId && isClose) this.hud.hint = 'Close! Touch the king!';
-    else this.hud.hint = HINT;
+    if (crown.holderId === '') return crown.respawnLeftMs > 0 ? `The crown returns in ${seconds(crown.respawnLeftMs)}. Get to the beacon.` : FREE_HINT;
+    if (crown.holderId === myId) return isClose ? 'A chaser is close! Get away!' : `You are the king: ${seconds(crown.holdLeftMs)} s left on the crown.`;
+    if (crown.threatId === myId && isClose) return 'Close! Touch the king!';
+    return `Take the crown from the king. It drops in ${seconds(crown.holdLeftMs)} s.`;
   }
 
   onGateCrossed(_index: number): void {

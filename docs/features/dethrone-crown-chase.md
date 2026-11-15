@@ -7,12 +7,14 @@ Last updated: 2026-11-14
 
 ## Summary
 
-A live-room game mode that is not a race. One pilot wears the crown. Everyone else tries to dethrone them by touching their drone. Every second on the crown is a point. Most points after three minutes wins. It works on every map and uses the existing rooms, lobby, name tags and minimap, so a friend can be invited with the same link.
+A live-room game mode that is not a race. The crown starts free at a point in the middle of the map. Pilots race to claim it. The king wears it for at most 30 seconds in a row, and everyone else tries to dethrone them by touching their drone. If nobody does, the crown drops, respawns at its point after 5 seconds, and the scramble starts again. Every second on the crown is a point. Most points after three minutes wins. It works on every map and uses the existing rooms, lobby, name tags and minimap, so a friend can be invited with the same link.
 
 ## Player experience
 
 - In the lobby the host picks **Race** or **Crown chase** (laps do not apply to crown chase). Everyone readies up as usual.
-- 3, 2, 1, GO. Everyone starts on the starting grid. The crown goes to a random pilot at GO.
+- 3, 2, 1, GO. Everyone starts on the starting grid. Nobody has the crown at GO: it floats free at the map's crown point.
+- **The free crown:** a big spinning gold crown with a light beam hangs at the crown point. It also shows on the minimap and as a "Crown" name tag with distance. Fly into it (within 4 m) to claim it. The closest pilot wins a tie.
+- **Hold limit:** a king keeps the crown for 30 seconds at most. The HUD hint counts the seconds down. A steal gives the new king a fresh 30 seconds. When time runs out the crown drops, a banner says so, and it is back at the crown point after 5 seconds (the beam is hidden meanwhile).
 - The king wears a gold crown above their drone, a gold name tag, and a gold dot on everyone's minimap. A king sees it on their own drone in the chase camera and gets a banner.
 - **Dethroning:** touch the king: fly into their drone. The crown changes hands at once. **Drones do not crash into each other** (they pass through); touching is only a scoring event, so a clash costs nobody a respawn.
 - **Closing in:** when a chaser is within 14 m, the king sees "A chaser is close!" and the chaser sees "Close! Touch the king!".
@@ -26,13 +28,16 @@ A live-room game mode that is not a race. One pilot wears the crown. Everyone el
 |---|---|
 | Match length | 180 s |
 | Touching distance | 1.8 m between drone centres, checked along the path each drone flew between its last two updates, so a fast pass through the king counts |
-| Protection after a steal and at the start | 3 s |
+| Protection after a steal or a claim | 3 s |
+| Longest hold in one stretch | 30 s |
+| Crown respawn delay at the crown point | 5 s |
+| Pick-up range at the crown point | 4 m, checked along the flown path |
 | Warning range | 14 m |
 | Pose older than | 1.5 s does not count (a frozen tab cannot steal or be stolen from) |
 | Points | 1 per second on the crown |
 | Players | 2 to 8, same as races |
 
-If the king leaves, the crown passes to the pilot with the most points. If only one pilot is left, the match ends and they win.
+If the king leaves, the crown drops and respawns at the crown point after the delay. If only one pilot is left, the match ends and they win.
 
 ## Server design (free-plan note)
 
@@ -54,13 +59,15 @@ If the king leaves, the crown passes to the pilot with the most points. If only 
 
 - Two pilots touching at once: the closest one takes the crown.
 - A pilot who joined late: joining during a match is refused, as for races.
-- Everyone far apart: the king keeps scoring.
+- Everyone far apart: the king keeps scoring until the 30 s hold ends, then the crown drops.
+- A pilot waiting at the crown point cannot take the crown before it respawns; the first update after the delay claims it.
 - Network lag: positions arrive ten times a second, so touching is judged on the path between two updates, not on a single snapshot.
 - Reconnecting mid-match is not supported (same as races).
 
 ## Acceptance criteria
 
 - [ ] Host can switch mode; the lobby, countdown and results work for both modes.
+- [ ] The crown starts free at the crown point, the first pilot to reach it claims it, and it drops after 30 s and respawns after 5 s.
 - [ ] Touching the king takes the crown; a near miss does not; a new king is protected for 3 s.
 - [ ] Points accrue only to the holder; results rank by points.
 - [ ] King's crown, tag and minimap marker show for everyone; the king and the chaser see their own status.
@@ -96,3 +103,4 @@ Power-ups, hitting or pushing drones, teams, a solo version against bots (later)
 ## Changelog
 
 - 2026-11-14: Created.
+- 2026-11-15: The crown starts free at a central crown point (`crownSpawn` per map in `TRACK_DEFS`, picked on the racing line so it is always flyable). 30 s hold limit, 5 s respawn, beacon, minimap marker and hints. Server messages gained `holdLeftMs` and `respawnLeftMs`. No new Cloudflare usage: the same pose-driven engine, still not persisted per step. Crown spawn points are first guesses and need a playtest on every map.

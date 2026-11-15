@@ -37,11 +37,11 @@ export function isTrackId(value: unknown): value is TrackId {
  * ghosts and best laps. `start` is gate 0's position on the ground plane. The drone cannot leave the bounds box.
  */
 export const TRACK_DEFS = {
-  valley: { family: 'valley' as WorldFamily, atmosphere: 'day' as AtmosphereId, isNight: false, name: 'Valley Sprint', shortName: 'Valley', blurb: 'Nature, a lake and a factory.', worldVersion: 1, start: [0, -150], halfSizeM: 900, ceilingM: 300 },
-  city: { family: 'city' as WorldFamily, atmosphere: 'day' as AtmosphereId, isNight: false, name: 'Downtown Dash', shortName: 'City', blurb: 'Streets, traffic, towers and windows to fly through.', worldVersion: 101, start: [0, 190], halfSizeM: 320, ceilingM: 170 },
-  night: { family: 'city' as WorldFamily, atmosphere: 'night' as AtmosphereId, isNight: true, name: 'Downtown Dash: Night', shortName: 'City night', blurb: 'The same city after dark: neon, street lights and glowing windows.', worldVersion: 102, start: [0, 190], halfSizeM: 320, ceilingM: 170 },
-  harbor: { family: 'harbor' as WorldFamily, atmosphere: 'dusk' as AtmosphereId, isNight: false, name: 'Harbor Run', shortName: 'Harbor', blurb: 'Container yard, cranes, a cargo ship and open water at golden hour.', worldVersion: 103, start: [-230, -128], halfSizeM: 360, ceilingM: 130 },
-  glacier: { family: 'glacier' as WorldFamily, atmosphere: 'alpine' as AtmosphereId, isNight: false, name: 'Glacier Pass', shortName: 'Glacier', blurb: 'Snowy peaks, a tight canyon, a frozen lake and wind that pushes you around.', worldVersion: 104, start: [0, 240], halfSizeM: 500, ceilingM: 400 },
+  valley: { family: 'valley' as WorldFamily, atmosphere: 'day' as AtmosphereId, isNight: false, name: 'Valley Sprint', shortName: 'Valley', blurb: 'Nature, a lake and a factory.', worldVersion: 1, start: [0, -150], halfSizeM: 900, ceilingM: 300, crownSpawn: [-31, -2, 75] as readonly [number, number, number] },
+  city: { family: 'city' as WorldFamily, atmosphere: 'day' as AtmosphereId, isNight: false, name: 'Downtown Dash', shortName: 'City', blurb: 'Streets, traffic, towers and windows to fly through.', worldVersion: 101, start: [0, 190], halfSizeM: 320, ceilingM: 170, crownSpawn: [120, 9, -22] as readonly [number, number, number] },
+  night: { family: 'city' as WorldFamily, atmosphere: 'night' as AtmosphereId, isNight: true, name: 'Downtown Dash: Night', shortName: 'City night', blurb: 'The same city after dark: neon, street lights and glowing windows.', worldVersion: 102, start: [0, 190], halfSizeM: 320, ceilingM: 170, crownSpawn: [120, 9, -22] as readonly [number, number, number] },
+  harbor: { family: 'harbor' as WorldFamily, atmosphere: 'dusk' as AtmosphereId, isNight: false, name: 'Harbor Run', shortName: 'Harbor', blurb: 'Container yard, cranes, a cargo ship and open water at golden hour.', worldVersion: 103, start: [-230, -128], halfSizeM: 360, ceilingM: 130, crownSpawn: [-54, 12, -128] as readonly [number, number, number] },
+  glacier: { family: 'glacier' as WorldFamily, atmosphere: 'alpine' as AtmosphereId, isNight: false, name: 'Glacier Pass', shortName: 'Glacier', blurb: 'Snowy peaks, a tight canyon, a frozen lake and wind that pushes you around.', worldVersion: 104, start: [0, 240], halfSizeM: 500, ceilingM: 400, crownSpawn: [-181, 31, 16] as readonly [number, number, number] },
 } as const;
 
 /** The track chosen at start-up: `?track=` first, then the saved choice, else the valley. Changing it reloads the page. */
@@ -793,6 +793,12 @@ export const CROWN = {
   warnRangeM: 14,
   /** A new king cannot be dethroned for this long. */
   protectMs: 3000,
+  /** The longest one pilot keeps the crown in a single stretch. Then it drops back to the map's crown point. */
+  holdMaxMs: 30_000,
+  /** After the crown drops (time up, or its king left), it reappears at the crown point after this delay. */
+  respawnMs: 5000,
+  /** Distance in metres from the crown point at which a pilot picks the free crown up (checked along the flown path). */
+  claimRangeM: 4,
   /** A position older than this is ignored (a frozen tab cannot steal or be stolen from). */
   poseFreshMs: 1500,
   pointsPerSecond: 1,

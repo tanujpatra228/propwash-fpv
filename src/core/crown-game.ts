@@ -3,6 +3,10 @@
  * the current time; it keeps score and decides who wears the crown. Time only moves when `advance` is called with a
  * later time, so it needs no timers (positions arrive ten times a second and drive it). A pilot takes the crown by
  * touching the king: passing within `touchRangeM`, judged along the path each drone flew between its last two updates.
+ *
+ * The crown starts free at the map's crown point. The first pilot to reach it wears it. A king keeps it until someone
+ * touches them or `holdMaxMs` runs out; then the crown drops, reappears at the crown point after `respawnMs`, and the
+ * race to claim it starts again.
  */
 import { CROWN } from '../config';
 
@@ -18,8 +22,13 @@ export interface CrownThreat {
   progress01: number;
 }
 
+export type Vec3 = readonly [number, number, number];
+
 export interface CrownSnapshot {
   holderId: string;
+  holdStartMs: number;
+  freeAtMs: number;
+  spawn: Vec3;
   protectedUntilMs: number;
   lastAdvanceMs: number;
   lastBroadcastMs: number;
@@ -42,11 +51,18 @@ interface PilotState {
   prevAtMs: number;
 }
 
-export type CrownEvent = { type: 'stolen'; from: string; to: string };
+export type CrownEvent =
+  | { type: 'stolen'; from: string; to: string }
+  | { type: 'claimed'; to: string }
+  | { type: 'dropped'; from: string };
 
 export class CrownGame {
   private readonly pilots = new Map<string, PilotState>();
   private holderId = '';
+  private holdStartMs = 0;
+  /** While nobody wears the crown: when it can be picked up (later than now while it respawns). */
+  private freeAtMs = 0;
+  private spawn: Vec3 = [0, 0, 0];
   private protectedUntilMs = 0;
   private lastAdvanceMs = 0;
   private lastBroadcastMs = -Infinity;
@@ -65,12 +81,25 @@ export class CrownGame {
     return this.pilots.size;
   }
 
-  /** Begins a match at `nowMs` with the crown on `holderId`. */
-  start(ids: readonly string[], holderId: string, nowMs: number): void {
+  /** Seconds-level view for the room message: how long the king can still keep the crown (0 when nobody wears it). */
+  holdLeftMs(nowMs: number): number {
+    return this.holderId === '' ? 0 : Math.max(0, this.holdStartMs + CROWN.holdMaxMs - nowMs);
+  }
+
+  /** While the crown is free: how long until it can be picked up (0 when it is there to take or someone wears it). */
+  respawnLeftMs(nowMs: number): number {
+    return this.holderId !== '' ? 0 : Math.max(0, this.freeAtMs - nowMs);
+  }
+
+  /** Begins a match at `nowMs` with the crown free at `spawn`. */
+  start(ids: readonly string[], spawn: Vec3, nowMs: number): void {
     this.pilots.clear();
     for (const id of ids) this.pilots.set(id, { id, points: 0, x: 0, y: 0, z: 0, poseAtMs: -Infinity, px: 0, py: 0, pz: 0, prevAtMs: -Infinity });
-    this.holderId = this.pilots.has(holderId) ? holderId : (ids[0] ?? '');
-    this.protectedUntilMs = nowMs + CROWN.protectMs;
+    this.holderId = '';
+    this.holdStartMs = 0;
+    this.freeAtMs = nowMs;
+    this.spawn = spawn;
+    this.protectedUntilMs = 0;
     this.lastAdvanceMs = nowMs;
     this.lastBroadcastMs = -Infinity;
     this.startMs = nowMs;
@@ -94,48 +123,76 @@ export class CrownGame {
     p.poseAtMs = nowMs;
   }
 
-  /** A pilot left. If it was the king, the crown goes to the top scorer. */
+  /** A pilot left. If it was the king, the crown drops back to the crown point. */
   remove(id: string, nowMs: number): CrownEvent[] {
-    this.advance(nowMs);
+    const events = this.advance(nowMs);
     this.pilots.delete(id);
-    if (id !== this.holderId) return [];
-    const next = this.scores()[0]?.id ?? '';
-    const event: CrownEvent[] = next ? [{ type: 'stolen', from: id, to: next }] : [];
-    this.holderId = next;
+    if (id !== this.holderId) return events;
+    this.drop(nowMs);
+    return [...events, { type: 'dropped', from: id }];
+  }
+
+  private drop(nowMs: number): void {
+    this.holderId = '';
+    this.freeAtMs = nowMs + CROWN.respawnMs;
+  }
+
+  private wear(id: string, nowMs: number): void {
+    this.holderId = id;
+    this.holdStartMs = nowMs;
     this.protectedUntilMs = nowMs + CROWN.protectMs;
-    return event;
   }
 
   private isFresh(p: PilotState, nowMs: number): boolean {
     return nowMs - p.poseAtMs <= CROWN.poseFreshMs;
   }
 
-  /** Moves the clock to `nowMs` (never past the end of the match): scores the king and updates every chaser's progress. */
+  /** Moves the clock to `nowMs` (never past the end of the match): scores the king, ends a hold that ran out, and lets a pilot take the crown. */
   advance(nowMs: number): CrownEvent[] {
     const to = Math.min(nowMs, this.endMs);
     const dt = to - this.lastAdvanceMs;
-    if (dt <= 0) return [];
+    if (dt < 0) return [];
     this.lastAdvanceMs = to;
     const king = this.pilots.get(this.holderId);
-    if (king) king.points += (dt / 1000) * CROWN.pointsPerSecond;
-    if (!king) return [];
+    if (!king) return this.holderId === '' ? this.tryClaim(to) : [];
+    // Points stop at the moment the hold runs out.
+    const holdEnd = this.holdStartMs + CROWN.holdMaxMs;
+    const scoredMs = Math.max(0, Math.min(to, holdEnd) - (to - dt));
+    king.points += (scoredMs / 1000) * CROWN.pointsPerSecond;
+    if (to >= holdEnd) {
+      this.drop(holdEnd);
+      return [{ type: 'dropped', from: king.id }, ...this.tryClaim(to)];
+    }
     if (to < this.protectedUntilMs || !this.isFresh(king, to)) return [];
     // The closest chaser that touched the king takes the crown.
-    let taker: PilotState | null = null;
-    let takerDistance = Infinity;
+    const taker = this.closestTo(king, to, CROWN.touchRangeM);
+    if (!taker) return [];
+    this.wear(taker.id, to);
+    return [{ type: 'stolen', from: king.id, to: taker.id }];
+  }
+
+  /** The free crown: the closest pilot within reach of the crown point picks it up once it has respawned. */
+  private tryClaim(to: number): CrownEvent[] {
+    if (to < this.freeAtMs) return [];
+    const point: PilotState = { id: '', points: 0, x: this.spawn[0], y: this.spawn[1], z: this.spawn[2], poseAtMs: to, px: 0, py: 0, pz: 0, prevAtMs: -Infinity };
+    const taker = this.closestTo(point, to, CROWN.claimRangeM);
+    if (!taker) return [];
+    this.wear(taker.id, to);
+    return [{ type: 'claimed', to: taker.id }];
+  }
+
+  private closestTo(target: PilotState, to: number, rangeM: number): PilotState | null {
+    let best: PilotState | null = null;
+    let bestDistance = Infinity;
     for (const p of this.pilots.values()) {
-      if (p === king || !this.isFresh(p, to)) continue;
-      const d = this.distance(p, king);
-      if (d <= CROWN.touchRangeM && d < takerDistance) {
-        taker = p;
-        takerDistance = d;
+      if (p === target || !this.isFresh(p, to)) continue;
+      const d = this.distance(p, target);
+      if (d <= rangeM && d < bestDistance) {
+        best = p;
+        bestDistance = d;
       }
     }
-    if (!taker) return [];
-    const event: CrownEvent = { type: 'stolen', from: king.id, to: taker.id };
-    this.holderId = taker.id;
-    this.protectedUntilMs = to + CROWN.protectMs;
-    return [event];
+    return best;
   }
 
   /** The closest the two drones came to each other along the paths they flew between their last two updates. */
@@ -187,7 +244,7 @@ export class CrownGame {
 
   snapshot(): CrownSnapshot {
     return {
-      holderId: this.holderId, protectedUntilMs: this.protectedUntilMs, lastAdvanceMs: this.lastAdvanceMs,
+      holderId: this.holderId, holdStartMs: this.holdStartMs, freeAtMs: this.freeAtMs, spawn: this.spawn, protectedUntilMs: this.protectedUntilMs, lastAdvanceMs: this.lastAdvanceMs,
       lastBroadcastMs: Number.isFinite(this.lastBroadcastMs) ? this.lastBroadcastMs : 0, startMs: this.startMs, endMs: this.endMs,
       pilots: [...this.pilots.values()].map((p) => ({ ...p, poseAtMs: Number.isFinite(p.poseAtMs) ? p.poseAtMs : 0 })),
     };
@@ -196,6 +253,9 @@ export class CrownGame {
   static restore(s: CrownSnapshot): CrownGame {
     const game = new CrownGame();
     game.holderId = s.holderId;
+    game.holdStartMs = s.holdStartMs;
+    game.freeAtMs = s.freeAtMs;
+    game.spawn = s.spawn;
     game.protectedUntilMs = s.protectedUntilMs;
     game.lastAdvanceMs = s.lastAdvanceMs;
     game.lastBroadcastMs = s.lastBroadcastMs;
