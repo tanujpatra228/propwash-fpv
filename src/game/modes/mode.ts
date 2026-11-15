@@ -22,6 +22,11 @@ export interface PilotMarker {
 
 export type ModeId = 'free' | 'trial' | 'training' | 'live' | 'challenge' | 'crown';
 
+/** Modes played in a live room: the other pilots' drones must be moved and drawn every frame. */
+export function isRoomMode(id: ModeId): boolean {
+  return id === 'live' || id === 'crown';
+}
+
 /** What a dialog button does. The game carries these out. */
 export type NextStep = 'menu' | 'trial' | 'restart' | 'stay';
 

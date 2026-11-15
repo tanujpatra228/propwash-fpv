@@ -36,7 +36,7 @@ import { LiveController } from './live-controller';
 import { createModes } from './modes-setup';
 import { ChallengeMenu } from './challenge-ui';
 import { MapSelect } from '../ui/map-select';
-import type { GameMode, ModeHost, ModeId, NextStep } from './modes/mode';
+import { isRoomMode, type GameMode, type ModeHost, type ModeId, type NextStep } from './modes/mode';
 import type { TimeTrial } from './modes/time-trial';
 import type { Pose } from './respawn';
 import { Tuning } from './tuning';
@@ -379,7 +379,7 @@ export class Game {
     this.banner.update(dtS);
     // Always read the input so mouse movement does not pile up while the controls are locked.
     this.session.advance(dtS, this.input.readFlightInput(this.flightInput));
-    if (this.mode.id === 'live') this.live.update(performance.now(), dtS);
+    if (isRoomMode(this.mode.id)) this.live.update(performance.now(), dtS);
     this.mode.update(dtS, { isLanded: this.session.isLanded() });
     if (this.session.crashTimerS <= 0 && !this.mode.isInputLocked) this.flightTimeS += dtS;
 
