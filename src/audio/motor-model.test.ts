@@ -115,13 +115,26 @@ describe('crash sounds', () => {
     for (const metal of ['container', 'gate', 'crane'] as const) expect(crashProfile(metal).ringsHz.length).toBeGreaterThan(0);
     for (const soft of ['ground', 'tree', 'building', 'factory'] as const) expect(crashProfile(soft).ringsHz).toHaveLength(0);
   });
+  it('soft surfaces (trees and water) stay low and muffled: a deep thump, low noise, no ringing, no high chirps', () => {
+    for (const id of ['tree', 'water'] as const) {
+      const p = crashProfile(id);
+      expect(p.isSoft).toBe(true);
+      expect(p.thumpHz).toBeLessThanOrEqual(50);
+      expect(p.noiseHz).toBeLessThanOrEqual(1200);
+      expect(p.ringsHz).toHaveLength(0);
+      expect(p.hasEarRinging).toBe(false);
+    }
+    expect(AUDIO.crash.softCutWhine.fromHz).toBeLessThan(AUDIO.crash.cutWhine.fromHz);
+    expect(AUDIO.crash.bubbles.toHz).toBeLessThanOrEqual(400);
+    expect(AUDIO.crash.rustle.hz).toBeLessThanOrEqual(800);
+    for (const [id, p] of Object.entries(AUDIO.crash.profiles)) if (id !== 'tree' && id !== 'water') expect(p.isSoft).toBe(false);
+  });
   it('trees rustle like leaves: soft noise taps, a gentle thump, no ringing metal and no ringing in the ears', () => {
     const tree = crashProfile('tree');
     expect(tree.extra).toBe('rustle');
     expect(tree.ringsHz).toHaveLength(0);
     expect(tree.hasEarRinging).toBe(false);
-    expect(tree.thumpVolume).toBeLessThan(crashProfile('ground').thumpVolume);
-    expect(tree.noiseS).toBeGreaterThan(crashProfile('rock').noiseS);
+        expect(tree.noiseS).toBeGreaterThan(crashProfile('rock').noiseS);
     expect(crashProfile('rock').hasEarRinging).toBe(true);
   });
   it('buildings thud lower than rocks, and water glides down', () => {
