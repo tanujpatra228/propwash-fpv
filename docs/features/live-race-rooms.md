@@ -143,9 +143,20 @@ For friends this is plenty. Safeguards that keep it from running out:
 - **Out of view:** a pilot behind you or off-screen has no tag. Find them on the **minimap**, where every other pilot is a dot in their slot colour under your own arrow.
 - Pilots appear once their first pose arrives and vanish after 5 s of silence.
 
+## Map selection in the lobby
+
+- The host picks the map in the lobby, next to the mode and the laps. Everyone else sees "Map: Downtown Dash. The host chooses."
+- A map is loaded when the page starts, so when the room's map is not the one you are on, your game **reloads into it** (the link carries `?room=CODE&track=MAP`, so you land back in the same lobby). While it reloads the server **holds your place** for 30 seconds: same grid slot, same host role if you are the host. Your ready flag starts over.
+- How the place is reclaimed: each browser tab has a secret key (session storage, never shown to others) sent when joining. A returning pilot with the matching key gets their old identity back. A different key never takes anyone's place.
+- A pilot who joins the lobby on another map is accepted, shown as "Switching map", and reloads automatically. The host cannot start until everyone is on the map and nobody is mid-switch. If a held pilot never returns, they are dropped after 30 seconds and the host role moves on if it was theirs.
+- Safeguards: a normal disconnect still removes a pilot at once; the reload is attempted twice at most (a stuck loop shows a message); the map only affects this visit (it is not saved as your favourite).
+- Invite links carry the room's current map.
+- Free-plan note: a map change is a handful of extra messages and one hold alarm per held pilot, nothing per frame.
+
 ## Verification and known gaps
 
 - Verified locally (Worker + Durable Object in `wrangler dev`, Vite dev server): Node WebSocket flow (lobby, ready, start, race, finish, results, rematch, junk and bad-name refusal) and two headless browsers flying a 2-lap race to the results dialog and back to the lobby. 34 room unit tests, snapshot buffer, grid, live-race mode and lobby rules are unit tested.
+- Verified (browser): two pilots on the valley, the host picked City, both reloaded and rejoined the same lobby with the same roster and the host kept the role.
 - Not verified: smooth remote-drone motion judged by eye, real internet latency, 8 pilots at once, behaviour on the deployed Cloudflare site (the sandbox cannot reach it), the budget numbers under real load.
 - Live races do not drain the battery (a 5-lap race would outlast it); Phase 3 can revisit this.
 - Pose relay replaced the planned batched `poses` message: outgoing messages are free and it needs no alarm timer.
