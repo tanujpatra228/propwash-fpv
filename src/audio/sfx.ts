@@ -1,6 +1,6 @@
-import { AUDIO } from '../config';
+import { AUDIO, type CrashSoundId } from '../config';
 import type { AudioBus } from './audio-bus';
-import { gatePitchHz } from './motor-model';
+import { crashIntensity, crashProfile, crashVolume, gatePitchHz } from './motor-model';
 
 /** One-shot sounds. The game says what happened; this says how it sounds. */
 export type SoundEvent =
@@ -8,7 +8,8 @@ export type SoundEvent =
   | { type: 'tick' }
   | { type: 'go' }
   | { type: 'lap'; isBest: boolean }
-  | { type: 'batteryBeep' };
+  | { type: 'batteryBeep' }
+  | { type: 'crash'; reason: CrashSoundId; speedMps: number };
 
 /** Plays one-shot sounds on the Effects bus: short enveloped tones, no samples. */
 export class Sfx {
@@ -30,6 +31,7 @@ export class Sfx {
         break;
       }
       case 'batteryBeep': this.tone(AUDIO.batteryBeep.hz, 0, AUDIO.batteryBeep.beepS, AUDIO.batteryBeep.volume, 'square'); break;
+      case 'crash': this.crash(event.reason, event.speedMps); break;
     }
   }
 
@@ -47,5 +49,54 @@ export class Sfx {
     oscillator.connect(gain).connect(effects);
     oscillator.start(start);
     oscillator.stop(start + durationS + 0.02);
+  }
+
+  /** What was hit decides the sound; how fast decides the loudness. The motors cut out underneath it all. */
+  private crash(reason: CrashSoundId, speedMps: number): void {
+    const c = AUDIO.crash;
+    const p = crashProfile(reason);
+    const loud = crashVolume(speedMps);
+    this.sweep(c.cutWhine.fromHz, c.cutWhine.toHz, 0, c.cutWhine.durationS, c.cutWhine.volume, 'sawtooth');
+    this.sweep(p.thumpHz * 1.6, p.thumpHz * 0.6, 0, p.thumpS, p.thumpVolume * loud, 'sine');
+    this.noise(p.noiseHz, p.noiseGlideToHz, p.noiseQ, p.noiseS, p.noiseVolume * loud);
+    for (const hz of p.ringsHz) this.tone(hz, 0, p.ringS, (p.ringVolume * loud) / p.ringsHz.length, 'sine');
+    if (p.extra === 'horn') for (const hz of c.horn.hz) this.tone(hz, c.horn.delayS, c.horn.durationS, c.horn.volume * loud, 'sawtooth');
+    if (p.extra === 'bubbles') for (const delay of c.bubbles.delaysS) this.sweep(c.bubbles.fromHz, c.bubbles.toHz, delay, c.bubbles.durationS, c.bubbles.volume * loud, 'sine');
+    if (crashIntensity(speedMps) >= c.ringingFrom01) this.tone(c.ringing.hz, 0.05, c.ringing.durationS, c.ringing.volume, 'sine');
+  }
+
+  /** A tone gliding from one pitch to another. */
+  private sweep(fromHz: number, toHz: number, delayS: number, durationS: number, volume: number, type: OscillatorType): void {
+    const { context, effects } = this.bus;
+    const start = context.currentTime + delayS;
+    const oscillator = context.createOscillator();
+    oscillator.type = type;
+    oscillator.frequency.setValueAtTime(fromHz, start);
+    oscillator.frequency.exponentialRampToValueAtTime(Math.max(1, toHz), start + durationS);
+    const gain = context.createGain();
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, volume), start + 0.005);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + durationS);
+    oscillator.connect(gain).connect(effects);
+    oscillator.start(start);
+    oscillator.stop(start + durationS + 0.02);
+  }
+
+  /** A burst of band-passed noise that fades out, optionally gliding to another band. */
+  private noise(hz: number, glideToHz: number, q: number, durationS: number, volume: number): void {
+    const { context, effects } = this.bus;
+    const start = context.currentTime;
+    const source = this.bus.createNoise();
+    const band = context.createBiquadFilter();
+    band.type = 'bandpass';
+    band.Q.value = q;
+    band.frequency.setValueAtTime(hz, start);
+    if (glideToHz > 0) band.frequency.exponentialRampToValueAtTime(glideToHz, start + durationS);
+    const gain = context.createGain();
+    gain.gain.setValueAtTime(Math.max(0.0001, volume), start);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + durationS);
+    source.connect(band).connect(gain).connect(effects);
+    source.start(start);
+    source.stop(start + durationS + 0.02);
   }
 }
