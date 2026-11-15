@@ -599,24 +599,56 @@ export const FREE_FLIGHT = {
   emptyBatteryGraceS: 3,
 } as const;
 
-/** Synthesised motor and wind sound. Nothing is downloaded. */
+/** Which camera is listening. The sound mix has one entry per camera: adding a camera mode means adding its entry here. */
+export type SoundCameraId = 'goggles' | 'chase' | 'broadcast';
+
+/** Synthesised sound (Web Audio). Nothing is downloaded. */
 export const AUDIO = {
   motorBaseHz: 120,
   motorHzPerThrottle: 360,
-  /** The second oscillator sits a slightly harsh fifth above the first. */
+  /** The second oscillator of each motor sits a slightly harsh fifth above the first. */
   motorHarmonicRatio: 1.502,
+  /** How far each of the four motors (front left, front right, rear left, rear right) is tuned off the others, so they beat. */
+  motorDetune: [-0.012, 0.009, 0.015, -0.007],
+  /** Load the motors share, per radian of tilt and per radian per second of tilt change or turn rate. */
+  loadPerTiltRad: 0.35,
+  loadPerTiltRateRadps: 0.12,
+  loadPerYawRateRadps: 0.05,
   cutoffBaseHz: 700,
   cutoffHzPerThrottle: 2600,
   filterQ: 3,
+  /** Total volume of all four motors together: base plus per unit of throttle. */
   volumeBase: 0.035,
   volumePerThrottle: 0.05,
   windBandHz: 700,
+  windBandHzPerMps: 15,
   windMaxVolume: 0.12,
   windSpeedForFullMps: 30,
   windVolumeAtFull: 0.1,
+  /** Prop wash: sink rate where it starts and where it is full, throttle change per second for full, and its sound. */
+  washSinkStartMps: 2,
+  washSinkFullMps: 10,
+  washThrottleRateForFullPerS: 1.2,
+  washBandHz: 1500,
+  washQ: 1.2,
+  washTremoloHz: 24,
+  washVolume: 0.07,
   /** Parameter changes ramp over about this long, so the sound never clicks. */
   smoothingS: 0.05,
   motorsCutFadeS: 0.3,
+  /** What each camera hears: motor loudness, brightness (filter cutoff scale) and wind loudness. */
+  cameraMix: {
+    goggles: { motor: 1, brightness: 1, wind: 1 },
+    chase: { motor: 0.55, brightness: 0.7, wind: 0.6 },
+    broadcast: { motor: 0.25, brightness: 0.45, wind: 0.3 },
+  } satisfies Record<SoundCameraId, { motor: number; brightness: number; wind: number }>,
+  /** Mixer defaults (0 to 100) for the Master, Motors, Effects and Ambience sliders. */
+  defaultLevels: { master: 80, motors: 100, effects: 100, ambience: 100 },
+  limiter: { thresholdDb: -10, ratio: 12, attackS: 0.003, releaseS: 0.2 },
+  gate: { baseHz: 660, maxSemitones: 12, decayS: 0.25, volume: 0.35 },
+  countdown: { tickHz: 880, goHz: 1320, tickS: 0.09, goS: 0.45, volume: 0.3 },
+  lap: { notesHz: [784, 1047], bestNotesHz: [784, 988, 1319], noteGapS: 0.11, noteS: 0.22, volume: 0.32 },
+  batteryBeep: { hz: 2800, beepS: 0.06, volume: 0.18, slowIntervalS: 1.2, fastIntervalS: 0.25 },
 } as const;
 
 /** Graphics presets. Pixel ratio is capped by the device's own ratio. */

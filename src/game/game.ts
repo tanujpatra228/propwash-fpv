@@ -1,6 +1,6 @@
 import { Scene } from 'three';
 import { GHOST, LOOP, TRACK } from '../config';
-import { MotorSound } from '../core/audio';
+import { SoundSystem } from '../audio/sound-system';
 import type { RemoteGhost } from '../net/api-client';
 import { formatLapTime } from '../core/format';
 import { clamp } from '../core/math';
@@ -75,7 +75,7 @@ export class Game {
   private readonly nextSteps = new ChoiceDialog<NextStep>();
   private readonly hud: HudBridge;
   private readonly menu: MainMenu;
-  private readonly sound = new MotorSound();
+  private readonly sound = new SoundSystem();
   private readonly session: FlightSession;
   private readonly presenter: Presenter;
   private readonly trial: TimeTrial;
@@ -188,12 +188,10 @@ export class Game {
           savePilotSettings(next);
           this.tuning.applyPilot(this.pilot);
         },
-        onFreeDrainChange: (isOn) => {
-          this.isFreeDrainOn = isOn;
-          saveFreeBatteryDrain(isOn);
-        },
+        onAudioChange: (levels) => this.sound.setLevels(levels),
+        onFreeDrainChange: (isOn) => void ((this.isFreeDrainOn = isOn), saveFreeBatteryDrain(isOn)),
       },
-      { quality, isFreeDrainOn: this.isFreeDrainOn, pilot: this.pilot },
+      { quality, isFreeDrainOn: this.isFreeDrainOn, pilot: this.pilot, audio: { ...this.sound.currentLevels } },
     );
     this.tuning.applyPilot(this.pilot);
     const simulation = new Simulation(this.flight, this.battery, this.colliders, this.gates, this.tracker, () => this.stats);

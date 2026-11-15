@@ -47,6 +47,7 @@ Each feature gets its own file in `docs/features/`, written from the template be
 | Dethrone (crown chase) | [dethrone-crown-chase.md](docs/features/dethrone-crown-chase.md) | 7 | In progress (built, needs playtest) |
 | Maps roadmap | [maps-roadmap.md](docs/features/maps-roadmap.md) | 6 | Approved |
 | Battery Challenge | [battery-challenge.md](docs/features/battery-challenge.md) | 3 | In progress (built, needs playtest) |
+| Sound design | [sound-design.md](docs/features/sound-design.md) | 8 | In progress |
 
 ## Working rules (summary; details in the standards)
 

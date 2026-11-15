@@ -1,5 +1,6 @@
 import { ACTIVE_TRACK_ID, QUALITY, TRACK_DEFS } from '../config';
 import { el } from '../core/dom';
+import { AUDIO_LEVEL_RANGE, type AudioLevels } from '../core/audio-settings';
 import { PILOT_RANGES, type PilotSettings, type Units } from '../core/pilot-settings';
 
 export type QualityId = keyof typeof QUALITY;
@@ -18,12 +19,14 @@ export interface MenuCallbacks {
   onQualityChange(quality: QualityId): void;
   onFreeDrainChange(isOn: boolean): void;
   onPilotChange(settings: PilotSettings): void;
+  onAudioChange(levels: AudioLevels): void;
 }
 
 export interface MenuSettings {
   quality: QualityId;
   isFreeDrainOn: boolean;
   pilot: PilotSettings;
+  audio: AudioLevels;
 }
 
 /** Main menu over the live AI flyby, with the settings panel. DOM only: it calls back into the game. */
@@ -41,9 +44,11 @@ export class MainMenu {
   private readonly unitButtons = new Map<Units, HTMLButtonElement>();
   private readonly windButtons = new Map<boolean, HTMLButtonElement>();
   private pilot: PilotSettings;
+  private audio: AudioLevels;
 
   constructor(private readonly callbacks: MenuCallbacks, initial: MenuSettings) {
     this.pilot = { ...initial.pilot };
+    this.audio = { ...initial.audio };
     const item = (title: string, subtitle: HTMLElement | string, onClick: () => void, isPrimary = false): HTMLElement => {
       const sub = typeof subtitle === 'string' ? el('small', { text: subtitle }) : subtitle;
       const button = el('button', { type: 'button', class: isPrimary ? 'primary' : undefined }, [el('b', { text: title }), sub]);
@@ -120,6 +125,11 @@ export class MainMenu {
         el('h2', { text: 'Goggles camera' }),
         this.slider('Field of view', PILOT_RANGES.fovDeg, () => this.pilot.fovDeg, (v) => ({ ...this.pilot, fovDeg: v }), '°', 'A wider view shows more of the world and feels faster.'),
         this.slider('Camera tilt', PILOT_RANGES.uptiltDeg, () => this.pilot.uptiltDeg, (v) => ({ ...this.pilot, uptiltDeg: v }), '°', 'Tilt up to fly fast without staring at the ground.'),
+        el('h2', { text: 'Sound' }),
+        this.audioSlider('Master', 'master', 'Everything. Sound itself is switched with M in flight.'),
+        this.audioSlider('Motors', 'motors', 'The four motors and prop wash.'),
+        this.audioSlider('Effects', 'effects', 'Gate pings, countdown, lap chimes and the low-battery beep.'),
+        this.audioSlider('Ambience', 'ambience', 'Wind rushing past.'),
         el('h2', { text: 'Mouse' }),
         this.toggleSeg(this.invertButtons, [[false, 'Normal', 'Mouse right turns right.'], [true, 'Inverted', 'Mouse right turns left.']], (isOn) => ({ ...this.pilot, isTurnInverted: isOn })),
         el('h2', { text: 'Units' }),
@@ -148,6 +158,18 @@ export class MainMenu {
       this.pilot = next(Number(input.value));
       value.textContent = `${read()}${suffix}`;
       this.callbacks.onPilotChange(this.pilot);
+    });
+    return el('div', { class: 'range' }, [el('label', {}, [label, ' ', value]), input, el('small', { text: note })]);
+  }
+
+  /** A 0 to 100 volume slider that reports a changed copy of the sound levels. */
+  private audioSlider(label: string, key: keyof AudioLevels, note: string): HTMLElement {
+    const value = el('b', { text: String(this.audio[key]) });
+    const input = el('input', { type: 'range', min: String(AUDIO_LEVEL_RANGE.min), max: String(AUDIO_LEVEL_RANGE.max), step: String(AUDIO_LEVEL_RANGE.step), value: String(this.audio[key]), 'aria-label': `${label} volume` });
+    input.addEventListener('input', () => {
+      this.audio = { ...this.audio, [key]: Number(input.value) };
+      value.textContent = String(this.audio[key]);
+      this.callbacks.onAudioChange(this.audio);
     });
     return el('div', { class: 'range' }, [el('label', {}, [label, ' ', value]), input, el('small', { text: note })]);
   }
