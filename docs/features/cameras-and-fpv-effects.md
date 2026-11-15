@@ -7,12 +7,14 @@ Last updated: 2026-11-01
 
 ## Summary
 
-Two flight cameras: the **goggles** view (what an FPV pilot sees through the drone's camera, with lens effects) and the **chase** view (third person, easier for beginners). Plus the cinematic menu camera.
+Three flight cameras: the **goggles** view (what an FPV pilot sees through the drone's camera, with lens effects) the **chase** view (third person, easier for beginners) and the **seat** view (third person, a third of the chase distance, so the drone and its sound feel close). Plus the cinematic menu camera.
 
 ## Player experience
 
 - **Goggles:** wide view from the drone's nose camera, tilted up, slight fisheye, dark corners, light sensor grain, and analog static when the signal is weak or after a crash.
 - **Chase:** the camera follows behind and slightly above the drone, smoothly.
+- **Seat:** the same as chase but pulled in to a third of the distance (1.2 m behind, 0.38 m up, looks 0.67 m ahead). Level like chase: it follows the drone's heading, not its tilt. The motors are louder and brighter here than in chase (see `sound-design.md`).
+- The Camera key cycles goggles, chase, seat, goggles.
 - Press **C** to switch at any time.
 - **Menu:** TV-style broadcast shots of AI drones racing, cutting between chase, side-tracking and trackside shots every 7 s.
 
@@ -29,6 +31,7 @@ Values in `config.ts` → `CAMERA`.
 | Chase | Offset | 3.6 m behind (horizontal heading), 1.15 m up, looks 2 m ahead |
 | Chase | Smoothing | 8 /s, kept ≥ 0.5 m above ground |
 | Chase | Vertical FOV | 70° |
+| Seat | Offset | One third of chase: 1.2 m behind, 0.38 m up, looks 0.67 m ahead (`CAMERA.seat`, derived from chase). Smoothing 8 /s, kept at least 0.3 m above ground, FOV 70°, near plane 0.03 m |
 | Menu | Shots | Chase (7 m behind), side track (13 m out), fixed trackside (120 m ahead), 7 s each, hard cuts |
 
 **FPV lens pass** (post-processing, goggles only):
@@ -41,12 +44,12 @@ Values in `config.ts` → `CAMERA`.
 | Sensor grain | 0.05 with analog on, 0.012 off |
 | Analog static | 0 normally; rises with distance from the pits (260–420 m → up to 0.5); 0.12 inside the factory; 0.4–1.0 during a crash. Toggle with **G** |
 
-- Own drone model hidden in goggles view, shown in chase view.
+- Own drone model hidden in goggles view, shown in chase and seat views.
 - OSD (see hud-and-osd) shows only in goggles view. The height gauge shows in both.
 
 ## Technical design
 
-- `src/game/camera-rig.ts`: `CameraRig` with modes `goggles | chase | broadcast`; `update(dt, target)`; owns FOV/near changes (calls `updateProjectionMatrix` only on change).
+- `src/game/camera-rig.ts`: `CameraRig` with modes `goggles | chase | seat | broadcast` (`CameraId` in `config.ts`; chase and seat share one follow routine); `update(dt, target)`; owns FOV/near changes (calls `updateProjectionMatrix` only on change).
 - `src/core/renderer.ts`: builds `EffectComposer` → `RenderPass` → `UnrealBloomPass` → `OutputPass` → FPV `ShaderPass`; exposes `setLens({ fisheye, vignette, grain, static })`.
 - Static amount is computed by game logic and passed in; the shader knows nothing about the game.
 
@@ -89,3 +92,4 @@ Uptilt and FOV settings, camera collision with walls, replay camera (Phase 2+).
 ## Changelog
 
 - 2026-11-01: Created.
+- 2026-11-15: Added the seat camera (a third of the chase distance, level, after chase in the camera cycle). `CameraId` now lives in `config.ts`, and every camera needs an entry in `AUDIO.cameraMix`.

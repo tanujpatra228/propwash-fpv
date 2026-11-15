@@ -1,9 +1,12 @@
 import { PerspectiveCamera, Quaternion, Vector3, MathUtils } from 'three';
-import { CAMERA } from '../config';
+import { CAMERA, type CameraId } from '../config';
 import { damp } from '../core/math';
 import { groundY } from '../world/terrain';
 
-export type CameraMode = 'goggles' | 'chase' | 'broadcast';
+export type CameraMode = CameraId;
+
+/** The pilot's camera cycle (the broadcast camera is only for the menu). */
+const PILOT_CYCLE: readonly CameraMode[] = ['goggles', 'chase', 'seat'];
 
 /** What the camera follows. Read-only. */
 export interface CameraTarget {
@@ -17,7 +20,7 @@ const lookAt = new Vector3();
 const offset = new Vector3();
 const X_AXIS = new Vector3(1, 0, 0);
 
-/** Owns the one scene camera: goggles (fixed to the drone, tilted up) or chase (smoothed, behind it). */
+/** Owns the one scene camera: goggles (fixed to the drone, tilted up), or a smoothed, level follow camera behind it (chase, or seat, which is close). */
 export class CameraRig {
   readonly camera = new PerspectiveCamera(CAMERA.goggles.fovDeg, 1, CAMERA.goggles.nearM, CAMERA.farM);
   private mode: CameraMode = 'goggles';
@@ -61,17 +64,18 @@ export class CameraRig {
   setMode(mode: CameraMode): void {
     if (mode === this.mode) return;
     this.mode = mode;
-    const lens = mode === 'goggles' ? CAMERA.goggles : CAMERA.chase;
+    const lens = mode === 'goggles' ? CAMERA.goggles : mode === 'seat' ? CAMERA.seat : CAMERA.chase;
     this.camera.fov = mode === 'goggles' ? this.gogglesFovDeg : lens.fovDeg;
     this.camera.near = lens.nearM;
     this.camera.updateProjectionMatrix();
     this.hasPlacedCamera = false;
   }
 
-  /** Goggles <-> chase (the broadcast camera is not part of the pilot's toggle). */
+  /** The next camera in the pilot's cycle: goggles, chase, seat, goggles... (the broadcast camera is not part of it). */
   toggleMode(): CameraMode {
     if (this.mode === 'broadcast') return this.mode;
-    this.setMode(this.mode === 'goggles' ? 'chase' : 'goggles');
+    const next = PILOT_CYCLE[(PILOT_CYCLE.indexOf(this.mode) + 1) % PILOT_CYCLE.length];
+    this.setMode(next ?? 'goggles');
     return this.mode;
   }
 
@@ -88,7 +92,7 @@ export class CameraRig {
 
   update(dtS: number, target: CameraTarget): void {
     if (this.mode === 'goggles') this.updateGoggles(target);
-    else if (this.mode === 'chase') this.updateChase(dtS, target);
+    else if (this.mode === 'chase' || this.mode === 'seat') this.updateFollow(dtS, target, CAMERA[this.mode]);
     else {
       this.camera.position.copy(this.broadcastPosition);
       this.camera.lookAt(this.broadcastLookAt);
@@ -101,8 +105,9 @@ export class CameraRig {
     this.camera.quaternion.copy(target.quaternion).multiply(this.uptilt);
   }
 
-  private updateChase(dtS: number, target: CameraTarget): void {
-    const { distanceM, heightM, lookAheadM, smoothingPerS, minAboveGroundM } = CAMERA.chase;
+  /** A level camera behind the drone's heading (it ignores tilt), smoothed. Chase and seat differ only in distance. */
+  private updateFollow(dtS: number, target: CameraTarget, view: { distanceM: number; heightM: number; lookAheadM: number; smoothingPerS: number; minAboveGroundM: number }): void {
+    const { distanceM, heightM, lookAheadM, smoothingPerS, minAboveGroundM } = view;
     const forwardX = -Math.sin(target.yawRad);
     const forwardZ = -Math.cos(target.yawRad);
     wanted.set(

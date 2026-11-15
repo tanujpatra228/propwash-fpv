@@ -378,8 +378,21 @@ export const SCENERY = {
   hamlet: { x: 40, z: -30, spreadM: 38, houseCount: 8 },
 } as const;
 
+const CHASE_CAMERA = { distanceM: 3.6, heightM: 1.15, lookAheadM: 2, smoothingPerS: 8, minAboveGroundM: 0.5, fovDeg: 70, nearM: 0.05 } as const;
+/** The seat camera is the chase camera pulled in to a third of the distance: same heading, same smoothing, still level. */
+const SEAT_SCALE = 1 / 3;
+
 export const CAMERA = {
-  chase: { distanceM: 3.6, heightM: 1.15, lookAheadM: 2, smoothingPerS: 8, minAboveGroundM: 0.5, fovDeg: 70, nearM: 0.05 },
+  chase: CHASE_CAMERA,
+  seat: {
+    distanceM: CHASE_CAMERA.distanceM * SEAT_SCALE,
+    heightM: CHASE_CAMERA.heightM * SEAT_SCALE,
+    lookAheadM: CHASE_CAMERA.lookAheadM * SEAT_SCALE,
+    smoothingPerS: CHASE_CAMERA.smoothingPerS,
+    minAboveGroundM: 0.3,
+    fovDeg: CHASE_CAMERA.fovDeg,
+    nearM: 0.03,
+  },
   goggles: { upM: 0.035, forwardM: 0.07, uptiltDeg: 25, fovDeg: 86, nearM: 0.03 },
   farM: 3200,
 } as const;
@@ -599,8 +612,9 @@ export const FREE_FLIGHT = {
   emptyBatteryGraceS: 3,
 } as const;
 
-/** Which camera is listening. The sound mix has one entry per camera: adding a camera mode means adding its entry here. */
-export type SoundCameraId = 'goggles' | 'chase' | 'broadcast';
+/** The scene cameras. The sound mix has one entry per camera: adding a camera means adding its entry in `AUDIO.cameraMix`. */
+export type CameraId = 'goggles' | 'chase' | 'seat' | 'broadcast';
+export type SoundCameraId = CameraId;
 
 /** What the drone hit. One entry per crash reason: a new obstacle kind in the physics needs a sound profile here. */
 export type CrashSoundId = 'ground' | 'water' | 'gate' | 'factory' | 'container' | 'building' | 'tree' | 'vehicle' | 'crane' | 'rock';
@@ -660,6 +674,7 @@ export const AUDIO = {
   /** What each camera hears: motor loudness, brightness (filter cutoff scale) and wind loudness. */
   cameraMix: {
     goggles: { motor: 1, brightness: 1, wind: 1 },
+    seat: { motor: 0.8, brightness: 0.85, wind: 0.8 },
     chase: { motor: 0.55, brightness: 0.7, wind: 0.6 },
     broadcast: { motor: 0.25, brightness: 0.45, wind: 0.3 },
   } satisfies Record<SoundCameraId, { motor: number; brightness: number; wind: number }>,

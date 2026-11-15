@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { defaultBindings, rebind } from '../input/key-bindings';
 import { buildFlightMenuLabels } from './menu-labels';
 
-const state = { isChaseCamera: false, isAnalogOn: true, isSoundAvailable: true, isSoundOn: false };
+const state = { camera: 'goggles' as const, isAnalogOn: true, isSoundAvailable: true, isSoundOn: false };
 
 describe('buildFlightMenuLabels', () => {
   it('labels the camera, sound and keys', () => {
@@ -15,10 +15,14 @@ describe('buildFlightMenuLabels', () => {
 
   it('follows toggles and remaps', () => {
     const bindings = rebind(defaultBindings(), 'camera', 0, 'KeyV').bindings;
-    const labels = buildFlightMenuLabels(bindings, { ...state, isChaseCamera: true, isSoundOn: true });
+    const labels = buildFlightMenuLabels(bindings, { ...state, camera: 'chase' as const, isSoundOn: true });
     expect(labels.cameraLabel).toBe('chase');
     expect(labels.soundLabel).toBe('Motor sound: on');
     expect(labels.cameraKey).toBe('V');
+  });
+
+  it('labels every camera in the cycle', () => {
+    expect(buildFlightMenuLabels(defaultBindings(), { ...state, camera: 'seat' }).cameraLabel).toBe('seat');
   });
 
   it('says so when sound is unavailable', () => {

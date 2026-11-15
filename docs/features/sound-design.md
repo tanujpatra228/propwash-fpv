@@ -14,7 +14,7 @@ A proper audio layer: one mixer (bus) with volume sliders, a four-motor drone so
 - **Settings** gets a Sound section: Master, Motors, Effects and Ambience sliders. They are saved.
 - **Motors:** four slightly detuned motors. Throttle raises the pitch, banking and pitching shift load between motors, so the sound moves and beats like a real quad. Diving or punching the throttle adds a rough prop-wash buzz.
 - **Wind:** rushing air that gets louder and brighter with speed.
-- **Camera changes what you hear:** goggles sit on the drone (loudest, brightest). The chase camera is further away (quieter, duller, less wind). The broadcast camera is far. A future closer third-person "seat" camera will sit between goggles and chase: add one line to `AUDIO.cameraMix` for it.
+- **Camera changes what you hear:** goggles sit on the drone (loudest, brightest). The chase camera is further away (quieter, duller, less wind). The broadcast camera is far. The seat camera (a third of the chase distance) sits between goggles and chase: motors 0.8, brightness 0.85, wind 0.8.
 - **Gates:** a clean ping. Each gate in a row (no crash) is one semitone higher, up to an octave. A crash or respawn resets the streak.
 - **Countdown:** a tick per number and a higher tone on GO.
 - **Laps:** a two-note chime for a lap, a three-note rising chime for a personal best.
@@ -107,3 +107,4 @@ A proper audio layer: one mixer (bus) with volume sliders, a four-motor drone so
 - 2026-11-15: Created. Part 1 (bus, four motors, prop wash, wind, gate, countdown, lap and battery sounds, sliders).
 - 2026-11-15: Part 2: crash sounds per surface, with impact speed deciding loudness. Positional sound for other pilots waits for the seat camera (the user is adding a third-person camera much closer to the drone than chase).
 - 2026-11-15: Part 3: Crown chase sounds (beacon shimmer with pan and distance, claim, loss, steal, drop and return stings, heartbeat, proximity pulse). The beacon pans by the drone's heading, not the camera, so it needs no change for the future seat camera.
+- 2026-11-15: The seat camera exists now. Its mix entry is in place; positional sound for other pilots (part 4) can be tuned against it.
