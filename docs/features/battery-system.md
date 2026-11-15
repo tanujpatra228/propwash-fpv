@@ -133,3 +133,5 @@ Different batteries, props and upgrades (drone-parts-and-upgrades, Phase 3). Bat
 ## Changelog
 
 - 2026-11-01: Created (product owner's battery idea; Phase 1 part).
+
+- 2026-11-15: Live races can drain the battery too (Battery race, chosen by the room host); running out before the finish puts the pilot out of that race. See `live-race-rooms.md`.

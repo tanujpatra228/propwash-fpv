@@ -143,6 +143,16 @@ For friends this is plenty. Safeguards that keep it from running out:
 - **Out of view:** a pilot behind you or off-screen has no tag. Find them on the **minimap**, where every other pilot is a dot in their slot colour under your own arrow.
 - Pilots appear once their first pose arrives and vanish after 5 s of silence.
 
+## Battery race and drone loadouts
+
+The host sets two rules in the lobby (both default to the old behaviour: stock drones, no drain):
+
+- **Battery race** (races only): the battery drains as in time trial. If yours runs out before the finish you fall, and once you are down (or after 3 seconds of falling) you are **out**: your game tells the room, the room announces it, your gates stop counting, and the standings show "Out". The race ends when every pilot has finished or is out, and the results list pilots who ran out as DNF below the finishers. Efficient flying and the right props now matter.
+- **Drones**: **Stock** (everyone flies the same drone, the default, so times and crown chase are fair) or **Hangar setups** (everyone flies their own propellers and battery). Hangar setups work in both race and crown chase; the battery rule never applies to crown chase.
+- Only the host can change the rules, only in the lobby. They are part of the room state, so they survive a server hibernation and a pilot reloading into another map.
+- Out is reported by the pilot's own game, like gates and positions: friendly play, not anti-cheat.
+- The lobby panel now scrolls on short screens.
+
 ## Map selection in the lobby
 
 - The host picks the map in the lobby, next to the mode and the laps. Everyone else sees "Map: Downtown Dash. The host chooses."

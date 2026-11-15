@@ -416,3 +416,72 @@ describe('crown chase', () => {
     expect(copy.snapshot().crown?.holderId).toBe(first);
   });
 });
+
+describe('battery race rules', () => {
+  const rulesOf = (s: Step) => {
+    const m = s.out.map((o) => o.message).find((x) => x.t === 'room');
+    return m?.t === 'room' ? m.rules : undefined;
+  };
+
+  it('defaults to stock drones with no drain; only the host changes the rules, only in the lobby', () => {
+    const room = lobby(['host', 'guest']);
+    expect(rulesOf(send(room, 'host', { t: 'ready', isReady: true }, 1))).toEqual({ drain: false, loadout: 'stock' });
+    expect(send(room, 'guest', { t: 'rules', drain: true, loadout: 'hangar' }, 2).out).toHaveLength(0);
+    expect(rulesOf(send(room, 'host', { t: 'rules', drain: true, loadout: 'hangar' }, 3))).toEqual({ drain: true, loadout: 'hangar' });
+    send(room, 'guest', { t: 'ready', isReady: true }, 4);
+    send(room, 'host', { t: 'start' }, 10);
+    expect(send(room, 'host', { t: 'rules', drain: false, loadout: 'stock' }, 11).out).toHaveLength(0);
+  });
+  function batteryRace() {
+    const room = lobby(['host', 'guest', 'third']);
+    send(room, 'host', { t: 'rules', drain: true, loadout: 'stock' }, 1);
+    send(room, 'host', { t: 'laps', laps: 1 }, 2);
+    send(room, 'guest', { t: 'ready', isReady: true }, 3);
+    send(room, 'third', { t: 'ready', isReady: true }, 3);
+    send(room, 'host', { t: 'start' }, 1000);
+    const goMs = 1000 + ROOMS.countdownMs;
+    room.tick(goMs);
+    return { room, goMs };
+  }
+  it('a pilot whose battery ran out is out: announced once, no gates counted, and the race can end without them', () => {
+    const { room, goMs } = batteryRace();
+    const step = send(room, 'third', { t: 'out' }, goMs + 5000);
+    expect(step.out.map((o) => o.message)).toContainEqual({ t: 'out', id: 'third' });
+    expect(send(room, 'third', { t: 'out' }, goMs + 5100).out).toHaveLength(0);
+    expect(send(room, 'third', { t: 'gate', index: 0 }, goMs + 6000).out).toHaveLength(0);
+    fly(room, 'guest', goMs, 1);
+    const last = fly(room, 'host', goMs + 500, 1);
+    expect(last).toBeGreaterThan(goMs);
+    expect(room.getPhase()).toBe('results');
+  });
+  it('results list the pilot who ran out as DNF, below the finishers', () => {
+    const { room, goMs } = batteryRace();
+    send(room, 'third', { t: 'out' }, goMs + 4000);
+    fly(room, 'guest', goMs, 1);
+    const step = (() => {
+      let t = goMs + 500;
+      let last: Step = { out: [], close: [] };
+      for (let i = 0; i < GATES + 1; i++) {
+        t += 2000;
+        last = send(room, 'host', { t: 'gate', index: i % GATES }, t);
+      }
+      return last;
+    })();
+    const res = step.out.map((o) => o.message).find((m) => m.t === 'results');
+    expect(res?.t === 'results' && res.rows.map((r) => r.place)).toEqual([1, 2, 0]);
+  });
+  it('out is ignored when the battery rules are off, in a crown match, and for a pilot who already finished', () => {
+    const room = lobby(['host', 'guest']);
+    send(room, 'guest', { t: 'ready', isReady: true }, 1);
+    send(room, 'host', { t: 'laps', laps: 1 }, 2);
+    send(room, 'host', { t: 'start' }, 1000);
+    room.tick(1000 + ROOMS.countdownMs);
+    expect(send(room, 'guest', { t: 'out' }, 5000).out).toHaveLength(0);
+  });
+  it('survives hibernation', () => {
+    const room = lobby(['host']);
+    send(room, 'host', { t: 'rules', drain: true, loadout: 'hangar' }, 1);
+    const copy = Room.restore(JSON.parse(JSON.stringify(room.snapshot())));
+    expect(rulesOf(send(copy, 'host', { t: 'ready', isReady: true }, 2))).toEqual({ drain: true, loadout: 'hangar' });
+  });
+});

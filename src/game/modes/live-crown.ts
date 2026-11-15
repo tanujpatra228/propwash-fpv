@@ -1,6 +1,6 @@
 import { Vector3, type Quaternion } from 'three';
 import { CROWN, ROOMS, TRIAL } from '../../config';
-import type { PoseFields, ResultRow, RosterEntry, ServerMessage } from '../../core/room-protocol';
+import type { PoseFields, ResultRow, RoomRules, RosterEntry, ServerMessage } from '../../core/room-protocol';
 import { ordinal, type StandingRow } from '../../ui/standings-panel';
 import { gridPose } from '../grid';
 import type { Pose } from '../respawn';
@@ -15,6 +15,7 @@ export interface CrownSession {
   readonly mySlot: number;
   readonly isHost: boolean;
   readonly roster: readonly RosterEntry[];
+  readonly rules: RoomRules;
   readonly others: readonly PilotMarker[];
   /** The latest crown state from the server. */
   readonly crown: CrownUpdate;
@@ -34,7 +35,6 @@ function clock(ms: number): string {
 /** Dethrone: fly where you like, take the crown from the king by staying close, score for every second you hold it. */
 export class LiveCrown implements GameMode {
   readonly id = 'crown' as const;
-  readonly usesSetup = false;
   readonly drainsBattery = false;
   readonly hud: ModeHud = { modeLabel: 'Crown chase', hint: HINT, race: null, countdown: '', swapProgress01: 0, lesson: null, standings: [], others: [], ghostLabel: '' };
   private state: State = 'countdown';
@@ -48,6 +48,11 @@ export class LiveCrown implements GameMode {
     private readonly host: ModeHost,
     private readonly session: CrownSession,
   ) {}
+
+  /** Hangar setups when the host chose them; the battery never drains in crown chase. */
+  get usesSetup(): boolean {
+    return this.session.rules.loadout === 'hangar';
+  }
 
   get isInputLocked(): boolean {
     return this.state === 'countdown';

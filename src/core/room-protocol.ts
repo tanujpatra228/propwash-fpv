@@ -9,6 +9,15 @@ export type RoomPhase = 'lobby' | 'countdown' | 'racing' | 'results';
 /** What the room plays: a race through the gates, or crown chase (dethrone). */
 export type RoomMode = 'race' | 'crown';
 
+/** Which drones the pilots fly: everyone on the stock drone, or each on their own Hangar setup. */
+export type Loadout = 'stock' | 'hangar';
+
+export interface RoomRules {
+  /** Battery race: the battery drains and running out before the finish means you are out. Races only. */
+  drain: boolean;
+  loadout: Loadout;
+}
+
 /** Positions in whole centimetres, angles in hundredths of a radian. */
 export interface PoseFields {
   x: number;
@@ -24,6 +33,8 @@ export type ClientMessage =
   | { t: 'laps'; laps: number }
   | { t: 'mode'; mode: RoomMode }
   | { t: 'track'; track: TrackId }
+  | { t: 'rules'; drain: boolean; loadout: Loadout }
+  | { t: 'out' }
   | { t: 'hold' }
   | { t: 'start' }
   | { t: 'rematch' }
@@ -67,13 +78,14 @@ export interface ResultRow {
 
 export type ServerMessage =
   | { t: 'welcome'; you: string; code: string }
-  | { t: 'room'; phase: RoomPhase; mode: RoomMode; track: TrackId; hostId: string; laps: number; pilots: RosterEntry[] }
+  | { t: 'room'; phase: RoomPhase; mode: RoomMode; track: TrackId; rules: RoomRules; hostId: string; laps: number; pilots: RosterEntry[] }
   | { t: 'crown'; holderId: string; scores: CrownScoreEntry[]; threatId: string; threat01: number; remainingMs: number }
   | { t: 'countdown'; startsInMs: number }
   | { t: 'go' }
   | { t: 'chat'; from: string; text: string }
   | ({ t: 'pose'; id: string } & PoseFields)
   | { t: 'standings'; rows: StandingEntry[] }
+  | { t: 'out'; id: string }
   | { t: 'finish'; id: string; place: number; timeS: number }
   | { t: 'results'; rows: ResultRow[] }
   | { t: 'error'; message: string };
@@ -141,6 +153,12 @@ export function parseClientMessage(frame: unknown): ParseResult {
       return isTrackId(o['track']) ? { ok: true, message: { t: 'track', track: o['track'] } } : { ok: false, reason: 'bad track' };
     case 'hold':
       return { ok: true, message: { t: 'hold' } };
+    case 'out':
+      return { ok: true, message: { t: 'out' } };
+    case 'rules':
+      return typeof o['drain'] === 'boolean' && (o['loadout'] === 'stock' || o['loadout'] === 'hangar')
+        ? { ok: true, message: { t: 'rules', drain: o['drain'], loadout: o['loadout'] } }
+        : { ok: false, reason: 'bad rules' };
     case 'start':
       return { ok: true, message: { t: 'start' } };
     case 'rematch':
