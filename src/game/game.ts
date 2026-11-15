@@ -203,6 +203,7 @@ export class Game {
       hideBanner: () => this.banner.hide(),
       currentMode: () => this.mode,
       isWindSetting: () => this.pilot.isWindOn,
+      onCrash: (reason, speedMps) => this.sound.play({ type: 'crash', reason, speedMps }),
       water: new WaterEffects(this.scene),
     });
     this.presenter = new Presenter({

@@ -1,6 +1,6 @@
 # Feature: Sound Design
 
-Status: In progress (part 1: bus, motors, race and battery sounds)
+Status: In progress (parts 1 and 2 built: bus, motors, race and battery sounds, crash sounds)
 Phase: 8
 Branch: `feat/sound-design`
 Last updated: 2026-11-15
@@ -18,6 +18,9 @@ A proper audio layer: one mixer (bus) with volume sliders, a four-motor drone so
 - **Gates:** a clean ping. Each gate in a row (no crash) is one semitone higher, up to an octave. A crash or respawn resets the streak.
 - **Countdown:** a tick per number and a higher tone on GO.
 - **Laps:** a two-note chime for a lap, a three-note rising chime for a personal best.
+- **Crashes:** what you hit decides the sound, how fast you were going decides the loudness (a slow bump still thuds). Under every crash the motors cut with a falling whine. Hard crashes leave a short ringing in the ears.
+  - Ground: dull thud. Water: splash that glides down, with a few bubbles. Tree: rustle and snap. Building and factory: heavy low thump. Rock: sharp crack.
+  - Gate, container and crane: ringing metal (gate bright, container mid, crane deep and long). Vehicle: crunch, then a short car horn.
 - **Battery low:** short beeps that speed up as the pack drains, like a real low-voltage buzzer.
 - Sound is still off until the player turns it on (M or the flight menu button), because browsers need a click first. The on/off choice is saved as before.
 
@@ -33,6 +36,7 @@ A proper audio layer: one mixer (bus) with volume sliders, a four-motor drone so
 | Gate ping | 660 Hz, +1 semitone per gate in a row, capped at 12. 0.25 s decay |
 | Countdown | 880 Hz tick, 1320 Hz GO |
 | Battery low | Beep at 2.8 kHz. Interval 1.2 s at the low threshold, down to 0.25 s near empty |
+| Crash | Per surface profile in `AUDIO.crash.profiles` (thump, noise burst, ringing partials, optional horn or bubbles). Loudness 35% at 3 m/s impact speed up to 100% at 25 m/s. Motor-cut whine 520 to 60 Hz in 0.45 s. Ringing in the ears above 60% intensity |
 | Mixer | Motors and prop wash on the Motors bus, wind on Ambience, all one-shot sounds on Effects. All feed Master, then a limiter so stacked sounds never clip |
 | Slider curve | Slider 0 to 100, gain is the square of slider / 100 (feels even to the ear) |
 
@@ -44,7 +48,7 @@ A proper audio layer: one mixer (bus) with volume sliders, a four-motor drone so
   - `motor-voice.ts`: the four motors. `wind-voice.ts`: wind and prop wash. `sfx.ts`: one-shot sounds.
   - `sound-system.ts`: the one object the game holds. Same API as the old `MotorSound` (`toggle`, `enabled`, `available`) plus `update(frame)`, `play(event)` and `setLevels`.
 - `core/audio-settings.ts`: the four sliders, sanitised and saved under `pw.audio.v1` (pure, tested).
-- `game/audio-director.ts`: watches each presented frame (the countdown text, the lap tracker, the battery, crashes) and turns changes into sound events. No game rule knows about sound.
+- `FlightSession` reports each crash (what was hit and how fast) and the game plays `crash` on the sound system. `game/audio-director.ts`: watches each presented frame (the countdown text, the lap tracker, the battery, crashes) and turns changes into sound events. No game rule knows about sound.
 - The old `core/audio.ts` is removed.
 
 ## Edge cases
@@ -63,6 +67,7 @@ A proper audio layer: one mixer (bus) with volume sliders, a four-motor drone so
 - [ ] Goggles are louder than chase, and chase louder than broadcast.
 - [ ] Gate pings rise in a streak and reset after a crash.
 - [ ] Countdown ticks, GO tone, lap chime and personal-best chime play in the matching modes.
+- [ ] Each of the ten crash reasons sounds different, and a fast crash is louder than a slow bump.
 - [ ] Low-battery beeps speed up as charge drops and stop when empty.
 - [ ] No console errors where audio is blocked.
 
@@ -76,14 +81,17 @@ A proper audio layer: one mixer (bus) with volume sliders, a four-motor drone so
 | 4 | Unit: `batteryBeepIntervalS` | Long when full, short near empty, clamped | Unit |
 | 5 | Unit: audio settings | Bad values clamped, missing keys default, round trip | Unit |
 | 6 | Unit: director | Gate, lap, best lap, countdown, battery events fire once; streak resets on crash | Unit |
-| 7 | Manual: fly, bank, dive, change camera | See the acceptance criteria | Manual |
+| 7 | Unit: crash volume and profiles | Slow bumps quiet but audible, hard crashes full; every crash reason has a profile and none is left over | Unit |
+| 8 | Manual: fly, bank, dive, change camera | See the acceptance criteria | Manual |
 
 ## Verification and known gaps
 
+- Crash sounds: rendered offline in a browser (an `OfflineAudioContext` standing in for the real one): all ten reasons produce sound, they differ in loudness and pitch (building and factory lowest, water and tree noisiest), a 3 m/s bump is about half as loud as a 20 m/s crash, no errors.
 - Verified: 506 tests (model, settings, director). In headless Chrome with a measuring analyser on the limiter: the menu is silent, free flight and time trial produce a signal, the context runs, and there are no console errors.
 - Headless browsers have no audio output, so only logic and absence of errors can be tested here. Every tone value is a first guess and needs ears: please listen and tell me what to change.
-- Not in this part: crash sounds per surface, Crown chase audio, 3D positioned sound and Doppler for other pilots, per-map ambience (parts 4 to 6 of the plan).
+- Not in these parts: Crown chase audio, 3D positioned sound and Doppler for other pilots, per-map ambience (parts 4 to 6 of the plan).
 
 ## Changelog
 
 - 2026-11-15: Created. Part 1 (bus, four motors, prop wash, wind, gate, countdown, lap and battery sounds, sliders).
+- 2026-11-15: Part 2: crash sounds per surface, with impact speed deciding loudness. Positional sound for other pilots waits for the seat camera (the user is adding a third-person camera much closer to the drone than chase).

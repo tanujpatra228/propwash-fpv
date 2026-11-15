@@ -602,6 +602,27 @@ export const FREE_FLIGHT = {
 /** Which camera is listening. The sound mix has one entry per camera: adding a camera mode means adding its entry here. */
 export type SoundCameraId = 'goggles' | 'chase' | 'broadcast';
 
+/** What the drone hit. One entry per crash reason: a new obstacle kind in the physics needs a sound profile here. */
+export type CrashSoundId = 'ground' | 'water' | 'gate' | 'factory' | 'container' | 'building' | 'tree' | 'vehicle' | 'crane' | 'rock';
+
+/** How one kind of crash sounds: a low thump, a burst of noise, ringing metal or stone, and an optional extra. */
+export interface CrashProfile {
+  thumpHz: number;
+  thumpS: number;
+  thumpVolume: number;
+  noiseHz: number;
+  /** The noise band glides to this frequency over its length (0 for no glide). */
+  noiseGlideToHz: number;
+  noiseQ: number;
+  noiseS: number;
+  noiseVolume: number;
+  /** Inharmonic ringing partials, in Hz. Empty for a dull hit. */
+  ringsHz: readonly number[];
+  ringS: number;
+  ringVolume: number;
+  extra: 'none' | 'horn' | 'bubbles';
+}
+
 /** Synthesised sound (Web Audio). Nothing is downloaded. */
 export const AUDIO = {
   motorBaseHz: 120,
@@ -648,6 +669,31 @@ export const AUDIO = {
   gate: { baseHz: 660, maxSemitones: 12, decayS: 0.25, volume: 0.35 },
   countdown: { tickHz: 880, goHz: 1320, tickS: 0.09, goS: 0.45, volume: 0.3 },
   lap: { notesHz: [784, 1047], bestNotesHz: [784, 988, 1319], noteGapS: 0.11, noteS: 0.22, volume: 0.32 },
+  crash: {
+    /** Below this impact speed a crash is at its quietest; at the full speed it is at its loudest. */
+    minSpeedMps: 3,
+    fullSpeedMps: 25,
+    minVolume: 0.35,
+    /** The motors cutting out: a falling whine under every crash. */
+    cutWhine: { fromHz: 520, toHz: 60, durationS: 0.45, volume: 0.1 },
+    /** A hard crash (this much of full intensity) also leaves a ringing in the ears. */
+    ringingFrom01: 0.6,
+    ringing: { hz: 3300, durationS: 1, volume: 0.04 },
+    horn: { hz: [420, 530], delayS: 0.15, durationS: 0.3, volume: 0.1 },
+    bubbles: { delaysS: [0.15, 0.3, 0.42], fromHz: 400, toHz: 900, durationS: 0.08, volume: 0.1 },
+    profiles: {
+      ground: { thumpHz: 90, thumpS: 0.22, thumpVolume: 0.7, noiseHz: 700, noiseGlideToHz: 0, noiseQ: 0.8, noiseS: 0.18, noiseVolume: 0.35, ringsHz: [], ringS: 0, ringVolume: 0, extra: 'none' },
+      water: { thumpHz: 70, thumpS: 0.3, thumpVolume: 0.4, noiseHz: 2800, noiseGlideToHz: 500, noiseQ: 0.7, noiseS: 0.7, noiseVolume: 0.5, ringsHz: [], ringS: 0, ringVolume: 0, extra: 'bubbles' },
+      gate: { thumpHz: 140, thumpS: 0.12, thumpVolume: 0.35, noiseHz: 3500, noiseGlideToHz: 0, noiseQ: 1.5, noiseS: 0.07, noiseVolume: 0.25, ringsHz: [880, 1320, 2105], ringS: 0.55, ringVolume: 0.16, extra: 'none' },
+      factory: { thumpHz: 60, thumpS: 0.35, thumpVolume: 0.8, noiseHz: 500, noiseGlideToHz: 0, noiseQ: 0.6, noiseS: 0.3, noiseVolume: 0.4, ringsHz: [], ringS: 0, ringVolume: 0, extra: 'none' },
+      container: { thumpHz: 110, thumpS: 0.2, thumpVolume: 0.5, noiseHz: 1800, noiseGlideToHz: 0, noiseQ: 1, noiseS: 0.15, noiseVolume: 0.3, ringsHz: [340, 560, 870, 1190], ringS: 0.7, ringVolume: 0.14, extra: 'none' },
+      building: { thumpHz: 55, thumpS: 0.4, thumpVolume: 0.85, noiseHz: 450, noiseGlideToHz: 0, noiseQ: 0.6, noiseS: 0.35, noiseVolume: 0.45, ringsHz: [], ringS: 0, ringVolume: 0, extra: 'none' },
+      tree: { thumpHz: 120, thumpS: 0.15, thumpVolume: 0.35, noiseHz: 3200, noiseGlideToHz: 1200, noiseQ: 0.5, noiseS: 0.5, noiseVolume: 0.55, ringsHz: [], ringS: 0, ringVolume: 0, extra: 'none' },
+      vehicle: { thumpHz: 100, thumpS: 0.2, thumpVolume: 0.55, noiseHz: 2200, noiseGlideToHz: 0, noiseQ: 0.9, noiseS: 0.25, noiseVolume: 0.4, ringsHz: [420, 690], ringS: 0.4, ringVolume: 0.1, extra: 'horn' },
+      crane: { thumpHz: 65, thumpS: 0.3, thumpVolume: 0.7, noiseHz: 1200, noiseGlideToHz: 0, noiseQ: 1, noiseS: 0.2, noiseVolume: 0.3, ringsHz: [150, 237, 410, 655], ringS: 1, ringVolume: 0.2, extra: 'none' },
+      rock: { thumpHz: 80, thumpS: 0.25, thumpVolume: 0.65, noiseHz: 4200, noiseGlideToHz: 0, noiseQ: 0.8, noiseS: 0.12, noiseVolume: 0.5, ringsHz: [], ringS: 0, ringVolume: 0, extra: 'none' },
+    } satisfies Record<CrashSoundId, CrashProfile>,
+  },
   batteryBeep: { hz: 2800, beepS: 0.06, volume: 0.18, slowIntervalS: 1.2, fastIntervalS: 0.25 },
 } as const;
 

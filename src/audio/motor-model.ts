@@ -1,4 +1,4 @@
-import { AUDIO, type SoundCameraId } from '../config';
+import { AUDIO, type CrashProfile, type CrashSoundId, type SoundCameraId } from '../config';
 import { clamp01 } from '../core/math';
 
 /** The drone's attitude and motion as the sound needs it. */
@@ -82,4 +82,19 @@ export function gatePitchHz(streak: number): number {
 export function batteryBeepIntervalS(charge01: number, lowThreshold01: number): number {
   const urgency = clamp01(1 - charge01 / Math.max(1e-6, lowThreshold01));
   return AUDIO.batteryBeep.slowIntervalS + (AUDIO.batteryBeep.fastIntervalS - AUDIO.batteryBeep.slowIntervalS) * urgency;
+}
+
+/** How hard a crash sounds, 0..1, from the impact speed. */
+export function crashIntensity(speedMps: number): number {
+  const { minSpeedMps, fullSpeedMps } = AUDIO.crash;
+  return clamp01((speedMps - minSpeedMps) / (fullSpeedMps - minSpeedMps));
+}
+
+/** Volume multiplier for a crash: never silent (a bump still thuds), full for a hard crash. */
+export function crashVolume(speedMps: number): number {
+  return AUDIO.crash.minVolume + (1 - AUDIO.crash.minVolume) * crashIntensity(speedMps);
+}
+
+export function crashProfile(reason: CrashSoundId): CrashProfile {
+  return AUDIO.crash.profiles[reason];
 }

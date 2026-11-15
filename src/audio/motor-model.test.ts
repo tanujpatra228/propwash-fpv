@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AUDIO } from '../config';
-import { batteryBeepIntervalS, cameraMix, gatePitchHz, motorLoads, motorVoiceTone, washLevel, windTone, type MotorState } from './motor-model';
+import { batteryBeepIntervalS, cameraMix, crashIntensity, crashProfile, crashVolume, gatePitchHz, motorLoads, motorVoiceTone, washLevel, windTone, type MotorState } from './motor-model';
 
 const level: MotorState = { throttle01: 0.5, pitchRad: 0, rollRad: 0, pitchRateRadps: 0, rollRateRadps: 0, yawRateRadps: 0 };
 
@@ -92,5 +92,31 @@ describe('cameras, gates and the battery', () => {
     expect(batteryBeepIntervalS(0, 0.2)).toBeCloseTo(AUDIO.batteryBeep.fastIntervalS);
     expect(batteryBeepIntervalS(0.1, 0.2)).toBeLessThan(batteryBeepIntervalS(0.15, 0.2));
     expect(batteryBeepIntervalS(0.9, 0.2)).toBeCloseTo(AUDIO.batteryBeep.slowIntervalS);
+  });
+});
+
+describe('crash sounds', () => {
+  it('a slow bump is quiet but never silent, a hard crash is full', () => {
+    expect(crashIntensity(0)).toBe(0);
+    expect(crashIntensity(AUDIO.crash.fullSpeedMps)).toBe(1);
+    expect(crashIntensity(500)).toBe(1);
+    expect(crashVolume(0)).toBe(AUDIO.crash.minVolume);
+    expect(crashVolume(AUDIO.crash.fullSpeedMps)).toBe(1);
+    expect(crashVolume(14)).toBeGreaterThan(crashVolume(6));
+  });
+  it('every surface has a usable profile', () => {
+    for (const profile of Object.values(AUDIO.crash.profiles)) {
+      expect(profile.thumpHz).toBeGreaterThan(0);
+      expect(profile.noiseS).toBeGreaterThan(0);
+      expect(profile.ringsHz.length === 0 || profile.ringS > 0).toBe(true);
+    }
+  });
+  it('metal rings and soft things do not: containers, gates and cranes ring, ground, trees and buildings thud', () => {
+    for (const metal of ['container', 'gate', 'crane'] as const) expect(crashProfile(metal).ringsHz.length).toBeGreaterThan(0);
+    for (const soft of ['ground', 'tree', 'building', 'factory'] as const) expect(crashProfile(soft).ringsHz).toHaveLength(0);
+  });
+  it('buildings thud lower than rocks, and water glides down', () => {
+    expect(crashProfile('building').thumpHz).toBeLessThan(crashProfile('rock').thumpHz);
+    expect(crashProfile('water').noiseGlideToHz).toBeLessThan(crashProfile('water').noiseHz);
   });
 });

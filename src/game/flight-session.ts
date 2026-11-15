@@ -22,6 +22,8 @@ export interface FlightSessionParts {
   currentMode(): GameMode;
   /** The Settings choice for wind in free flight and training. */
   isWindSetting(): boolean;
+  /** Called at the moment of a crash with what was hit and how fast. */
+  onCrash?(reason: CrashReason, speedMps: number): void;
   /** Spray and splash effects over water (optional). */
   water?: WaterEffects;
 }
@@ -51,6 +53,7 @@ export class FlightSession {
 
   private startCrash(reason: CrashReason): void {
     this.crashTimerS = COLLISION.crashDurationS;
+    this.parts.onCrash?.(reason, this.parts.flight.velocity.length());
     if (reason === 'water') this.parts.water?.splash(this.parts.flight.position);
     this.parts.flight.velocity.set(0, 0, 0);
     this.parts.showCrash('Crashed', `${CRASH_MESSAGES[reason]}. Respawning at the last gate…`);
