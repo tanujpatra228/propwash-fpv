@@ -4,8 +4,8 @@ import { BotRacer, gridBehindM } from './bot-racer';
 
 const G = TRACK.gateCount;
 
-function lapTimeS(skill: 'easy' | 'medium' | 'hard', slot = 0): number {
-  const bot = new BotRacer(slot, skill, 2);
+function lapTimeS(skill: 'easy' | 'medium' | 'hard' | 'pro', slot = 0, pace = 1): number {
+  const bot = new BotRacer(slot, skill, 2, pace);
   let t = 0;
   while (!bot.isFinished && t < 600) bot.advanceTo((t += 1));
   return bot.lastCrossingMs / 1000;
@@ -44,12 +44,27 @@ describe('BotRacer', () => {
     expect(bot.gatesPassed).toBe(G + 1);
     expect(bot.distanceToNextM).toBe(0);
   });
-  it('harder skills lap faster: hard < medium < easy', () => {
+  it('harder skills lap faster: pro < hard < medium < easy', () => {
     const easy = lapTimeS('easy');
     const medium = lapTimeS('medium');
     const hard = lapTimeS('hard');
+    const pro = lapTimeS('pro');
+    expect(pro).toBeLessThan(hard);
     expect(hard).toBeLessThan(medium);
     expect(medium).toBeLessThan(easy);
+    // Each step is a real step, not a rounding error.
+    expect(easy / medium).toBeGreaterThan(1.15);
+    expect(medium / hard).toBeGreaterThan(1.1);
+    expect(hard / pro).toBeGreaterThan(1.03);
+  });
+  it('pro is at the limit of what the drone can do: well inside the 2 laps a 30 s lap would take, but not faster than the online minimum lap', () => {
+    // Two laps include the standing start; the online leaderboard refuses single laps under 30 s.
+    expect(lapTimeS('pro') / 2).toBeGreaterThan(30);
+  });
+  it('a pace above 1 makes the same bot quicker and below 1 slower', () => {
+    const base = lapTimeS('hard');
+    expect(lapTimeS('hard', 0, 1.1)).toBeLessThan(base);
+    expect(lapTimeS('hard', 0, 0.9)).toBeGreaterThan(base);
   });
   it('bots of one skill finish at different times (they do not move in lockstep) but within a few percent', () => {
     const times = [0, 1, 2, 3].map((slot) => lapTimeS('medium', slot));

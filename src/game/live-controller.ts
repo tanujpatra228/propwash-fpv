@@ -1,8 +1,9 @@
 import type { Group, Scene } from 'three';
 import { ACTIVE_TRACK_ID, BOTS, ROOMS, TRACK_DEFS, type BotSkillId, type TrackId } from '../config';
+import { loadBotPace, nextPace, paceLabel, saveBotPace } from '../core/bot-pace';
 import { reloadIntoRoomMap } from '../core/track-switch';
 import { getRoomKey } from '../net/room-key';
-import { normaliseRoomCode, type PoseFields, type RosterEntry, type RoomMode, type RoomPhase, type RoomRules, type ServerMessage, type StandingEntry } from '../core/room-protocol';
+import { normaliseRoomCode, type PoseFields, type ResultRow, type RosterEntry, type RoomMode, type RoomPhase, type RoomRules, type ServerMessage, type StandingEntry } from '../core/room-protocol';
 import { createCrown } from '../drone/crown';
 import { CrownBeacon } from './crown-beacon';
 import { loadPilotName, savePilotName } from '../net/pilot-identity';
@@ -240,6 +241,7 @@ export class LiveController implements LiveSession, CrownSession {
       case 'out': this.mode?.onOut(m.id); break;
       case 'results':
         this.botFleet.clear();
+        this.adaptBots(m.rows);
         this.active?.onResults(m.rows);
         break;
       case 'error': this.lastError = m.message; if (this.phase !== 'lobby') this.host.notify('Live race', m.message); break;
@@ -269,15 +271,24 @@ export class LiveController implements LiveSession, CrownSession {
       this.beacon.setVisible(false);
       this.drones.setKing('');
       this.botFleet.clear();
-      this.lobby.showRoom({ code: this.code, myId: this.myId, hostId: m.hostId, laps: m.laps, mode: m.mode, track: m.track, rules: m.rules, bots: m.bots, isSolo: this.isSolo, pilots: m.pilots, pingMs: this.client?.pingMs ?? 0 });
+      this.lobby.showRoom({ code: this.code, myId: this.myId, hostId: m.hostId, laps: m.laps, mode: m.mode, track: m.track, rules: m.rules, bots: m.bots, isSolo: this.isSolo, botPace: this.isSolo ? loadBotPace(m.bots.skill) : 1, pilots: m.pilots, pingMs: this.client?.pingMs ?? 0 });
     } else if (m.phase === 'countdown' && previous === 'lobby') {
       this.order = [];
       this.drones.reset();
-      this.botFleet.prepare(m.pilots, m.bots.skill, m.laps);
+      this.botFleet.prepare(m.pilots, m.bots.skill, m.laps, this.isSolo ? loadBotPace(m.bots.skill) : 1);
       this.lobby.hide();
       this.host.resumeInput();
       this.host.startRace(m.mode === 'crown' ? 'crown' : 'live');
     }
+  }
+
+  /** Solo: the bots tune themselves to the pilot, a little faster after a win and a little slower after a loss. */
+  private adaptBots(rows: readonly ResultRow[]): void {
+    if (!this.isSolo || this.botSettings.count < 1) return;
+    const didWin = rows.find((r) => r.id === this.myId)?.place === 1;
+    const next = nextPace(loadBotPace(this.botSettings.skill), didWin);
+    saveBotPace(this.botSettings.skill, next);
+    this.host.notify(didWin ? 'You beat the bots' : 'The bots won', `Next race the ${this.botSettings.skill} bots are ${paceLabel(next)}.`);
   }
 
   /** The server's crown state: who is king, the scores and how close the nearest chaser is. */
