@@ -270,7 +270,6 @@ export class LobbyScreen {
     this.roomEyebrow.textContent = isSolo ? 'Solo race' : 'Room code';
     this.copyButton.hidden = isSolo;
     this.mapRow.hidden = isSolo;
-    this.modeRow.hidden = isSolo;
     const me = view.pilots.find((p) => p.id === view.myId);
     this.isReady = me?.isReady ?? false;
     const isHost = view.myId === view.hostId;
@@ -278,7 +277,6 @@ export class LobbyScreen {
     this.readyButton.hidden = isHost;
     const status = startStatus(view);
     this.bots = view.bots;
-    this.botsRow.hidden = view.mode === 'crown';
     this.botCountButtons.forEach((button, n) => {
       button.classList.toggle('on', n === view.bots.count);
       button.disabled = !isHost;

@@ -1,5 +1,6 @@
 import { Quaternion, Vector3 } from 'three';
-import { BOTS, ROOMS, TRACK, type BotSkillId } from '../config';
+import { BOTS, TRACK, type BotSkillId } from '../config';
+import { gridBehindM } from '../core/grid';
 import { gateSampleIndex, track } from '../world/track';
 import { TrackRacer } from './track-racer';
 
@@ -9,10 +10,7 @@ const SPEED_SPREAD = [1, 0.97, 1.03, 0.95, 1.02, 0.98];
 /** Sideways spread of the racing lines, metres. */
 const LINE_SPREAD_M = [-1.2, 1.2, 0, -0.6, 0.6, 0];
 
-/** How far behind the start line a grid slot sits along the track, metres. Matches `gridPose`. */
-export function gridBehindM(slot: number): number {
-  return ROOMS.gridFirstRowBehindM + Math.floor(slot / 2) * ROOMS.gridRowSpacingM;
-}
+export { gridBehindM };
 
 /** Metres along the racing line from gate 0 to each gate (gate 0 is 0). */
 function gateOffsetsM(): number[] {

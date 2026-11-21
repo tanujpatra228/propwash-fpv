@@ -3,7 +3,9 @@
  * connections, text frames and the current time; it returns who should be sent what and who to disconnect.
  */
 import { BOTS, ROOMS, TRACK, TRACK_DEFS, TRACK_IDS, type TrackId } from '../config';
+import { CrownBots, type CrownBotsSnapshot } from './crown-bots';
 import { CrownGame, type CrownEvent, type CrownSnapshot } from './crown-game';
+import { TRACK_LINES } from './track-lines';
 import { checkPilotName } from './pilot-name';
 import {
   parseClientMessage,
@@ -29,6 +31,7 @@ export interface RoomSnapshot {
   rules?: RoomRules;
   bots?: BotSettings;
   crown?: CrownSnapshot | null;
+  crownBots?: CrownBotsSnapshot | null;
   raceStartMs: number;
   firstFinishMs: number;
   finishedCount: number;
@@ -106,6 +109,8 @@ export class Room {
   private rules: RoomRules = { drain: false, loadout: 'stock' };
   private bots: BotSettings = { count: BOTS.defaultCount, skill: BOTS.defaultSkill };
   private crown: CrownGame | null = null;
+  private crownBots: CrownBots | null = null;
+  private lastBotPoseMs = -Infinity;
   private readonly pilots = new Map<string, Pilot>();
   private raceStartMs = 0;
   private firstFinishMs = 0;
@@ -123,7 +128,7 @@ export class Room {
   /** Everything needed to rebuild the room after the server's memory was dropped (hibernation). */
   snapshot(): RoomSnapshot {
     return {
-      code: this.code, worldVersion: this.worldVersion, phase: this.phase, hostId: this.hostId, laps: this.laps, mode: this.mode, rules: this.rules, bots: this.bots, crown: this.crown?.snapshot() ?? null,
+      code: this.code, worldVersion: this.worldVersion, phase: this.phase, hostId: this.hostId, laps: this.laps, mode: this.mode, rules: this.rules, bots: this.bots, crown: this.crown?.snapshot() ?? null, crownBots: this.crownBots?.snapshot() ?? null,
       raceStartMs: this.raceStartMs, firstFinishMs: this.firstFinishMs, finishedCount: this.finishedCount,
       pilots: [...this.pilots.values()],
     };
@@ -138,6 +143,10 @@ export class Room {
     room.rules = snapshot.rules ?? { drain: false, loadout: 'stock' };
     room.bots = snapshot.bots ?? { count: BOTS.defaultCount, skill: BOTS.defaultSkill };
     room.crown = snapshot.crown ? CrownGame.restore(snapshot.crown) : null;
+    if (snapshot.crownBots) {
+      room.crownBots = new CrownBots(TRACK_LINES[TRACK_DEFS[room.track].family]);
+      room.crownBots.restore(snapshot.crownBots);
+    }
     room.raceStartMs = snapshot.raceStartMs;
     room.firstFinishMs = snapshot.firstFinishMs;
     room.finishedCount = snapshot.finishedCount;
@@ -383,10 +392,10 @@ export class Room {
     return step;
   }
 
-  /** Makes the bot pilots match the settings: none outside races, never more than the free grid slots. */
+  /** Makes the bot pilots match the settings, never more than the free grid slots. */
   private syncBots(): void {
     const humans = [...this.pilots.values()].filter((p) => !p.isBot).length;
-    const wanted = this.mode === 'race' ? Math.max(0, Math.min(this.bots.count, ROOMS.maxPilots - humans)) : 0;
+    const wanted = Math.max(0, Math.min(this.bots.count, ROOMS.maxPilots - humans));
     let bots = this.botPilots().sort((a, b) => a.slot - b.slot);
     while (bots.length > wanted) {
       const last = bots.pop();
@@ -487,6 +496,7 @@ export class Room {
     this.finishedCount = 0;
     for (const p of this.present()) this.resetProgress(p);
     this.crown = null;
+    this.crownBots = null;
     const step = emptyStep();
     this.broadcastRoom(step);
     step.out.push({ to: EVERYONE, message: { t: 'countdown', startsInMs: ROOMS.countdownMs } });
@@ -527,8 +537,30 @@ export class Room {
   private advanceCrown(nowMs: number, step: Step): void {
     const game = this.crown;
     if (!game) return;
+    this.stepCrownBots(game, nowMs, step);
     const events: CrownEvent[] = game.advance(nowMs);
     if (events.length > 0 || game.shouldBroadcast(nowMs)) step.out.push({ to: EVERYONE, message: this.crownMessage(nowMs) });
+  }
+
+  /** Moves the bots, tells the crown engine where they are (so they can claim and steal like anyone), and now and then tells the clients to draw them. */
+  private stepCrownBots(game: CrownGame, nowMs: number, step: Step): void {
+    const bots = this.crownBots;
+    if (!bots) return;
+    const [sx = 0, sy = 0, sz = 0] = TRACK_DEFS[this.track].crownSpawn;
+    bots.step(nowMs, {
+      holderId: game.holder,
+      isCrownReady: game.isCrownReady(nowMs),
+      crown: { x: sx, y: sy, z: sz },
+      positionOf: (id) => game.positionOf(id),
+      pilotIds: game.pilotIds,
+    });
+    const poses = bots.poses();
+    for (const p of poses) game.setPose(p.id, p.x, p.y, p.z, nowMs);
+    if (nowMs - this.lastBotPoseMs < BOTS.crown.poseEveryMs) return;
+    this.lastBotPoseMs = nowMs;
+    for (const p of poses) {
+      step.out.push({ to: EVERYONE, message: { t: 'pose', id: p.id, x: Math.round(p.x * 100), y: Math.round(p.y * 100), z: Math.round(p.z * 100), yaw: Math.round(p.yaw * 100), pitch: Math.round(p.pitch * 100), roll: Math.round(p.roll * 100) } });
+    }
   }
 
   private crownMessage(nowMs: number): ServerMessage {
@@ -631,9 +663,16 @@ export class Room {
 
   /** The crown starts free at the map's crown point at the moment of GO. */
   private startCrown(nowMs: number): void {
-    const ids = this.connected().sort((a, b) => a.slot - b.slot).map((p) => p.id);
+    const pilots = this.present().sort((a, b) => a.slot - b.slot);
     this.crown = new CrownGame();
-    this.crown.start(ids, TRACK_DEFS[this.track].crownSpawn, this.raceStartMs);
+    this.crown.start(pilots.map((p) => p.id), TRACK_DEFS[this.track].crownSpawn, this.raceStartMs);
+    this.crownBots = null;
+    const bots = pilots.filter((p) => p.isBot);
+    if (bots.length > 0) {
+      this.crownBots = new CrownBots(TRACK_LINES[TRACK_DEFS[this.track].family]);
+      this.crownBots.start(bots.map((b) => ({ id: b.id, slot: b.slot })), this.bots.skill, this.raceStartMs);
+      this.lastBotPoseMs = -Infinity;
+    }
   }
 
   /** When the server should next call `tick`, or 0 when nothing is pending. */
@@ -681,6 +720,7 @@ export class Room {
     for (const p of [...this.pilots.values()]) if (!p.isConnected) this.pilots.delete(p.id);
     for (const p of this.pilots.values()) p.isReady = p.isBot;
     this.crown = null;
+    this.crownBots = null;
     this.phase = 'lobby';
     const step = emptyStep();
     this.broadcastRoom(step);
@@ -695,5 +735,6 @@ export class Room {
     this.mode = 'race';
     this.bots = { count: BOTS.defaultCount, skill: BOTS.defaultSkill };
     this.crown = null;
+    this.crownBots = null;
   }
 }

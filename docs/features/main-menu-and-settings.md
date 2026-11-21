@@ -94,3 +94,4 @@ Hangar, lobby, results screen, pilot profile and friends list (Phases 3–5).
 
 - 2026-11-01: Created.
 - 2026-11-21: Added "Race the bots" (solo race against AI pilots, see `race-bots.md`).
+- 2026-11-21: "Race the bots" renamed "Play the bots" (solo race or crown chase against AI pilots).

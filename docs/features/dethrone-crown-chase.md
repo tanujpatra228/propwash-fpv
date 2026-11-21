@@ -104,3 +104,4 @@ Power-ups, hitting or pushing drones, teams, a solo version against bots (later)
 
 - 2026-11-14: Created.
 - 2026-11-15: The crown starts free at a central crown point (`crownSpawn` per map in `TRACK_DEFS`, picked on the racing line so it is always flyable). 30 s hold limit, 5 s respawn, beacon, minimap marker and hints. Server messages gained `holdLeftMs` and `respawnLeftMs`. No new Cloudflare usage: the same pose-driven engine, still not persisted per step. Crown spawn points are first guesses and need a playtest on every map.
+- 2026-11-21: Bots can play crown chase (see `race-bots.md`): the room flies them along the racing line on the server and they follow the same rules as pilots.
