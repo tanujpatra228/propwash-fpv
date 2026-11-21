@@ -2,11 +2,13 @@
  * The live-race room state machine. Pure: no sockets, no timers, no clock of its own. The server feeds it
  * connections, text frames and the current time; it returns who should be sent what and who to disconnect.
  */
-import { ROOMS, TRACK, TRACK_DEFS, TRACK_IDS, type TrackId } from '../config';
+import { BOTS, ROOMS, TRACK, TRACK_DEFS, TRACK_IDS, type TrackId } from '../config';
 import { CrownGame, type CrownEvent, type CrownSnapshot } from './crown-game';
 import { checkPilotName } from './pilot-name';
 import {
   parseClientMessage,
+  type BotProgressRow,
+  type BotSettings,
   type ClientMessage,
   type ResultRow,
   type RoomMode,
@@ -25,6 +27,7 @@ export interface RoomSnapshot {
   laps: number;
   mode?: RoomMode;
   rules?: RoomRules;
+  bots?: BotSettings;
   crown?: CrownSnapshot | null;
   raceStartMs: number;
   firstFinishMs: number;
@@ -76,9 +79,19 @@ export interface Pilot {
   holdUntilMs: number;
   /** Battery race: ran out of battery before the finish. */
   isOut: boolean;
+  /** An AI pilot: always connected and ready, moved by the host's game, never sends poses. */
+  isBot: boolean;
 }
 
 const GATES_PER_LAP = TRACK.gateCount;
+
+/** Bots sort after every human in the roster. */
+const BOT_JOINED_AT = 1e15;
+
+export interface RoomOptions {
+  /** A solo room (run in the browser, no server): one human is enough when there are bots. */
+  soloAllowed?: boolean;
+}
 
 function emptyStep(): Step {
   return { out: [], close: [] };
@@ -91,13 +104,14 @@ export class Room {
   private laps: number = ROOMS.defaultLaps;
   private mode: RoomMode = 'race';
   private rules: RoomRules = { drain: false, loadout: 'stock' };
+  private bots: BotSettings = { count: BOTS.defaultCount, skill: BOTS.defaultSkill };
   private crown: CrownGame | null = null;
   private readonly pilots = new Map<string, Pilot>();
   private raceStartMs = 0;
   private firstFinishMs = 0;
   private finishedCount = 0;
 
-  constructor(code: string, private worldVersion: number) {
+  constructor(code: string, private worldVersion: number, private readonly options: RoomOptions = {}) {
     this.code = code;
   }
 
@@ -109,24 +123,25 @@ export class Room {
   /** Everything needed to rebuild the room after the server's memory was dropped (hibernation). */
   snapshot(): RoomSnapshot {
     return {
-      code: this.code, worldVersion: this.worldVersion, phase: this.phase, hostId: this.hostId, laps: this.laps, mode: this.mode, rules: this.rules, crown: this.crown?.snapshot() ?? null,
+      code: this.code, worldVersion: this.worldVersion, phase: this.phase, hostId: this.hostId, laps: this.laps, mode: this.mode, rules: this.rules, bots: this.bots, crown: this.crown?.snapshot() ?? null,
       raceStartMs: this.raceStartMs, firstFinishMs: this.firstFinishMs, finishedCount: this.finishedCount,
       pilots: [...this.pilots.values()],
     };
   }
 
-  static restore(snapshot: RoomSnapshot): Room {
-    const room = new Room(snapshot.code, snapshot.worldVersion);
+  static restore(snapshot: RoomSnapshot, options: RoomOptions = {}): Room {
+    const room = new Room(snapshot.code, snapshot.worldVersion, options);
     room.phase = snapshot.phase;
     room.hostId = snapshot.hostId;
     room.laps = snapshot.laps;
     room.mode = snapshot.mode ?? 'race';
     room.rules = snapshot.rules ?? { drain: false, loadout: 'stock' };
+    room.bots = snapshot.bots ?? { count: BOTS.defaultCount, skill: BOTS.defaultSkill };
     room.crown = snapshot.crown ? CrownGame.restore(snapshot.crown) : null;
     room.raceStartMs = snapshot.raceStartMs;
     room.firstFinishMs = snapshot.firstFinishMs;
     room.finishedCount = snapshot.finishedCount;
-    for (const p of snapshot.pilots) room.pilots.set(p.id, { ...p, worldVersion: p.worldVersion ?? snapshot.worldVersion, key: p.key ?? '', holdUntilMs: p.holdUntilMs ?? 0, isOut: p.isOut ?? false });
+    for (const p of snapshot.pilots) room.pilots.set(p.id, { ...p, worldVersion: p.worldVersion ?? snapshot.worldVersion, key: p.key ?? '', holdUntilMs: p.holdUntilMs ?? 0, isOut: p.isOut ?? false, isBot: p.isBot ?? false });
     return room;
   }
 
@@ -142,18 +157,28 @@ export class Room {
     return this.connected().length;
   }
 
+  /** The human pilots in the room right now (bots do not count as being connected). */
   private connected(): Pilot[] {
+    return [...this.pilots.values()].filter((p) => p.isConnected && !p.isBot);
+  }
+
+  /** Everyone in the race: humans and bots. */
+  private present(): Pilot[] {
     return [...this.pilots.values()].filter((p) => p.isConnected);
+  }
+
+  private botPilots(): Pilot[] {
+    return [...this.pilots.values()].filter((p) => p.isBot);
   }
 
   private roster(): RosterEntry[] {
     return [...this.pilots.values()]
       .sort((a, b) => a.joinedAtMs - b.joinedAtMs)
-      .map((p) => ({ id: p.id, name: p.name, isReady: p.isReady, slot: p.slot, isConnected: p.isConnected, isOnMap: p.worldVersion === this.worldVersion }));
+      .map((p) => ({ id: p.id, name: p.name, isReady: p.isReady, slot: p.slot, isConnected: p.isConnected, isOnMap: p.worldVersion === this.worldVersion, isBot: p.isBot }));
   }
 
   private roomMessage(): ServerMessage {
-    return { t: 'room', phase: this.phase, mode: this.mode, track: this.track, rules: this.rules, hostId: this.hostId, laps: this.laps, pilots: this.roster() };
+    return { t: 'room', phase: this.phase, mode: this.mode, track: this.track, rules: this.rules, bots: this.bots, hostId: this.hostId, laps: this.laps, pilots: this.roster() };
   }
 
   private broadcastRoom(step: Step): void {
@@ -182,6 +207,7 @@ export class Room {
     const existing = this.pilots.get(id);
     if (existing?.isConnected) return this.refuse(id, 'You are already in this room in another tab.');
     if (this.phase === 'countdown' || this.phase === 'racing') return this.refuse(id, 'A race is in progress. Join when it ends.');
+    if (this.pilots.size >= ROOMS.maxPilots) this.dropOneBot();
     if (this.pilots.size >= ROOMS.maxPilots) return this.refuse(id, 'This room is full.');
     const slot = existing?.slot ?? this.freeSlot();
     if (slot < 0) return this.refuse(id, 'This room is full.');
@@ -189,6 +215,7 @@ export class Room {
     pilot.worldVersion = worldVersion;
     pilot.key = key;
     this.pilots.set(id, pilot);
+    this.syncBots();
     // The first pilot hosts; a host who is only away (reloading into another map) keeps the role.
     if (this.hostId === '' || !this.pilots.has(this.hostId)) this.hostId = id;
     const step = emptyStep();
@@ -214,7 +241,7 @@ export class Room {
     return {
       id, name, isReady: false, slot, joinedAtMs: nowMs, isConnected: true, gatesPassed: 0, lastGateAtMs: 0, lapStartedAtMs: 0,
       bestLapS: 0, finishTimeS: 0, place: 0, dNextM: 0, lastChatAtMs: 0, windowStartMs: nowMs, windowCount: 0, badFrames: 0,
-      worldVersion: this.worldVersion, key: '', holdUntilMs: 0, isOut: false,
+      worldVersion: this.worldVersion, key: '', holdUntilMs: 0, isOut: false, isBot: false,
     };
   }
 
@@ -231,6 +258,7 @@ export class Room {
     }
     const racing = this.phase === 'countdown' || this.phase === 'racing';
     if (!racing && this.phase !== 'results') this.pilots.delete(id);
+    if (this.phase === 'lobby') this.syncBots();
     if (this.connected().length === 0 && !this.hasHeldPilots(nowMs)) {
       this.resetToLobby();
       return step;
@@ -283,6 +311,8 @@ export class Room {
       case 'mode': return this.setMode(pilot, message.mode);
       case 'track': return this.setTrack(pilot, message.track);
       case 'rules': return this.setRules(pilot, message);
+      case 'bots': return this.setBots(pilot, message);
+      case 'botProgress': return this.botProgress(pilot, message.rows, nowMs);
       case 'out': return this.out(pilot);
       case 'hold': return this.hold(pilot, nowMs);
       case 'start': return this.start(pilot, nowMs);
@@ -316,6 +346,7 @@ export class Room {
   private setMode(pilot: Pilot, mode: RoomMode): Step {
     if (this.phase !== 'lobby' || pilot.id !== this.hostId) return emptyStep();
     this.mode = mode;
+    this.syncBots();
     const step = emptyStep();
     this.broadcastRoom(step);
     return step;
@@ -327,7 +358,7 @@ export class Room {
     const version = TRACK_DEFS[track].worldVersion;
     if (version === this.worldVersion) return emptyStep();
     this.worldVersion = version;
-    for (const p of this.pilots.values()) p.isReady = false;
+    for (const p of this.pilots.values()) p.isReady = p.isBot;
     const step = emptyStep();
     this.broadcastRoom(step);
     return step;
@@ -340,6 +371,89 @@ export class Room {
     const step = emptyStep();
     this.broadcastRoom(step);
     return step;
+  }
+
+  /** The host picks how many bots race and how good they are. Races only; the grid keeps a slot for every human. */
+  private setBots(pilot: Pilot, m: Extract<ClientMessage, { t: 'bots' }>): Step {
+    if (this.phase !== 'lobby' || pilot.id !== this.hostId) return emptyStep();
+    this.bots = { count: m.count, skill: m.skill };
+    this.syncBots();
+    const step = emptyStep();
+    this.broadcastRoom(step);
+    return step;
+  }
+
+  /** Makes the bot pilots match the settings: none outside races, never more than the free grid slots. */
+  private syncBots(): void {
+    const humans = [...this.pilots.values()].filter((p) => !p.isBot).length;
+    const wanted = this.mode === 'race' ? Math.max(0, Math.min(this.bots.count, ROOMS.maxPilots - humans)) : 0;
+    let bots = this.botPilots().sort((a, b) => a.slot - b.slot);
+    while (bots.length > wanted) {
+      const last = bots.pop();
+      if (last) this.pilots.delete(last.id);
+    }
+    while (bots.length < wanted) {
+      const slot = this.freeSlot();
+      if (slot < 0) break;
+      const number = this.nextBotNumber();
+      const bot = this.freshPilot(`bot-${number}`, `Bot ${BOTS.names[(number - 1) % BOTS.names.length] ?? number}`, slot, BOT_JOINED_AT);
+      bot.isBot = true;
+      bot.isReady = true;
+      bot.joinedAtMs = BOT_JOINED_AT + number;
+      this.pilots.set(bot.id, bot);
+      bots = [...bots, bot];
+    }
+  }
+
+  private nextBotNumber(): number {
+    const used = new Set(this.botPilots().map((b) => Number(b.id.slice(4))));
+    let n = 1;
+    while (used.has(n)) n++;
+    return n;
+  }
+
+  /** A human wants in and the room is full: the last bot steps aside. */
+  private dropOneBot(): void {
+    const [last] = this.botPilots().sort((a, b) => b.slot - a.slot);
+    if (last) this.pilots.delete(last.id);
+  }
+
+  /**
+   * The host's game reports how far each bot has got. Gates only ever go forward; a bot that has finished its laps is
+   * ranked by the race time in the report, not by when the message arrived.
+   */
+  private botProgress(host: Pilot, rows: readonly BotProgressRow[], nowMs: number): Step {
+    const step = emptyStep();
+    if (this.phase !== 'racing' || this.crown || host.id !== this.hostId) return step;
+    let changed = false;
+    const finishGates = this.laps * GATES_PER_LAP + 1;
+    for (const row of rows) {
+      const bot = this.pilots.get(row.id);
+      if (!bot?.isBot || bot.place > 0) continue;
+      bot.dNextM = row.dNextM;
+      const gates = Math.min(row.gates, finishGates);
+      if (gates <= bot.gatesPassed) continue;
+      bot.gatesPassed = gates;
+      changed = true;
+      if (gates >= finishGates) this.finishBot(bot, row.timeMs, nowMs, step);
+    }
+    if (changed) step.out.push({ to: EVERYONE, message: { t: 'standings', rows: this.standingRows() } });
+    this.finishIfDone(step);
+    return step;
+  }
+
+  private finishBot(bot: Pilot, timeMs: number, nowMs: number, step: Step): void {
+    bot.finishTimeS = timeMs / 1000;
+    this.finishedCount++;
+    if (this.firstFinishMs === 0) this.firstFinishMs = nowMs;
+    this.rankFinished();
+    step.out.push({ to: EVERYONE, message: { t: 'finish', id: bot.id, place: bot.place, timeS: bot.finishTimeS } });
+  }
+
+  /** Finished pilots take their places by finishing time (a bot's report can arrive after a human who was slower). */
+  private rankFinished(): void {
+    const finished = [...this.pilots.values()].filter((p) => p.place > 0 || p.finishTimeS > 0).sort((a, b) => a.finishTimeS - b.finishTimeS);
+    for (const [i, p] of finished.entries()) p.place = i + 1;
   }
 
   /** A pilot's battery ran out before the finish (battery race): they are out of this race. */
@@ -362,7 +476,8 @@ export class Room {
     if (this.phase !== 'lobby') return emptyStep();
     if (pilot.id !== this.hostId) return this.notice(pilot.id, 'Only the host can start the game.');
     const here = this.connected();
-    if (here.length < ROOMS.minPilotsToStart) return this.notice(pilot.id, 'You need at least two pilots to race.');
+    const minHumans = this.options.soloAllowed ? 1 : ROOMS.minPilotsToStart;
+    if (here.length < minHumans || this.present().length < ROOMS.minPilotsToStart) return this.notice(pilot.id, this.options.soloAllowed ? 'Add at least one bot to race.' : 'You need at least two pilots to race.');
     if (this.hasHeldPilots(nowMs)) return this.notice(pilot.id, 'Waiting for pilots to finish switching map.');
     if (here.some((p) => p.worldVersion !== this.worldVersion)) return this.notice(pilot.id, `Everyone must be on ${TRACK_DEFS[this.track].name}.`);
     if (here.some((p) => p.id !== this.hostId && !p.isReady)) return this.notice(pilot.id, 'Everyone must be ready.');
@@ -370,7 +485,7 @@ export class Room {
     this.raceStartMs = nowMs + ROOMS.countdownMs;
     this.firstFinishMs = 0;
     this.finishedCount = 0;
-    for (const p of here) this.resetProgress(p);
+    for (const p of this.present()) this.resetProgress(p);
     this.crown = null;
     const step = emptyStep();
     this.broadcastRoom(step);
@@ -456,8 +571,8 @@ export class Room {
 
   private finishPilot(pilot: Pilot, nowMs: number, step: Step): void {
     this.finishedCount++;
-    pilot.place = this.finishedCount;
     pilot.finishTimeS = (nowMs - this.raceStartMs) / 1000;
+    this.rankFinished();
     if (this.firstFinishMs === 0) this.firstFinishMs = nowMs;
     step.out.push({ to: EVERYONE, message: { t: 'finish', id: pilot.id, place: pilot.place, timeS: pilot.finishTimeS } });
   }
@@ -536,7 +651,7 @@ export class Room {
 
   private finishIfDone(step: Step): void {
     if (this.phase !== 'racing') return;
-    const racers = this.connected();
+    const racers = this.present();
     if (racers.length === 0 || racers.every((p) => p.place > 0 || p.isOut)) this.endRace(step);
   }
 
@@ -564,7 +679,7 @@ export class Room {
     if (this.phase !== 'results') return emptyStep();
     if (pilot.id !== this.hostId) return this.notice(pilot.id, 'Only the host can start a rematch.');
     for (const p of [...this.pilots.values()]) if (!p.isConnected) this.pilots.delete(p.id);
-    for (const p of this.pilots.values()) p.isReady = false;
+    for (const p of this.pilots.values()) p.isReady = p.isBot;
     this.crown = null;
     this.phase = 'lobby';
     const step = emptyStep();
@@ -578,6 +693,7 @@ export class Room {
     this.phase = 'lobby';
     this.laps = ROOMS.defaultLaps;
     this.mode = 'race';
+    this.bots = { count: BOTS.defaultCount, skill: BOTS.defaultSkill };
     this.crown = null;
   }
 }

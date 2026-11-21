@@ -93,3 +93,4 @@ Hangar, lobby, results screen, pilot profile and friends list (Phases 3–5).
 ## Changelog
 
 - 2026-11-01: Created.
+- 2026-11-21: Added "Race the bots" (solo race against AI pilots, see `race-bots.md`).

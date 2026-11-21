@@ -1,17 +1,19 @@
 import type { Group, Scene } from 'three';
-import { ACTIVE_TRACK_ID, ROOMS, TRACK_DEFS, type TrackId } from '../config';
+import { ACTIVE_TRACK_ID, BOTS, ROOMS, TRACK_DEFS, type BotSkillId, type TrackId } from '../config';
 import { reloadIntoRoomMap } from '../core/track-switch';
 import { getRoomKey } from '../net/room-key';
 import { normaliseRoomCode, type PoseFields, type RosterEntry, type RoomMode, type RoomPhase, type RoomRules, type ServerMessage, type StandingEntry } from '../core/room-protocol';
 import { createCrown } from '../drone/crown';
 import { CrownBeacon } from './crown-beacon';
 import { loadPilotName, savePilotName } from '../net/pilot-identity';
-import { createRoom, RoomClient } from '../net/room-client';
+import { LocalRoomClient } from '../net/local-room';
+import { createRoom, RoomClient, type RoomLink } from '../net/room-client';
 import { LobbyScreen } from '../ui/lobby-screen';
 import { askPilotName } from '../ui/name-prompt';
 import type { CrownSession, CrownUpdate, LiveCrown } from './modes/live-crown';
 import type { LiveRace, LiveSession } from './modes/live-race';
 import type { PilotMarker } from './modes/mode';
+import { BotFleet } from './bot-fleet';
 import { RemoteDrones } from './remote-drones';
 
 /** What the controller asks of the game. */
@@ -34,7 +36,11 @@ const NO_CROWN: CrownUpdate = { t: 'crown', holderId: '', scores: [], threatId: 
 export class LiveController implements LiveSession, CrownSession {
   private readonly lobby: LobbyScreen;
   private readonly drones: RemoteDrones;
-  private client: RoomClient | null = null;
+  private client: RoomLink | null = null;
+  private readonly botFleet: BotFleet;
+  /** A solo race against bots: the room runs in this page, nothing goes over the network. */
+  private isSolo = false;
+  private botSettings = { count: 0 as number, skill: BOTS.defaultSkill as BotSkillId };
   private mode: LiveRace | null = null;
   private crownMode: LiveCrown | null = null;
   private roomMode: RoomMode = 'race';
@@ -77,6 +83,7 @@ export class LiveController implements LiveSession, CrownSession {
 
   constructor(private readonly host: LiveHost) {
     this.drones = new RemoteDrones(host.scene);
+    this.botFleet = new BotFleet((id, pose, nowMs) => this.drones.pushPose(id, pose, nowMs));
     const [bx, by, bz] = TRACK_DEFS[ACTIVE_TRACK_ID].crownSpawn;
     this.beacon = new CrownBeacon(bx, by, bz);
     host.scene.add(this.beacon.group);
@@ -89,6 +96,7 @@ export class LiveController implements LiveSession, CrownSession {
       onMode: (mode) => this.client?.send({ t: 'mode', mode }),
       onTrack: (track) => this.client?.send({ t: 'track', track }),
       onRules: (drain, loadout) => this.client?.send({ t: 'rules', drain, loadout }),
+      onBots: (count, skill) => this.client?.send({ t: 'bots', count, skill }),
       onStart: () => this.client?.send({ t: 'start' }),
       onChat: (text) => this.client?.send({ t: 'chat', text }),
       onCopyLink: () => this.copyLink(),
@@ -129,6 +137,22 @@ export class LiveController implements LiveSession, CrownSession {
     else this.lobby.showEntry(code ? 'That invite link has an invalid room code.' : '');
   }
 
+  /** Opens "Race the bots": the same lobby and race, in this page, with no server. */
+  async openSolo(): Promise<void> {
+    this.host.pauseInput();
+    if (!(await this.ensureName())) {
+      this.host.resumeInput();
+      return;
+    }
+    this.client?.close();
+    this.isSolo = true;
+    this.lastError = '';
+    this.lobby.clearChat();
+    this.code = 'SOLO';
+    this.client = new LocalRoomClient({ onMessage: (m) => this.onMessage(m), onClose: (reason) => this.onClose(reason) });
+    this.client.connect(this.code, this.name);
+  }
+
   private async ensureName(): Promise<boolean> {
     const saved = loadPilotName();
     if (saved) {
@@ -151,6 +175,7 @@ export class LiveController implements LiveSession, CrownSession {
 
   private connect(code: string): void {
     this.client?.close();
+    this.isSolo = false;
     this.lastError = '';
     this.lobby.clearChat();
     this.lobby.setMessage('Connecting…');
@@ -177,6 +202,9 @@ export class LiveController implements LiveSession, CrownSession {
     this.laps = ROOMS.defaultLaps;
     this.roomMode = 'race';
     this.rules = { drain: false, loadout: 'stock' };
+    this.botSettings = { count: 0, skill: BOTS.defaultSkill };
+    this.isSolo = false;
+    this.botFleet.clear();
     this.crown = NO_CROWN;
     this.playerCrown.visible = false;
     this.beacon.setVisible(false);
@@ -194,17 +222,26 @@ export class LiveController implements LiveSession, CrownSession {
 
   private onMessage(m: ServerMessage): void {
     switch (m.t) {
-      case 'welcome': this.myId = m.you; break;
+      case 'welcome':
+        this.myId = m.you;
+        if (this.isSolo) this.client?.send({ t: 'bots', count: BOTS.maxBots > 3 ? 3 : BOTS.maxBots, skill: BOTS.defaultSkill });
+        break;
       case 'room': this.onRoom(m); break;
       case 'chat': this.lobby.addChat(this.roster.find((p) => p.id === m.from)?.name ?? '?', m.text); break;
       case 'countdown': this.active?.onCountdown(m.startsInMs); break;
-      case 'go': this.active?.onGo(); break;
+      case 'go':
+        this.botFleet.go(performance.now());
+        this.active?.onGo();
+        break;
       case 'crown': this.onCrown(m); break;
       case 'pose': this.drones.push(m.id, m, performance.now()); break;
       case 'standings': this.order = m.rows; break;
       case 'finish': this.mode?.onFinish(m.id, m.place); break;
       case 'out': this.mode?.onOut(m.id); break;
-      case 'results': this.active?.onResults(m.rows); break;
+      case 'results':
+        this.botFleet.clear();
+        this.active?.onResults(m.rows);
+        break;
       case 'error': this.lastError = m.message; if (this.phase !== 'lobby') this.host.notify('Live race', m.message); break;
     }
   }
@@ -217,11 +254,12 @@ export class LiveController implements LiveSession, CrownSession {
     this.roomMode = m.mode;
     this.roomTrack = m.track;
     this.rules = m.rules;
+    this.botSettings = m.bots;
     this.roster = m.pilots;
     this.mySlot = m.pilots.find((p) => p.id === this.myId)?.slot ?? 0;
     this.drones.setRoster(m.pilots, this.myId);
     // The room plays another map than this page loaded: reload into it (the server holds our place meanwhile).
-    if (m.phase === 'lobby' && m.track !== ACTIVE_TRACK_ID && this.switchMap(m.track)) return;
+    if (!this.isSolo && m.phase === 'lobby' && m.track !== ACTIVE_TRACK_ID && this.switchMap(m.track)) return;
     if (m.track === ACTIVE_TRACK_ID) this.mapSwitches = 0;
     if (m.phase === 'lobby') {
       if (previous !== 'lobby') this.host.returnToLobby();
@@ -230,10 +268,12 @@ export class LiveController implements LiveSession, CrownSession {
       this.playerCrown.visible = false;
       this.beacon.setVisible(false);
       this.drones.setKing('');
-      this.lobby.showRoom({ code: this.code, myId: this.myId, hostId: m.hostId, laps: m.laps, mode: m.mode, track: m.track, rules: m.rules, pilots: m.pilots, pingMs: this.client?.pingMs ?? 0 });
+      this.botFleet.clear();
+      this.lobby.showRoom({ code: this.code, myId: this.myId, hostId: m.hostId, laps: m.laps, mode: m.mode, track: m.track, rules: m.rules, bots: m.bots, isSolo: this.isSolo, pilots: m.pilots, pingMs: this.client?.pingMs ?? 0 });
     } else if (m.phase === 'countdown' && previous === 'lobby') {
       this.order = [];
       this.drones.reset();
+      this.botFleet.prepare(m.pilots, m.bots.skill, m.laps);
       this.lobby.hide();
       this.host.resumeInput();
       this.host.startRace(m.mode === 'crown' ? 'crown' : 'live');
@@ -290,7 +330,13 @@ export class LiveController implements LiveSession, CrownSession {
 
   /** Called every frame while flying a live race. */
   update(nowMs: number, dtS: number): void {
+    this.botFleet.update(nowMs);
     this.drones.update(nowMs, dtS);
     this.beacon.update(dtS);
+    // Only the host's game tells the server how the bots are doing (and if the host leaves, the next host takes over).
+    if (this.isHost && this.phase === 'racing') {
+      const rows = this.botFleet.report(nowMs);
+      if (rows) this.client?.send({ t: 'botProgress', rows });
+    }
   }
 }

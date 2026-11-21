@@ -1254,4 +1254,8 @@ kbd {
 .map-seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
 .map-seg button b { font-size: 15px; }
 
+.lobby-bots { display: flex; flex-direction: column; gap: 6px; }
+.lobby-bots[hidden] { display: none; }
+.bots-seg { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
+.bots-seg button.on { background: var(--gate); color: #111; }
 .lobby-rules { display: flex; flex-direction: column; gap: 6px; }
