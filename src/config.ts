@@ -823,18 +823,25 @@ export const ONLINE = {
 } as const;
 
 /** Live race rooms. Every limit here also protects the Cloudflare free-plan budget (see docs/features/live-race-rooms.md). */
-export type BotSkillId = 'easy' | 'medium' | 'hard';
+export type BotSkillId = 'easy' | 'medium' | 'hard' | 'pro';
 
 /** AI pilots in races. Bots are a pure function of the race clock, so every browser draws the same ones. */
 export const BOTS = {
   maxBots: 5,
   defaultCount: 0,
   defaultSkill: 'medium' as BotSkillId,
+  /** Top speed, cornering (sideways acceleration the AI accepts) and how fast it picks up speed. Pro is at the drone's limits. */
   skills: {
-    easy: { label: 'Easy', description: 'A relaxed casual pilot.', topSpeedMps: 14 },
-    medium: { label: 'Medium', description: 'Beatable without perfect lines.', topSpeedMps: 19 },
-    hard: { label: 'Hard', description: 'Takes a clean lap to beat.', topSpeedMps: 24 },
-  } satisfies Record<BotSkillId, { label: string; description: string; topSpeedMps: number }>,
+    easy: { label: 'Easy', description: 'A relaxed casual pilot.', topSpeedMps: 15, maxLateralAccelMps2: 12, speedUpPerS: 0.9 },
+    medium: { label: 'Medium', description: 'Beatable without perfect lines.', topSpeedMps: 21, maxLateralAccelMps2: 16, speedUpPerS: 1.2 },
+    hard: { label: 'Hard', description: 'Quick and clean. Takes a good lap to beat.', topSpeedMps: 26, maxLateralAccelMps2: 21, speedUpPerS: 1.7 },
+    pro: { label: 'Pro', description: 'At the limits of the drone. A near-perfect lap to beat.', topSpeedMps: 28, maxLateralAccelMps2: 26, speedUpPerS: 2.4 },
+  } satisfies Record<BotSkillId, { label: string; description: string; topSpeedMps: number; maxLateralAccelMps2: number; speedUpPerS: number }>,
+  /**
+   * Solo only: the bots get a bit faster after you beat them and a bit slower after they beat you, so the race stays
+   * close as you improve. This is the multiplier on the skill's speed (and, squared, on its cornering).
+   */
+  pace: { min: 0.75, max: 1.25, faster: 1.05, slower: 0.96 },
   names: ['Ava', 'Kai', 'Zed', 'Mia', 'Rex', 'Nova', 'Jet', 'Sky'],
   /** The host tells the server how the bots are doing this often (and at once when one finishes). */
   reportEveryMs: 500,
@@ -843,7 +850,7 @@ export const BOTS = {
 } as const;
 
 export function isBotSkill(value: unknown): value is BotSkillId {
-  return value === 'easy' || value === 'medium' || value === 'hard';
+  return value === 'easy' || value === 'medium' || value === 'hard' || value === 'pro';
 }
 
 export const ROOMS = {

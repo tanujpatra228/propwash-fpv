@@ -37,11 +37,15 @@ export class BotRacer {
   private travelledM = 0;
   private hasPose = false;
 
-  constructor(readonly slot: number, skill: BotSkillId, private readonly laps: number) {
+  /** `pace` scales the skill's speed (and its cornering by the square): 1 is the skill as listed. */
+  constructor(readonly slot: number, skill: BotSkillId, private readonly laps: number, pace = 1) {
     this.behindM = gridBehindM(slot);
     const gate0M = gateSampleIndex(0) * track.spacingM;
+    const spec = BOTS.skills[skill];
     this.racer = new TrackRacer({
-      topSpeedMps: BOTS.skills[skill].topSpeedMps * (SPEED_SPREAD[slot % SPEED_SPREAD.length] ?? 1),
+      topSpeedMps: spec.topSpeedMps * pace * (SPEED_SPREAD[slot % SPEED_SPREAD.length] ?? 1),
+      maxLateralAccelMps2: spec.maxLateralAccelMps2 * pace * pace,
+      speedUpPerS: spec.speedUpPerS,
       lateralOffsetM: LINE_SPREAD_M[slot % LINE_SPREAD_M.length] ?? 0,
       phase: slot * 1.7,
       startDistM: (((gate0M - this.behindM) % track.lengthM) + track.lengthM) % track.lengthM,

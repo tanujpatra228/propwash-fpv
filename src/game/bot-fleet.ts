@@ -24,8 +24,8 @@ export class BotFleet {
   constructor(private readonly sink: PoseSink) {}
 
   /** Gets the bots ready on their grid slots (called when the countdown starts). */
-  prepare(roster: readonly RosterEntry[], skill: BotSkillId, laps: number): void {
-    this.bots = new Map(roster.filter((p) => p.isBot).map((p) => [p.id, new BotRacer(p.slot, skill, laps)]));
+  prepare(roster: readonly RosterEntry[], skill: BotSkillId, laps: number, pace = 1): void {
+    this.bots = new Map(roster.filter((p) => p.isBot).map((p) => [p.id, new BotRacer(p.slot, skill, laps, pace)]));
     this.hasStarted = false;
     this.lastReportMs = 0;
     this.lastReportedGates.clear();

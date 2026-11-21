@@ -56,6 +56,7 @@ describe('bot messages', () => {
   it('accepts a count and a skill, and rejects anything else', () => {
     expect(parse({ t: 'bots', count: 3, skill: 'hard' }).ok).toBe(true);
     expect(parse({ t: 'bots', count: 0, skill: 'easy' }).ok).toBe(true);
+    expect(parse({ t: 'bots', count: 2, skill: 'pro' }).ok).toBe(true);
     for (const bad of [{ count: -1, skill: 'easy' }, { count: 6, skill: 'easy' }, { count: 1.5, skill: 'easy' }, { count: 2, skill: 'expert' }, { count: '2', skill: 'easy' }, { skill: 'easy' }]) {
       expect(parse({ t: 'bots', ...bad }).ok).toBe(false);
     }

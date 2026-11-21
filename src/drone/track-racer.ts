@@ -8,6 +8,9 @@ export interface RacerConfig {
   /** Offsets the gentle speed and line wobble so racers do not move in lockstep. */
   phase: number;
   startDistM: number;
+  /** How hard the AI corners and how quickly it picks up speed. The menu racers use the defaults in `MENU`. */
+  maxLateralAccelMps2?: number;
+  speedUpPerS?: number;
 }
 
 const WOBBLE_SPEED_PER_S = 0.23;
@@ -35,9 +38,9 @@ export class TrackRacer {
     const { config } = this;
     const bendAhead = track.curvatureMagnitudeAtDistance(this.distM + this.speedMps * MENU.lookAheadS);
     const wobble = 1 + WOBBLE_SPEED_FRACTION * Math.sin(timeS * WOBBLE_SPEED_PER_S + config.phase);
-    const bendLimit = Math.sqrt(MENU.maxLateralAccelMps2 / Math.max(bendAhead, 1e-4));
+    const bendLimit = Math.sqrt((config.maxLateralAccelMps2 ?? MENU.maxLateralAccelMps2) / Math.max(bendAhead, 1e-4));
     const target = Math.min(config.topSpeedMps * wobble, bendLimit);
-    const rate = target > this.speedMps ? MENU.speedUpPerS : MENU.slowDownPerS;
+    const rate = target > this.speedMps ? (config.speedUpPerS ?? MENU.speedUpPerS) : MENU.slowDownPerS;
     this.speedMps += (target - this.speedMps) * Math.min(1, dtS * rate);
     this.distM = (this.distM + this.speedMps * dtS) % track.lengthM;
 

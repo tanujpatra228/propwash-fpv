@@ -20,13 +20,18 @@ AI pilots for races. The host of a live room adds 1 to 5 bots and picks a skill 
 
 ## Skill levels (all in `config.ts` `BOTS`)
 
-| Skill | Top speed | Notes |
-|---|---|---|
-| Easy | 14 m/s | A relaxed casual pilot |
-| Medium | 19 m/s | Beatable without perfect lines |
-| Hard | 24 m/s | Near the menu racers' pace; takes a clean lap to beat |
+| Skill | Top speed | Cornering | Valley lap (measured) | Notes |
+|---|---|---|---|---|
+| Easy | 15 m/s | 12 m/s2 | about 74 s | A relaxed casual pilot |
+| Medium | 21 m/s | 16 m/s2 | about 53 s | Beatable without perfect lines |
+| Hard | 26 m/s | 21 m/s2 | about 43 s | Quick and clean: a good lap to beat |
+| Pro | 28 m/s | 26 m/s2 | about 39 s | At the limits of the drone (its top speed is 28 m/s): a near-perfect lap to beat |
 
-Corner speed is limited by the same sideways-acceleration cap the menu racers use. These are first guesses and need playtesting.
+Cornering is the sideways acceleration the AI accepts, so skill changes how hard the bots take bends, not only how fast they are on straights. The times include the standing start. Measured on all four tracks: the Harbor is about the same as the Valley, the City about 27% longer and the Glacier about 41% longer.
+
+### Solo bots tune themselves to you
+
+After a solo race the bots adapt to the skill you chose: **5% faster when you beat them all, 4% slower when a bot won** (speed, with cornering following by the square), within 75% to 125%. A notice says what changed and the lobby shows it ("They tune to you: +10%"). So the race stays close as you improve, and a Pro bot at +25% is faster than the drone is meant to fly. The value is saved per skill on this device. In live rooms every browser must draw the same bots, so there the skill is used as listed.
 
 ## How it works (free-plan friendly)
 
@@ -58,6 +63,10 @@ Corner speed is limited by the same sideways-acceleration cap the menu racers us
 - [ ] Solo "Race the bots" runs a full race with no network.
 - [ ] No console errors.
 
+## Why Hard was not enough (2026-11-21 playtest)
+
+The first version had Hard at 47 s on the Valley, easy for a strong pilot, and bots that stay the same become dull as a player improves. Hence the Pro skill (about 39 s, the limit), cornering that scales with skill, faster acceleration for the quicker skills, and the solo adaptation above.
+
 ## Test cases
 
 | # | Steps | Expected result | Type |
@@ -70,7 +79,8 @@ Corner speed is limited by the same sideways-acceleration cap the menu racers us
 | 6 | Room: bot and human finish close together | Results ordered by finish time | Unit |
 | 7 | Room: mode crown | Bots hidden; back to race restores them | Unit |
 | 8 | Room: all humans leave | Room resets (bots do not keep it alive) | Unit |
-| 9 | Bot sim: skill ordering and determinism | Hard laps faster than Medium faster than Easy; the same inputs give the same lap | Unit |
+| 9 | Bot sim: skill ordering, pace and determinism | Pro < Hard < Medium < Easy with real gaps; pro stays above the online minimum lap; pace above 1 is faster; the same inputs give the same lap | Unit |
+| 9b | Bot pace: wins and losses | Faster after a win, slower after a loss, clamped to 75% to 125%, saved per skill | Unit |
 | 10 | Solo: local room flow | Joins, adds bots, starts, finishes | Unit |
 | 11 | Manual: lobby bots row, a race with bots, solo mode | See acceptance criteria | Manual |
 
@@ -89,3 +99,4 @@ Corner speed is limited by the same sideways-acceleration cap the menu racers us
 
 - 2026-11-21: Created.
 - 2026-11-21: Built: bot simulation (`drone/bot-racer.ts`, reusing `TrackRacer`), fleet and host reporting (`game/bot-fleet.ts`), server support (`bots` and `botProgress` messages, bot pilots, ranking by reported finish time), lobby bots row, in-page solo room (`net/local-room.ts`) and the "Race the bots" menu item.
+- 2026-11-21: Playtest feedback ("easy even in Hard, dull as players improve"): added the Pro skill, skill-based cornering and acceleration, retuned Easy, Medium and Hard (valley laps 74, 53, 43, 39 s), and solo bots that tune themselves to you after each race.

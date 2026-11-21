@@ -1,4 +1,5 @@
 import { BOTS, ROOMS, TRACK_DEFS, TRACK_IDS, type BotSkillId, type TrackId } from '../config';
+import { paceLabel } from '../core/bot-pace';
 import { el } from '../core/dom';
 import { normaliseRoomCode, type BotSettings, type Loadout, type RoomMode, type RoomRules, type RosterEntry } from '../core/room-protocol';
 
@@ -29,6 +30,8 @@ export interface LobbyView {
   bots: BotSettings;
   /** A solo race against bots: no room code, no invite, no map or game choice here. */
   isSolo?: boolean;
+  /** Solo: how the bots have tuned themselves to you (1 is the skill as listed). */
+  botPace?: number;
   pilots: readonly RosterEntry[];
   pingMs: number;
 }
@@ -166,7 +169,7 @@ export class LobbyScreen {
       this.botCountButtons.push(button);
       count.append(button);
     }
-    const skill = el('div', { class: 'seg' });
+    const skill = el('div', { class: 'seg four' });
     for (const id of Object.keys(BOTS.skills) as BotSkillId[]) {
       const button = el('button', { type: 'button' }, [el('b', { text: BOTS.skills[id].label })]);
       button.addEventListener('click', () => this.handlers.onBots(this.bots.count, id));
@@ -284,7 +287,7 @@ export class LobbyScreen {
       button.classList.toggle('on', id === view.bots.skill);
       button.disabled = !isHost;
     }
-    this.botsNote.textContent = isHost ? (view.bots.count < 1 && isSolo ? 'Pick at least one bot.' : BOTS.skills[view.bots.skill].description) : 'The host chooses the bots.';
+    this.botsNote.textContent = isHost ? (view.bots.count < 1 && isSolo ? 'Pick at least one bot.' : `${BOTS.skills[view.bots.skill].description}${isSolo ? ` They tune to you: ${paceLabel(view.botPace ?? 1)}.` : ''}`) : 'The host chooses the bots.';
     this.startButton.hidden = !isHost;
     this.startButton.disabled = !status.canStart;
     this.startButton.textContent = status.label.replace('Start race', view.mode === 'crown' ? 'Start match' : 'Start race');

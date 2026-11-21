@@ -769,6 +769,10 @@ kbd {
   gap: 4px;
 }
 
+.seg.four {
+  grid-template-columns: repeat(4, 1fr);
+}
+
 .seg.two {
   grid-template-columns: repeat(2, 1fr);
 }
