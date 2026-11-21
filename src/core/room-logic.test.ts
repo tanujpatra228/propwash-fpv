@@ -554,11 +554,11 @@ describe('bots', () => {
     room.leave('dd', 7);
     expect(botsOf(room)).toHaveLength(5);
   });
-  it('crown chase has no bots; switching back to race brings them back', () => {
+  it('bots stay when the room switches between race and crown chase', () => {
     const room = lobby(['aa', 'bb']);
     send(room, 'aa', { t: 'bots', count: 2, skill: 'medium' }, 5);
     send(room, 'aa', { t: 'mode', mode: 'crown' }, 6);
-    expect(botsOf(room)).toHaveLength(0);
+    expect(botsOf(room)).toHaveLength(2);
     send(room, 'aa', { t: 'mode', mode: 'race' }, 7);
     expect(botsOf(room)).toHaveLength(2);
   });
@@ -656,5 +656,81 @@ describe('bots', () => {
     const copy = Room.restore(JSON.parse(JSON.stringify(room.snapshot())));
     expect(copy.snapshot().pilots.filter((p) => p.isBot)).toHaveLength(2);
     expect(copy.snapshot().bots).toEqual({ count: 2, skill: 'hard' });
+  });
+});
+
+describe('crown chase bots', () => {
+  const [sx = 0, sy = 0, sz = 0] = TRACK_DEFS.valley.crownSpawn;
+  const far = (t: number) => ({ t: 'pose', x: 80_000, y: 5000, z: 80_000 + (t % 10), yaw: 0, pitch: 0, roll: 0, dNextM: 0 });
+
+  function crownWithBots(count = 1, skill = 'pro'): { room: Room; t0: number } {
+    const room = lobby(['aa', 'bb']);
+    send(room, 'aa', { t: 'mode', mode: 'crown' }, 5);
+    send(room, 'aa', { t: 'bots', count, skill }, 6);
+    send(room, 'bb', { t: 'ready', isReady: true }, 7);
+    send(room, 'aa', { t: 'start' }, 1000);
+    room.tick(1000 + ROOMS.countdownMs);
+    return { room, t0: 1000 + ROOMS.countdownMs };
+  }
+  const poseMessages = (steps: Step[]) => steps.flatMap((s) => s.out.map((o) => o.message)).filter((m) => m.t === 'pose');
+
+  it('puts the bots in the match, on the scoreboard, and sends their poses to everyone', () => {
+    const { room, t0 } = crownWithBots(2);
+    let ids: string[] = [];
+    for (let i = 1; i <= 5 && ids.length === 0; i++) {
+      const crown = send(room, 'aa', far(i), t0 + i * 100).out.find((o) => o.message.t === 'crown')?.message;
+      ids = crown?.t === 'crown' ? crown.scores.map((s) => s.id).sort() : [];
+    }
+    expect(ids).toEqual(['aa', 'bb', 'bot-1', 'bot-2']);
+    const poses = poseMessages([send(room, 'aa', far(7), t0 + 700), send(room, 'aa', far(8), t0 + 900)]);
+    expect(poses.filter((m) => m.t === 'pose' && m.id.startsWith('bot-')).length).toBeGreaterThanOrEqual(2);
+    expect(poses.every((m) => m.t === 'pose' && Math.abs(m.x) <= ROOMS.poseLimitCm)).toBe(true);
+  });
+  it('sends bot poses at the throttled rate, not on every human pose', () => {
+    const { room, t0 } = crownWithBots(1);
+    let sent = 0;
+    for (let i = 0; i < 20; i++) sent += poseMessages([send(room, 'aa', far(i), t0 + 100 + i * 10)]).filter((m) => m.t === 'pose' && m.id === 'bot-1').length;
+    expect(sent).toBeLessThanOrEqual(3);
+    expect(sent).toBeGreaterThanOrEqual(1);
+  });
+  it('a bot flies to the free crown and claims it when nobody else does', () => {
+    const { room, t0 } = crownWithBots(1, 'pro');
+    let holder = '';
+    for (let t = 100; t < 120_000 && holder === ''; t += 100) {
+      const step = send(room, 'aa', far(t), t0 + t);
+      const crown = step.out.map((o) => o.message).find((m) => m.t === 'crown');
+      if (crown?.t === 'crown') holder = crown.holderId;
+    }
+    expect(holder).toBe('bot-1');
+  });
+  it('a human standing on the crown takes it before the bot', () => {
+    const { room, t0 } = crownWithBots(1, 'pro');
+    const there = { t: 'pose', x: Math.round(sx * 100), y: Math.round(sy * 100), z: Math.round(sz * 100), yaw: 0, pitch: 0, roll: 0, dNextM: 0 };
+    send(room, 'aa', there, t0 + 100);
+    expect(room.snapshot().crown?.holderId).toBe('aa');
+  });
+  it('the results list the bots with their points', () => {
+    const { room, t0 } = crownWithBots(1, 'pro');
+    for (let t = 100; t < 120_000; t += 100) send(room, 'aa', far(t), t0 + t);
+    const end = room.tick(t0 + CROWN.matchMs);
+    const results = end.out.map((o) => o.message).find((m) => m.t === 'results');
+    expect(results?.t === 'results' && results.rows.map((r) => r.id).sort()).toEqual(['aa', 'bb', 'bot-1']);
+    expect(results?.t === 'results' && results.rows.find((r) => r.id === 'bot-1')?.score).toBeGreaterThan(0);
+  });
+  it('survives hibernation mid-match with its bots', () => {
+    const { room, t0 } = crownWithBots(2, 'hard');
+    send(room, 'aa', far(0), t0 + 100);
+    const copy = Room.restore(JSON.parse(JSON.stringify(room.snapshot())));
+    const step = copy.receive('aa', JSON.stringify(far(1)), t0 + 300);
+    expect(poseMessages([step]).filter((m) => m.t === 'pose' && m.id.startsWith('bot-')).length).toBeGreaterThanOrEqual(1);
+  });
+  it('rooms without bots do not run any', () => {
+    const room = lobby(['aa', 'bb']);
+    send(room, 'aa', { t: 'mode', mode: 'crown' }, 5);
+    send(room, 'bb', { t: 'ready', isReady: true }, 6);
+    send(room, 'aa', { t: 'start' }, 1000);
+    room.tick(1000 + ROOMS.countdownMs);
+    const step = send(room, 'aa', far(0), 5000);
+    expect(poseMessages([step]).every((m) => m.t === 'pose' && !m.id.startsWith('bot-'))).toBe(true);
   });
 });

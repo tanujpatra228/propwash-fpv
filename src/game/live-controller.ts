@@ -138,7 +138,7 @@ export class LiveController implements LiveSession, CrownSession {
     else this.lobby.showEntry(code ? 'That invite link has an invalid room code.' : '');
   }
 
-  /** Opens "Race the bots": the same lobby and race, in this page, with no server. */
+  /** Opens "Play the bots": the same lobby and match, in this page, with no server. */
   async openSolo(): Promise<void> {
     this.host.pauseInput();
     if (!(await this.ensureName())) {
@@ -275,7 +275,8 @@ export class LiveController implements LiveSession, CrownSession {
     } else if (m.phase === 'countdown' && previous === 'lobby') {
       this.order = [];
       this.drones.reset();
-      this.botFleet.prepare(m.pilots, m.bots.skill, m.laps, this.isSolo ? loadBotPace(m.bots.skill) : 1);
+      // Race bots are flown by every browser from the race clock; crown chase bots are flown by the room and arrive as poses.
+      if (m.mode === 'race') this.botFleet.prepare(m.pilots, m.bots.skill, m.laps, this.isSolo ? loadBotPace(m.bots.skill) : 1);
       this.lobby.hide();
       this.host.resumeInput();
       this.host.startRace(m.mode === 'crown' ? 'crown' : 'live');
@@ -284,7 +285,7 @@ export class LiveController implements LiveSession, CrownSession {
 
   /** Solo: the bots tune themselves to the pilot, a little faster after a win and a little slower after a loss. */
   private adaptBots(rows: readonly ResultRow[]): void {
-    if (!this.isSolo || this.botSettings.count < 1) return;
+    if (!this.isSolo || this.botSettings.count < 1 || this.roomMode !== 'race') return;
     const didWin = rows.find((r) => r.id === this.myId)?.place === 1;
     const next = nextPace(loadBotPace(this.botSettings.skill), didWin);
     saveBotPace(this.botSettings.skill, next);

@@ -81,6 +81,21 @@ export class CrownGame {
     return this.pilots.size;
   }
 
+  get pilotIds(): string[] {
+    return [...this.pilots.keys()];
+  }
+
+  /** Where a pilot was at their last update, or null before the first. */
+  positionOf(id: string): { x: number; y: number; z: number } | null {
+    const p = this.pilots.get(id);
+    return p && Number.isFinite(p.poseAtMs) ? { x: p.x, y: p.y, z: p.z } : null;
+  }
+
+  /** The crown lies free and can be taken now (not worn, and not still respawning). */
+  isCrownReady(nowMs: number): boolean {
+    return this.holderId === '' && nowMs >= this.freeAtMs;
+  }
+
   /** Seconds-level view for the room message: how long the king can still keep the crown (0 when nobody wears it). */
   holdLeftMs(nowMs: number): number {
     return this.holderId === '' ? 0 : Math.max(0, this.holdStartMs + CROWN.holdMaxMs - nowMs);

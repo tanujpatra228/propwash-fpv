@@ -842,6 +842,32 @@ export const BOTS = {
    * close as you improve. This is the multiplier on the skill's speed (and, squared, on its cornering).
    */
   pace: { min: 0.75, max: 1.25, faster: 1.05, slower: 0.96 },
+  /**
+   * Crown chase bots fly the racing line (a safe corridor) on the server and leave it only for the last few metres to
+   * touch the king or the crown. Reaction time, how close before they leave the line, how far ahead they aim, and how
+   * well they pick a direction to run when they wear the crown. Speed and cornering come from `skills` above.
+   */
+  crown: {
+    skills: {
+      easy: { accelMps2: 5, reactionS: 0.9, approachRangeM: 6, leadS: 0, fleeLookS: 1.2 },
+      medium: { accelMps2: 9, reactionS: 0.5, approachRangeM: 9, leadS: 0.3, fleeLookS: 2.2 },
+      hard: { accelMps2: 13, reactionS: 0.25, approachRangeM: 12, leadS: 0.5, fleeLookS: 3.2 },
+      pro: { accelMps2: 18, reactionS: 0.12, approachRangeM: 16, leadS: 0.8, fleeLookS: 4 },
+    } satisfies Record<BotSkillId, { accelMps2: number; reactionS: number; approachRangeM: number; leadS: number; fleeLookS: number }>,
+    brakeMps2: 14,
+    /** Bots go straight for the crown once this close to it. */
+    claimApproachM: 14,
+    /** Metres per second the bot drifts back onto the line after leaving it. */
+    returnToLineMps: 8,
+    /** The longest simulation step, and the longest gap it will catch up on (a stalled room does not teleport the bots). */
+    stepS: 1 / 30,
+    maxCatchUpS: 0.25,
+    /** How far ahead of a bend (seconds of travel plus a margin) the bot looks to slow down. */
+    bendLookAheadS: 0.6,
+    bendLookMarginM: 8,
+    /** Bot poses are sent to the room at most this often. */
+    poseEveryMs: 100,
+  },
   names: ['Ava', 'Kai', 'Zed', 'Mia', 'Rex', 'Nova', 'Jet', 'Sky'],
   /** The host tells the server how the bots are doing this often (and at once when one finishes). */
   reportEveryMs: 500,

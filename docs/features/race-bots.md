@@ -7,16 +7,16 @@ Last updated: 2026-11-21
 
 ## Summary
 
-AI pilots for races. The host of a live room adds 1 to 5 bots and picks a skill (Easy, Medium, Hard); bots fill the grid, race the gates and appear in standings and results like any pilot. A new solo mode, **Race the bots**, runs the same thing for one player with no server. Crown chase bots come later (they need to chase and avoid obstacles).
+AI pilots for races and for crown chase. The host of a live room adds 1 to 5 bots and picks a skill (Easy, Medium, Hard, Pro); bots fill the grid and appear in standings and results like any pilot. In a race they fly the gates; in crown chase they go for the free crown, chase the king, and run when they wear it. A solo mode, **Play the bots** (menu), runs the same thing for one player with no server.
 
 ## Player experience
 
 - **Live room (race mode):** the lobby has a Bots row: a count (0 to 5, limited by free grid slots) and a skill. Bots show in the pilot list with a robot tag and a colour like any pilot. They are always ready. Starting still needs two humans.
-- **Solo:** Main menu, "Race the bots". The lobby screen opens with you and the bots, pick laps, bots, skill and the map as usual, then Start. No room code, no invite, no server.
+- **Solo:** Main menu, "Play the bots" (it was "Race the bots" until crown chase bots arrived). The lobby opens with you and three bots: pick race or crown chase, laps, bots and skill (the map is the one chosen in Maps), then Start. No room code, no invite, no server.
 - **In the race:** bot drones start on the grid in their slots, fly the racing line, slow for bends, wobble a little so they do not move in lockstep, and finish. They have name tags and minimap dots, their motors are heard (positional sound), and they are listed in the standings. They do not crash into anything (they pass through drones, like humans do).
 - **Results:** bots are ranked with everyone else.
 - A human joining a full room pushes out the last bot instead of being refused.
-- Bots only exist in race mode. Switching the room to Crown chase hides them (the setting is remembered for when it goes back).
+- Bots stay when the room switches between race and crown chase.
 
 ## Skill levels (all in `config.ts` `BOTS`)
 
@@ -32,6 +32,19 @@ Cornering is the sideways acceleration the AI accepts, so skill changes how hard
 ### Solo bots tune themselves to you
 
 After a solo race the bots adapt to the skill you chose: **5% faster when you beat them all, 4% slower when a bot won** (speed, with cornering following by the square), within 75% to 125%. A notice says what changed and the lobby shows it ("They tune to you: +10%"). So the race stays close as you improve, and a Pro bot at +25% is faster than the drone is meant to fly. The value is saved per skill on this device. In live rooms every browser must draw the same bots, so there the skill is used as listed.
+
+## Crown chase bots
+
+- **Where they run:** on the server, inside the crown engine's own loop. A bot step happens whenever a human pose arrives (about 10 times a second per human), so it costs **no extra requests, no alarms and no incoming messages**. Measured: 0.03 ms per step with 5 bots, far under any CPU limit.
+- **What they fly:** the map's racing line, a closed corridor that already clears terrain and buildings. The server cannot load the world, so each map's line is stored as a small table (`core/track-lines.ts`, about 11 KB, 8 m spacing) and a test fails if the real track ever changes. A bot only steps off the line for the last few metres, straight at the king or the crown, then drifts back. The crown point of every map is on the line.
+- **Behaviour (all in `core/crown-bots.ts`):**
+  - Crown free or respawning: go to the crown point and wait there; go for it as soon as it can be taken.
+  - Someone else wears it: go to the closest point on the line to the king, aiming ahead of the king by the skill's lead time, and leave the line to touch him once inside the skill's approach range.
+  - Wearing it: run along the line the way that keeps the most distance from the nearest other pilot a few seconds ahead. The hold still ends after 30 s, as for anyone.
+  - Speed and cornering come from the skill; slower bends, braking to stop at a target, acceleration limits, and a reaction delay (0.9 s Easy down to 0.12 s Pro) make the weaker bots beatable.
+- **Fairness:** bots go through the same crown engine as humans (touch distance along the flown path, protection, 30 s hold, the respawn delay), so they claim and steal by the same rules.
+- **Poses:** the server sends bot poses to everyone at most every 100 ms with the normal `pose` message, so clients draw them with the same smoothing, name tags, minimap dots and positional sound as human pilots. Outgoing messages are free on the free plan. Bots do not collide with anything (drones never collide in crown chase), and a bot can fly through scenery in its last few metres to a target (they are not simulated against the world).
+- **Hibernation:** the bots' state is part of the room snapshot.
 
 ## How it works (free-plan friendly)
 
@@ -59,8 +72,9 @@ After a solo race the bots adapt to the skill you chose: **5% faster when you be
 - [ ] Bots appear on the grid, race the track, show in standings and finish in the results.
 - [ ] A human and a bot finishing close together are ranked by real finishing time.
 - [ ] A human joining a full room replaces a bot instead of being refused.
-- [ ] Crown chase hides bots; switching back to race brings them back.
-- [ ] Solo "Race the bots" runs a full race with no network.
+- [ ] In crown chase the bots go for the free crown, chase the king and run when they wear it, and play by the same rules as humans.
+- [ ] Bots stay when switching between race and crown chase.
+- [ ] Solo "Play the bots" runs a full race or crown chase with no network.
 - [ ] No console errors.
 
 ## Why Hard was not enough (2026-11-21 playtest)
@@ -82,7 +96,10 @@ The first version had Hard at 47 s on the Valley, easy for a strong pilot, and b
 | 9 | Bot sim: skill ordering, pace and determinism | Pro < Hard < Medium < Easy with real gaps; pro stays above the online minimum lap; pace above 1 is faster; the same inputs give the same lap | Unit |
 | 9b | Bot pace: wins and losses | Faster after a win, slower after a loss, clamped to 75% to 125%, saved per skill | Unit |
 | 10 | Solo: local room flow | Joins, adds bots, starts, finishes | Unit |
-| 11 | Manual: lobby bots row, a race with bots, solo mode | See acceptance criteria | Manual |
+| 10 | Room: crown chase with bots | Bots on the scoreboard, poses sent throttled, a bot claims a free crown, a human on the crown takes it first, results list bots, survives hibernation, no bots without a bot setting | Unit |
+| 10b | Crown bots: behaviour | Reach the crown (pro faster than easy), wait while it respawns, chase and reach a king, run as king, stay near the line, no teleport after a stall, deterministic, snapshot round trip | Unit |
+| 10c | Track lines | The saved line of every map is the real racing line; every crown point is on it | Unit |
+| 11 | Manual: lobby bots row, a race with bots, solo mode, crown chase against bots | See acceptance criteria | Manual |
 
 ## Verification and known gaps
 
@@ -93,10 +110,11 @@ The first version had Hard at 47 s on the Valley, easy for a strong pilot, and b
 
 ## Out of scope
 
-- Crown chase bots (next), bots that avoid or block human drones, bot names chosen by the host, bots that learn.
+- Bots that avoid or block human drones, bots that fly the world's colliders (they use the racing line), bot names chosen by the host, bots that learn.
 
 ## Changelog
 
 - 2026-11-21: Created.
 - 2026-11-21: Built: bot simulation (`drone/bot-racer.ts`, reusing `TrackRacer`), fleet and host reporting (`game/bot-fleet.ts`), server support (`bots` and `botProgress` messages, bot pilots, ranking by reported finish time), lobby bots row, in-page solo room (`net/local-room.ts`) and the "Race the bots" menu item.
 - 2026-11-21: Playtest feedback ("easy even in Hard, dull as players improve"): added the Pro skill, skill-based cornering and acceleration, retuned Easy, Medium and Hard (valley laps 74, 53, 43, 39 s), and solo bots that tune themselves to you after each race.
+- 2026-11-21: Crown chase bots: server-side, on the racing line (`core/crown-bots.ts`, `core/track-lines.ts`), same crown rules as humans, poses broadcast throttled. Verified in a headless browser: solo crown chase against three Pro bots (they took the crown from each other and the standings showed the crown and points, no errors) and a live room on the local worker with two humans (both browsers showed the same bot wearing the crown). The menu item became "Play the bots".
