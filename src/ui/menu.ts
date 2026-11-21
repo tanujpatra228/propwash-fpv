@@ -11,6 +11,7 @@ export interface MenuCallbacks {
   onTimeTrial(): void;
   onTraining(): void;
   onRaceFriends(): void;
+  onRaceBots(): void;
   onHangar(): void;
   onChallenge(): void;
   onTrack(): void;
@@ -64,6 +65,7 @@ export class MainMenu {
       item('Battery Challenge', 'Finish the laps before the battery dies', callbacks.onChallenge),
       item('Hangar', this.hangarSubtitle, callbacks.onHangar),
       item('Race friends', 'Live race with up to 7 others', callbacks.onRaceFriends),
+      item('Race the bots', 'Solo race against AI pilots', callbacks.onRaceBots),
       item('Leaderboard', 'Fastest laps. Race a friend\'s ghost', callbacks.onLeaderboard),
       item('Controls', 'Change keys and mouse speed', callbacks.onControls),
       item('Settings', 'Graphics quality, battery', () => this.openSettings()),

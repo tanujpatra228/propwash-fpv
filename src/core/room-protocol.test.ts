@@ -50,3 +50,28 @@ describe('room codes', () => {
     expect(normaliseRoomCode('AB<DE')).toBeNull();
   });
 });
+
+describe('bot messages', () => {
+  const parse = (m: unknown) => parseClientMessage(JSON.stringify(m));
+  it('accepts a count and a skill, and rejects anything else', () => {
+    expect(parse({ t: 'bots', count: 3, skill: 'hard' }).ok).toBe(true);
+    expect(parse({ t: 'bots', count: 0, skill: 'easy' }).ok).toBe(true);
+    for (const bad of [{ count: -1, skill: 'easy' }, { count: 6, skill: 'easy' }, { count: 1.5, skill: 'easy' }, { count: 2, skill: 'expert' }, { count: '2', skill: 'easy' }, { skill: 'easy' }]) {
+      expect(parse({ t: 'bots', ...bad }).ok).toBe(false);
+    }
+  });
+  it('accepts progress rows and rejects bad ones', () => {
+    const row = { id: 'bot-1', gates: 5, timeMs: 12_000, dNextM: 30 };
+    expect(parse({ t: 'botProgress', rows: [row] }).ok).toBe(true);
+    expect(parse({ t: 'botProgress', rows: [] }).ok).toBe(true);
+    expect(parse({ t: 'botProgress', rows: 'x' }).ok).toBe(false);
+    expect(parse({ t: 'botProgress', rows: [{ ...row, gates: -1 }] }).ok).toBe(false);
+    expect(parse({ t: 'botProgress', rows: [{ ...row, id: 7 }] }).ok).toBe(false);
+    expect(parse({ t: 'botProgress', rows: [{ ...row, timeMs: 1e12 }] }).ok).toBe(false);
+    expect(parse({ t: 'botProgress', rows: Array.from({ length: 6 }, () => row) }).ok).toBe(false);
+  });
+  it('the biggest legal progress message fits in one frame', () => {
+    const rows = Array.from({ length: 5 }, (_, i) => ({ id: `bot-${i + 1}`, gates: 61, timeMs: 899_999, dNextM: 99_999 }));
+    expect(JSON.stringify({ t: 'botProgress', rows }).length).toBeLessThan(ROOMS.maxFrameBytes);
+  });
+});

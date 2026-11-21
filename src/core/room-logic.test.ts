@@ -508,3 +508,153 @@ describe('the same tab coming back', () => {
     expect(room.pilotCount()).toBe(2);
   });
 });
+
+describe('bots', () => {
+  const roster = (room: Room): { id: string; name: string; isBot: boolean; isReady: boolean; slot: number }[] => {
+    const m = room.snapshot().pilots;
+    return m.map((p) => ({ id: p.id, name: p.name, isBot: p.isBot, isReady: p.isReady, slot: p.slot }));
+  };
+  const botsOf = (room: Room) => roster(room).filter((p) => p.isBot);
+  const rowsFor = (room: Room, gates: number, timeMs = 0) => botsOf(room).map((b) => ({ id: b.id, gates, timeMs, dNextM: 10 }));
+
+  it('the host adds bots: they are ready pilots on free slots, tagged as bots, named, and the room says how many', () => {
+    const room = lobby(['aa', 'bb']);
+    const step = send(room, 'aa', { t: 'bots', count: 3, skill: 'hard' }, 5);
+    const bots = botsOf(room);
+    expect(bots).toHaveLength(3);
+    expect(bots.every((b) => b.isReady && b.name.startsWith('Bot '))).toBe(true);
+    expect(new Set(roster(room).map((p) => p.slot)).size).toBe(5);
+    const msg = step.out.find((o) => o.message.t === 'room')?.message;
+    expect(msg?.t === 'room' && msg.bots).toEqual({ count: 3, skill: 'hard' });
+    expect(msg?.t === 'room' && msg.pilots.filter((p) => p.isBot)).toHaveLength(3);
+  });
+  it('only the host, only in the lobby', () => {
+    const room = lobby(['aa', 'bb']);
+    expect(send(room, 'bb', { t: 'bots', count: 2, skill: 'easy' }, 5).out).toHaveLength(0);
+    expect(botsOf(room)).toHaveLength(0);
+    send(room, 'aa', { t: 'bots', count: 1, skill: 'easy' }, 5);
+    send(room, 'bb', { t: 'ready', isReady: true }, 6);
+    send(room, 'aa', { t: 'start' }, 10);
+    expect(send(room, 'aa', { t: 'bots', count: 4, skill: 'easy' }, 11).out).toHaveLength(0);
+    expect(botsOf(room)).toHaveLength(1);
+  });
+  it('rejects a silly count or skill', () => {
+    const room = lobby(['aa', 'bb']);
+    send(room, 'aa', { t: 'bots', count: 99, skill: 'easy' }, 5);
+    send(room, 'aa', { t: 'bots', count: 2, skill: 'godlike' }, 5);
+    expect(botsOf(room)).toHaveLength(0);
+  });
+  it('never takes a slot from a human: bots fit in what is free, and give way when a human joins a full room', () => {
+    const room = lobby(['aa', 'bb', 'cc']);
+    send(room, 'aa', { t: 'bots', count: 5, skill: 'medium' }, 5);
+    expect(roster(room)).toHaveLength(ROOMS.maxPilots);
+    expect(room.join('dd', 'Dee', WORLD.version, 6).close).toEqual([]);
+    expect(botsOf(room)).toHaveLength(4);
+    expect(roster(room)).toHaveLength(ROOMS.maxPilots);
+    room.leave('dd', 7);
+    expect(botsOf(room)).toHaveLength(5);
+  });
+  it('crown chase has no bots; switching back to race brings them back', () => {
+    const room = lobby(['aa', 'bb']);
+    send(room, 'aa', { t: 'bots', count: 2, skill: 'medium' }, 5);
+    send(room, 'aa', { t: 'mode', mode: 'crown' }, 6);
+    expect(botsOf(room)).toHaveLength(0);
+    send(room, 'aa', { t: 'mode', mode: 'race' }, 7);
+    expect(botsOf(room)).toHaveLength(2);
+  });
+  it('bots do not keep a room alive and do not count as humans: all humans leaving resets it', () => {
+    const room = lobby(['aa', 'bb']);
+    send(room, 'aa', { t: 'bots', count: 2, skill: 'medium' }, 5);
+    expect(room.pilotCount()).toBe(2);
+    room.leave('aa', 6);
+    room.leave('bb', 7);
+    expect(room.pilotCount()).toBe(0);
+    expect(botsOf(room)).toHaveLength(0);
+  });
+  it('a human race still needs two humans, bots or not', () => {
+    const room = lobby(['aa']);
+    send(room, 'aa', { t: 'bots', count: 3, skill: 'medium' }, 5);
+    expect(kinds(send(room, 'aa', { t: 'start' }, 10))).toEqual(['error']);
+    expect(room.getPhase()).toBe('lobby');
+  });
+  it('a solo room races one human against bots, but not against nobody', () => {
+    const solo = new Room('SOLO1', WORLD.version, { soloAllowed: true });
+    solo.join('me', 'Me', WORLD.version, 0);
+    expect(kinds(send(solo, 'me', { t: 'start' }, 10))).toEqual(['error']);
+    send(solo, 'me', { t: 'bots', count: 2, skill: 'easy' }, 11);
+    send(solo, 'me', { t: 'start' }, 12);
+    expect(solo.getPhase()).toBe('countdown');
+  });
+
+  function botRace(laps = 1): { room: Room; t0: number } {
+    const room = lobby(['aa', 'bb']);
+    send(room, 'aa', { t: 'laps', laps }, 5);
+    send(room, 'aa', { t: 'bots', count: 2, skill: 'medium' }, 6);
+    send(room, 'bb', { t: 'ready', isReady: true }, 7);
+    send(room, 'aa', { t: 'start' }, 1000);
+    room.tick(1000 + ROOMS.countdownMs);
+    return { room, t0: 1000 + ROOMS.countdownMs };
+  }
+
+  it("takes the bots' progress from the host only, only forward, and shows it in the standings", () => {
+    const { room, t0 } = botRace();
+    expect(send(room, 'bb', { t: 'botProgress', rows: rowsFor(room, 5) }, t0 + 1000).out).toHaveLength(0);
+    const step = send(room, 'aa', { t: 'botProgress', rows: rowsFor(room, 5) }, t0 + 1000);
+    const standing = step.out.find((o) => o.message.t === 'standings')?.message;
+    expect(standing?.t === 'standings' && standing.rows[0]?.gates).toBe(5);
+    expect(send(room, 'aa', { t: 'botProgress', rows: rowsFor(room, 3) }, t0 + 2000).out.some((o) => o.message.t === 'standings')).toBe(false);
+  });
+  it('a bot finishes after laps x gates + 1 and is ranked by the reported race time', () => {
+    const { room, t0 } = botRace();
+    const finish = GATES + 1;
+    const [first, second] = botsOf(room);
+    // The bots report 39.5 s and 41 s; the human then finishes in 26 s.
+    send(room, 'aa', { t: 'botProgress', rows: [{ id: first!.id, gates: finish, timeMs: 39_500, dNextM: 0 }, { id: second!.id, gates: finish, timeMs: 41_000, dNextM: 0 }] }, t0 + 41_100);
+    fly(room, 'aa', t0, 1); // the human is faster: 26 s
+    const results = room.snapshot().pilots;
+    const bot1 = results.find((p) => p.id === first!.id);
+    const bot2 = results.find((p) => p.id === second!.id);
+    expect(bot1?.place).toBeGreaterThan(0);
+    expect(bot2?.place).toBeGreaterThan(bot1?.place ?? 0);
+    expect(bot1?.finishTimeS).toBeCloseTo(39.5);
+  });
+  it('places follow finishing time even when a faster bot is reported after a slower human finished', () => {
+    const { room, t0 } = botRace();
+    const finish = GATES + 1;
+    const [bot] = botsOf(room);
+    // The human crosses the line at about 30 s of race time (a gate every 2 s from t0 + 4 s).
+    const humanEnd = fly(room, 'aa', t0 + 4000 - 2000, 1);
+    send(room, 'aa', { t: 'botProgress', rows: [{ id: bot!.id, gates: finish, timeMs: humanEnd - t0 - 500, dNextM: 0 }] }, humanEnd + 300);
+    const pilots = room.snapshot().pilots;
+    const human = pilots.find((p) => p.id === 'aa');
+    const fast = pilots.find((p) => p.id === bot!.id);
+    expect(fast?.place).toBe(1);
+    expect(human?.place).toBe(2);
+  });
+  it('the race ends when every racer (bots too) has finished, and the results list the bots', () => {
+    const { room, t0 } = botRace();
+    const finish = GATES + 1;
+    send(room, 'aa', { t: 'botProgress', rows: rowsFor(room, finish, 30_000) }, t0 + 30_000);
+    fly(room, 'aa', t0, 1);
+    const end = fly(room, 'bb', t0, 1);
+    expect(room.getPhase()).toBe('results');
+    expect(end).toBeGreaterThan(0);
+    const results = room.snapshot().pilots.filter((p) => p.place > 0);
+    expect(results).toHaveLength(4);
+  });
+  it('bots stay ready through a rematch and a map change', () => {
+    const { room } = botRace();
+    room.tick(1000 + ROOMS.countdownMs + ROOMS.raceHardStopMs);
+    send(room, 'aa', { t: 'rematch' }, 2_000_000);
+    expect(botsOf(room).every((b) => b.isReady)).toBe(true);
+    send(room, 'aa', { t: 'track', track: 'city' }, 2_000_100);
+    expect(botsOf(room).every((b) => b.isReady)).toBe(true);
+  });
+  it('survives hibernation with its bots', () => {
+    const room = lobby(['aa', 'bb']);
+    send(room, 'aa', { t: 'bots', count: 2, skill: 'hard' }, 5);
+    const copy = Room.restore(JSON.parse(JSON.stringify(room.snapshot())));
+    expect(copy.snapshot().pilots.filter((p) => p.isBot)).toHaveLength(2);
+    expect(copy.snapshot().bots).toEqual({ count: 2, skill: 'hard' });
+  });
+});

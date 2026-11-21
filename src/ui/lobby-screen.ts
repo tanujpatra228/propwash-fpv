@@ -1,6 +1,6 @@
-import { ROOMS, TRACK_DEFS, TRACK_IDS, type TrackId } from '../config';
+import { BOTS, ROOMS, TRACK_DEFS, TRACK_IDS, type BotSkillId, type TrackId } from '../config';
 import { el } from '../core/dom';
-import { normaliseRoomCode, type Loadout, type RoomMode, type RoomRules, type RosterEntry } from '../core/room-protocol';
+import { normaliseRoomCode, type BotSettings, type Loadout, type RoomMode, type RoomRules, type RosterEntry } from '../core/room-protocol';
 
 export interface LobbyHandlers {
   onCreate(): void;
@@ -10,6 +10,7 @@ export interface LobbyHandlers {
   onMode(mode: RoomMode): void;
   onTrack(track: TrackId): void;
   onRules(drain: boolean, loadout: Loadout): void;
+  onBots(count: number, skill: BotSkillId): void;
   onStart(): void;
   onChat(text: string): void;
   onCopyLink(): void;
@@ -25,18 +26,23 @@ export interface LobbyView {
   /** The map the room is playing. */
   track: TrackId;
   rules: RoomRules;
+  bots: BotSettings;
+  /** A solo race against bots: no room code, no invite, no map or game choice here. */
+  isSolo?: boolean;
   pilots: readonly RosterEntry[];
   pingMs: number;
 }
 
 /** Whether the host may start now, and if not, why. Shared with tests. */
-export function startStatus(view: Pick<LobbyView, 'myId' | 'hostId' | 'pilots'>): { canStart: boolean; hint: string; label: string } {
+export function startStatus(view: Pick<LobbyView, 'myId' | 'hostId' | 'pilots'> & { isSolo?: boolean }): { canStart: boolean; hint: string; label: string } {
   const here = view.pilots.filter((p) => p.isConnected);
+  const humans = here.filter((p) => !p.isBot).length;
+  if (view.isSolo && view.myId === view.hostId && here.length < ROOMS.minPilotsToStart) return { canStart: false, hint: 'Add at least one bot to race.', label: 'Start race' };
   // The host is always counted as ready.
   const ready = here.filter((p) => p.id === view.hostId || p.isReady).length;
   const count = `${ready}/${here.length} ready`;
   if (view.myId !== view.hostId) return { canStart: false, hint: 'Waiting for the host to start.', label: `Start race · ${count}` };
-  if (here.length < ROOMS.minPilotsToStart) return { canStart: false, hint: 'Share the link: you need at least one more pilot.', label: `Start race · ${here.length}/${ROOMS.minPilotsToStart} pilots` };
+  if (!view.isSolo && humans < ROOMS.minPilotsToStart) return { canStart: false, hint: 'Share the link: you need at least one more pilot.', label: `Start race · ${humans}/${ROOMS.minPilotsToStart} pilots` };
   if (here.some((p) => !p.isOnMap)) return { canStart: false, hint: 'Waiting for everyone to switch to the map.', label: `Start race · ${count}` };
   if (ready < here.length) return { canStart: false, hint: 'Waiting for everyone to be ready.', label: `Start race · ${count}` };
   return { canStart: true, hint: 'Everyone is ready.', label: `Start race · ${count}` };
@@ -63,6 +69,15 @@ export class LobbyScreen {
   private readonly drainButtons = new Map<boolean, HTMLButtonElement>();
   private readonly loadoutButtons = new Map<Loadout, HTMLButtonElement>();
   private readonly rulesRow = el('div', { class: 'lobby-rules' });
+  private readonly botCountButtons: HTMLButtonElement[] = [];
+  private readonly botSkillButtons = new Map<BotSkillId, HTMLButtonElement>();
+  private readonly botsRow = el('div', { class: 'lobby-bots' });
+  private readonly botsNote = el('small', { class: 'cd-sub' });
+  private bots: BotSettings = { count: 0, skill: BOTS.defaultSkill };
+  private readonly roomEyebrow = el('span', { class: 'eyebrow', text: 'Room code' });
+  private readonly copyButton = el('button', { type: 'button', class: 'btn ghost', text: 'Copy invite link' });
+  private mapRow!: HTMLElement;
+  private modeRow!: HTMLElement;
   private readonly readyButton = el('button', { type: 'button', class: 'btn', text: 'Ready' });
   private readonly startButton = el('button', { type: 'button', class: 'btn', text: 'Start race' });
   private readonly startHint = el('small', { class: 'cd-sub' });
@@ -108,7 +123,7 @@ export class LobbyScreen {
       this.handlers.onReady(this.isReady);
     });
     this.startButton.addEventListener('click', () => this.handlers.onStart());
-    const copy = el('button', { type: 'button', class: 'btn ghost', text: 'Copy invite link' });
+    const copy = this.copyButton;
     copy.addEventListener('click', () => this.handlers.onCopyLink());
     const leave = el('button', { type: 'button', class: 'btn ghost', text: 'Leave' });
     leave.addEventListener('click', () => this.handlers.onLeave());
@@ -127,11 +142,12 @@ export class LobbyScreen {
     };
     this.stopKeys(this.chatInput, send);
     return el('div', { class: 'lobby-room', hidden: true }, [
-      el('span', { class: 'eyebrow', text: 'Room code' }),
+      this.roomEyebrow,
       this.codeLabel,
       this.pilots,
-      this.buildModeRow(),
-      this.buildMapRow(),
+      (this.modeRow = this.buildModeRow()),
+      (this.mapRow = this.buildMapRow()),
+      this.buildBotsRow(),
       this.buildRulesRow(),
       this.lapsRow,
       this.lapsNote,
@@ -139,6 +155,26 @@ export class LobbyScreen {
       this.chatInput,
       el('div', { class: 'cd-buttons' }, [this.readyButton, this.startButton, this.startHint, copy, leave]),
     ]);
+  }
+
+  /** How many bots race and how good they are. Races only; the host chooses. */
+  private buildBotsRow(): HTMLElement {
+    const count = el('div', { class: 'seg bots-seg' });
+    for (let n = 0; n <= BOTS.maxBots; n++) {
+      const button = el('button', { type: 'button', text: String(n) });
+      button.addEventListener('click', () => this.handlers.onBots(n, this.bots.skill));
+      this.botCountButtons.push(button);
+      count.append(button);
+    }
+    const skill = el('div', { class: 'seg' });
+    for (const id of Object.keys(BOTS.skills) as BotSkillId[]) {
+      const button = el('button', { type: 'button' }, [el('b', { text: BOTS.skills[id].label })]);
+      button.addEventListener('click', () => this.handlers.onBots(this.bots.count, id));
+      this.botSkillButtons.set(id, button);
+      skill.append(button);
+    }
+    this.botsRow.append(el('span', { text: 'Bots' }), count, skill, this.botsNote);
+    return this.botsRow;
   }
 
   private buildRulesRow(): HTMLElement {
@@ -226,12 +262,29 @@ export class LobbyScreen {
     this.room.hidden = false;
     this.root.hidden = false;
     this.codeLabel.textContent = view.code;
+    const isSolo = view.isSolo === true;
+    this.codeLabel.hidden = isSolo;
+    this.roomEyebrow.textContent = isSolo ? 'Solo race' : 'Room code';
+    this.copyButton.hidden = isSolo;
+    this.mapRow.hidden = isSolo;
+    this.modeRow.hidden = isSolo;
     const me = view.pilots.find((p) => p.id === view.myId);
     this.isReady = me?.isReady ?? false;
     const isHost = view.myId === view.hostId;
     this.readyButton.textContent = this.isReady ? 'Not ready' : 'Ready';
     this.readyButton.hidden = isHost;
     const status = startStatus(view);
+    this.bots = view.bots;
+    this.botsRow.hidden = view.mode === 'crown';
+    this.botCountButtons.forEach((button, n) => {
+      button.classList.toggle('on', n === view.bots.count);
+      button.disabled = !isHost;
+    });
+    for (const [id, button] of this.botSkillButtons) {
+      button.classList.toggle('on', id === view.bots.skill);
+      button.disabled = !isHost;
+    }
+    this.botsNote.textContent = isHost ? (view.bots.count < 1 && isSolo ? 'Pick at least one bot.' : BOTS.skills[view.bots.skill].description) : 'The host chooses the bots.';
     this.startButton.hidden = !isHost;
     this.startButton.disabled = !status.canStart;
     this.startButton.textContent = status.label.replace('Start race', view.mode === 'crown' ? 'Start match' : 'Start race');
@@ -272,7 +325,7 @@ export class LobbyScreen {
         el('li', { class: p.id === view.myId ? 'me' : undefined }, [
           el('i', { class: 'lobby-dot', style: `background:#${(ROOMS.droneColors[p.slot % ROOMS.droneColors.length] ?? 0xffffff).toString(16).padStart(6, '0')}` }),
           el('span', { class: 'st-name', text: p.name }),
-          el('small', { text: !p.isOnMap ? 'Switching map' : p.id === view.hostId ? 'Host' : p.isReady ? 'Ready' : 'Not ready' }),
+          el('small', { text: p.isBot ? 'Bot' : !p.isOnMap ? 'Switching map' : p.id === view.hostId ? 'Host' : p.isReady ? 'Ready' : 'Not ready' }),
         ]),
       ),
     );

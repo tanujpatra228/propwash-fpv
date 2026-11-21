@@ -178,6 +178,7 @@ export class Game {
         onLeaderboard: () => void this.online.openLeaderboard(),
         onTraining: () => this.startMode('training'),
         onRaceFriends: () => void this.live.open(),
+        onRaceBots: () => void this.live.openSolo(),
         onHangar: () => this.hangar.open(),
         onChallenge: () => this.challenges.open(),
         onTrack: () => this.maps.open(),

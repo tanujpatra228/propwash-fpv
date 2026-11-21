@@ -823,6 +823,29 @@ export const ONLINE = {
 } as const;
 
 /** Live race rooms. Every limit here also protects the Cloudflare free-plan budget (see docs/features/live-race-rooms.md). */
+export type BotSkillId = 'easy' | 'medium' | 'hard';
+
+/** AI pilots in races. Bots are a pure function of the race clock, so every browser draws the same ones. */
+export const BOTS = {
+  maxBots: 5,
+  defaultCount: 0,
+  defaultSkill: 'medium' as BotSkillId,
+  skills: {
+    easy: { label: 'Easy', description: 'A relaxed casual pilot.', topSpeedMps: 14 },
+    medium: { label: 'Medium', description: 'Beatable without perfect lines.', topSpeedMps: 19 },
+    hard: { label: 'Hard', description: 'Takes a clean lap to beat.', topSpeedMps: 24 },
+  } satisfies Record<BotSkillId, { label: string; description: string; topSpeedMps: number }>,
+  names: ['Ava', 'Kai', 'Zed', 'Mia', 'Rex', 'Nova', 'Jet', 'Sky'],
+  /** The host tells the server how the bots are doing this often (and at once when one finishes). */
+  reportEveryMs: 500,
+  /** The simulation step. Fixed, so every browser computes the same bots. */
+  stepS: 1 / 60,
+} as const;
+
+export function isBotSkill(value: unknown): value is BotSkillId {
+  return value === 'easy' || value === 'medium' || value === 'hard';
+}
+
 export const ROOMS = {
   /** No 0/O or 1/I/L, so a code read aloud or typed from a screenshot is not ambiguous. */
   codeAlphabet: 'ABCDEFGHJKMNPQRSTUVWXYZ23456789',

@@ -58,6 +58,11 @@ export class RemoteDrones {
     }
   }
 
+  /** A pose that is already in metres and radians (an AI pilot's), for the same smoothing as network poses. */
+  pushPose(id: string, pose: RemotePose, nowMs: number): void {
+    this.remotes.get(id)?.buffer.push(nowMs, pose);
+  }
+
   push(id: string, pose: PoseFields, nowMs: number): void {
     this.remotes.get(id)?.buffer.push(nowMs, {
       x: pose.x / 100, y: pose.y / 100, z: pose.z / 100,

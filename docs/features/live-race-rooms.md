@@ -179,3 +179,4 @@ Drone collisions, spectators, voice, ratings, public room browser, Spec and Open
 ## Changelog
 
 - 2026-11-07: Created.
+- 2026-11-21: Bots (see `race-bots.md`): roster entries have `isBot`, the room message carries `bots`, and the host sends `bots` (lobby) and `botProgress` (race). Bots do not count as connected humans.

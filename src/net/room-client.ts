@@ -28,7 +28,17 @@ export async function createRoom(signal?: AbortSignal): Promise<string | null> {
   }
 }
 
-export class RoomClient {
+/** What the game needs from a room connection: the network one, or the in-browser one for solo races. */
+export interface RoomLink {
+  readonly pingMs: number;
+  readonly isOpen: boolean;
+  connect(code: string, name: string, key?: string): void;
+  send(message: ClientMessage): void;
+  /** Leaves on purpose; `onClose` is not called. */
+  close(): void;
+}
+
+export class RoomClient implements RoomLink {
   private socket: WebSocket | null = null;
   private pingTimer = 0;
   private connectTimer = 0;

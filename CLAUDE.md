@@ -48,6 +48,7 @@ Each feature gets its own file in `docs/features/`, written from the template be
 | Maps roadmap | [maps-roadmap.md](docs/features/maps-roadmap.md) | 6 | Approved |
 | Battery Challenge | [battery-challenge.md](docs/features/battery-challenge.md) | 3 | In progress (built, needs playtest) |
 | Sound design | [sound-design.md](docs/features/sound-design.md) | 8 | In progress |
+| Race bots | [race-bots.md](docs/features/race-bots.md) | 9 | In progress |
 
 ## Working rules (summary; details in the standards)
 

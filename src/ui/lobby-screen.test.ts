@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { RosterEntry } from '../core/room-protocol';
 import { startStatus } from './lobby-screen';
 
-const p = (id: string, isReady: boolean, isConnected = true): RosterEntry => ({ id, name: id, isReady, slot: 0, isConnected, isOnMap: true });
+const p = (id: string, isReady: boolean, isConnected = true): RosterEntry => ({ id, name: id, isReady, slot: 0, isConnected, isOnMap: true, isBot: false });
 
 describe('startStatus', () => {
   it('only the host can start', () => {

@@ -2,7 +2,7 @@
  * Live-race wire protocol, shared by the game and the server so both sides agree on every message.
  * Frames are small JSON text. Nothing from the network is trusted: `parseClientMessage` checks every field.
  */
-import { isTrackId, ROOMS, type TrackId } from '../config';
+import { BOTS, isBotSkill, isTrackId, ROOMS, type BotSkillId, type TrackId } from '../config';
 
 export type RoomPhase = 'lobby' | 'countdown' | 'racing' | 'results';
 
@@ -28,12 +28,27 @@ export interface PoseFields {
   roll: number;
 }
 
+/** How the host's game says a bot is doing: gates passed (counting the start line each time), race time of the latest gate, distance to the next one. */
+export interface BotProgressRow {
+  id: string;
+  gates: number;
+  timeMs: number;
+  dNextM: number;
+}
+
+export interface BotSettings {
+  count: number;
+  skill: BotSkillId;
+}
+
 export type ClientMessage =
   | { t: 'ready'; isReady: boolean }
   | { t: 'laps'; laps: number }
   | { t: 'mode'; mode: RoomMode }
   | { t: 'track'; track: TrackId }
   | { t: 'rules'; drain: boolean; loadout: Loadout }
+  | { t: 'bots'; count: number; skill: BotSkillId }
+  | { t: 'botProgress'; rows: BotProgressRow[] }
   | { t: 'out' }
   | { t: 'hold' }
   | { t: 'start' }
@@ -51,6 +66,8 @@ export interface RosterEntry {
   isConnected: boolean;
   /** On the map the room is playing. A pilot on another map reloads into it before the game can start. */
   isOnMap: boolean;
+  /** An AI pilot. Always connected and ready. */
+  isBot: boolean;
 }
 
 /** One pilot in the race order: gates passed in order, counting the start line each time. */
@@ -78,7 +95,7 @@ export interface ResultRow {
 
 export type ServerMessage =
   | { t: 'welcome'; you: string; code: string }
-  | { t: 'room'; phase: RoomPhase; mode: RoomMode; track: TrackId; rules: RoomRules; hostId: string; laps: number; pilots: RosterEntry[] }
+  | { t: 'room'; phase: RoomPhase; mode: RoomMode; track: TrackId; rules: RoomRules; bots: BotSettings; hostId: string; laps: number; pilots: RosterEntry[] }
   | { t: 'crown'; holderId: string; scores: CrownScoreEntry[]; threatId: string; threat01: number; remainingMs: number; holdLeftMs: number; respawnLeftMs: number }
   | { t: 'countdown'; startsInMs: number }
   | { t: 'go' }
@@ -124,6 +141,18 @@ function parsePose(o: Record<string, unknown>): ParseResult {
   return { ok: true, message: { t: 'pose', x, y, z, yaw, pitch, roll, dNextM } };
 }
 
+function parseBotProgress(raw: unknown): ParseResult {
+  if (!Array.isArray(raw) || raw.length > BOTS.maxBots) return { ok: false, reason: 'bad bot rows' };
+  const rows: BotProgressRow[] = [];
+  for (const entry of raw as unknown[]) {
+    if (typeof entry !== 'object' || entry === null) return { ok: false, reason: 'bad bot row' };
+    const r = entry as Record<string, unknown>;
+    if (typeof r['id'] !== 'string' || r['id'].length > 16 || !isInt(r['gates'], 0, 1000) || !isInt(r['timeMs'], 0, ROOMS.raceHardStopMs) || !isInt(r['dNextM'], 0, 100_000)) return { ok: false, reason: 'bad bot row' };
+    rows.push({ id: r['id'], gates: r['gates'], timeMs: r['timeMs'], dNextM: r['dNextM'] });
+  }
+  return { ok: true, message: { t: 'botProgress', rows } };
+}
+
 /** Control and invisible characters removed, whitespace collapsed, length capped. */
 export function cleanChatText(raw: string): string {
   const stripped = raw.normalize('NFC').replace(/\s+/g, ' ').replace(/[\p{C}\p{Zl}\p{Zp}]/gu, '').trim();
@@ -159,6 +188,10 @@ export function parseClientMessage(frame: unknown): ParseResult {
       return typeof o['drain'] === 'boolean' && (o['loadout'] === 'stock' || o['loadout'] === 'hangar')
         ? { ok: true, message: { t: 'rules', drain: o['drain'], loadout: o['loadout'] } }
         : { ok: false, reason: 'bad rules' };
+    case 'bots':
+      return isInt(o['count'], 0, BOTS.maxBots) && isBotSkill(o['skill']) ? { ok: true, message: { t: 'bots', count: o['count'], skill: o['skill'] } } : { ok: false, reason: 'bad bots' };
+    case 'botProgress':
+      return parseBotProgress(o['rows']);
     case 'start':
       return { ok: true, message: { t: 'start' } };
     case 'rematch':
